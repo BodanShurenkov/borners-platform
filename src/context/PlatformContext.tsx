@@ -110,6 +110,8 @@ interface PlatformContextValue extends PersistedState {
   setPeriodFilter: (period: PeriodFilter) => void;
   platformMode: PlatformMode;
   setPlatformMode: (mode: PlatformMode) => void;
+  simpleMode: boolean;
+  setSimpleMode: (simple: boolean) => void;
   financialScenario: FinancialScenario;
   setFinancialScenario: (scenario: FinancialScenario) => void;
   darkMode: boolean;
@@ -208,11 +210,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string>('user-owner');
 
-  const [activeSection, setActiveSection] = useState<NavSectionId>('product-lab');
-  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['product-lab']);
+  const [activeSection, setActiveSection] = useState<NavSectionId>('dashboard');
+  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['dashboard']);
   const [brandFilter, setBrandFilter] = useState<BrandFilter>('ALL');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('2027');
   const [platformMode, setPlatformMode] = useState<PlatformMode>('management');
+  const [simpleMode, setSimpleMode] = useState<boolean>(true);
   const [financialScenario, setFinancialScenario] = useState<FinancialScenario>('Base');
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
@@ -1352,6 +1355,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setPeriodFilter,
       platformMode,
       setPlatformMode,
+      simpleMode,
+      setSimpleMode,
       financialScenario,
       setFinancialScenario,
       darkMode,
@@ -1406,6 +1411,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       brandFilter,
       periodFilter,
       platformMode,
+      simpleMode,
       financialScenario,
       darkMode,
       selectedProductId,

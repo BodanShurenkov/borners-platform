@@ -37,6 +37,8 @@ export function DashboardView() {
     setBrandFilter,
     periodFilter,
     platformMode,
+    simpleMode,
+    setSimpleMode,
     financialScenario,
     navigateTo,
   } = usePlatform();
@@ -250,17 +252,116 @@ export function DashboardView() {
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <button
-            onClick={() => navigateTo('product-catalog')}
+            onClick={() => navigateTo('brand-strategy')}
             className="h-12 px-6 rounded-xl bg-white text-[#171717] text-[15px] font-semibold hover:bg-neutral-200 transition cursor-pointer"
           >
-            Каталог моделей ({filteredProducts.length})
+            Стратегия брендов →
           </button>
           <button
             onClick={() => navigateTo('product-lab')}
             className="h-12 px-6 rounded-xl bg-[#D97745] text-white text-[15px] font-semibold hover:opacity-90 transition cursor-pointer"
           >
-            Лаборатория R&D →
+            Разработка новинок (R&D) →
           </button>
+        </div>
+      </div>
+
+      {/* ГЛАВНЫЙ БЛОК: СТРАТЕГИЯ НА РАБОЧЕМ ФУНКЦИОНАЛЕ (ПОНЯТНО ЗА 30 СЕКУНД) */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-[#D97745]/30 p-7 md:p-8 space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
+          <div>
+            <div className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-[#D97745] mb-1">
+              <span>КАК УСТРОЕНА СИСТЕМА · БЕЗ СЛОЖНОСТЕЙ</span>
+            </div>
+            <h2 className="text-[24px] md:text-[28px] font-bold tracking-tight text-[#171717] dark:text-white">
+              Вся стратегия 2026–2027, перенесённая на рабочий функционал
+            </h2>
+            <p className="text-[15px] text-[#737373] mt-1 max-w-3xl">
+              Каждый блок стратегии привязан к живому рабочему инструменту. Нажмите на любой из 4 шагов ниже, чтобы сразу перейти к работе команды:
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div
+            onClick={() => navigateTo('brand-strategy')}
+            className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-[#F7F7F5]/60 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
+          >
+            <div className="space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#111111] text-white text-[12px] font-bold">
+                ШАГ 1 · СТРАТЕГИЯ БРЕНДОВ
+              </span>
+              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
+                Куда идём и что продаём
+              </h3>
+              <p className="text-[14px] text-[#737373] leading-relaxed">
+                ДНК и позиционирование <b>BORNERS</b> (мужская база + принты) и <b>НА ТЕЛЕ</b> (женское бесшовное бельё), матрица База 70% / Дропы 30% + новые бренды <b>Акуша</b> и <b>Liskani</b>.
+              </p>
+            </div>
+            <span className="text-[14px] font-bold text-[#171717] group-hover:translate-x-1 transition inline-flex items-center gap-1">
+              Открыть стратегию →
+            </span>
+          </div>
+
+          <div
+            onClick={() => navigateTo('product-lab')}
+            className="rounded-2xl border border-[#D97745]/40 hover:border-[#D97745] bg-[#D97745]/5 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
+          >
+            <div className="space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#D97745] text-white text-[12px] font-bold">
+                ШАГ 2 · НОВИНКИ И ОБРАЗЦЫ (R&D)
+              </span>
+              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
+                Как создаём хиты без потерь
+              </h3>
+              <p className="text-[14px] text-[#737373] leading-relaxed">
+                Доска из 7 простых этапов: <b>Идея → Анализ → Образец → Тест → Решение → Фабрика → Запуск</b>. Ни одна модель не уходит в тираж без проверки образца.
+              </p>
+            </div>
+            <span className="text-[14px] font-bold text-[#D97745] group-hover:translate-x-1 transition inline-flex items-center gap-1">
+              Открыть доску R&D ({filteredConcepts.length} в работе) →
+            </span>
+          </div>
+
+          <div
+            onClick={() => navigateTo('product-catalog')}
+            className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-[#F7F7F5]/60 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
+          >
+            <div className="space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#111111] text-white text-[12px] font-bold">
+                ШАГ 3 · КАТАЛОГ И ЗАПУСКИ
+              </span>
+              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
+                Действующий ассортимент
+              </h3>
+              <p className="text-[14px] text-[#737373] leading-relaxed">
+                Все рабочие артикулы ({filteredProducts.length} SKU), фото, составы ткани, остатки и календарь ближайших релизов коллекций на WB, Ozon и Яндекс Маркет.
+              </p>
+            </div>
+            <span className="text-[14px] font-bold text-[#171717] group-hover:translate-x-1 transition inline-flex items-center gap-1">
+              Открыть каталог и запуски →
+            </span>
+          </div>
+
+          <div
+            onClick={() => navigateTo('finance')}
+            className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-[#F7F7F5]/60 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
+          >
+            <div className="space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#111111] text-white text-[12px] font-bold">
+                ШАГ 4 · ДЕНЬГИ И ПЛАН 2027
+              </span>
+              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
+                План 252 млн ₽ и маржа
+              </h3>
+              <p className="text-[14px] text-[#737373] leading-relaxed">
+                Помесячный план/факт выручки и прибыли на 2027 год, калькулятор юнит-экономики каждого товара и контроль задач команды.
+              </p>
+            </div>
+            <span className="text-[14px] font-bold text-[#171717] group-hover:translate-x-1 transition inline-flex items-center gap-1">
+              Открыть финансы →
+            </span>
+          </div>
         </div>
       </div>
 

@@ -41,6 +41,50 @@ interface NavGroup {
   }[];
 }
 
+const SIMPLE_NAV_ITEMS: {
+  id: NavSectionId;
+  step: string;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    id: 'dashboard',
+    step: '01',
+    label: 'Стратегия в работе',
+    hint: 'Главный план 26–27 на живом функционале',
+  },
+  {
+    id: 'product-lab',
+    step: '02',
+    label: 'Разработка новинок (R&D)',
+    hint: 'От идеи и образца до запуска партии',
+  },
+  {
+    id: 'brand-strategy',
+    step: '03',
+    label: 'Стратегия брендов',
+    hint: 'ДНК, матрица BORNERS и НА ТЕЛЕ',
+  },
+  {
+    id: 'product-catalog',
+    step: '04',
+    label: 'Каталог моделей',
+    hint: 'Артикулы, себестоимость и остатки',
+  },
+  {
+    id: 'launch-calendar',
+    step: '05',
+    label: 'Календарь запусков',
+    hint: 'Релизы коллекций и задачи команды',
+  },
+  {
+    id: 'finance',
+    step: '06',
+    label: 'Финансы и План 2027',
+    hint: 'Выручка, прибыль и юнит-экономика',
+  },
+];
+
 const NAV_GROUPS: NavGroup[] = [
   {
     groupTitle: 'R&D и Продукт (Ключевой контур)',
@@ -102,6 +146,8 @@ export function AppShell() {
     setPeriodFilter,
     platformMode,
     setPlatformMode,
+    simpleMode,
+    setSimpleMode,
     darkMode,
     selectedProductId,
     selectedConceptId,
@@ -345,42 +391,109 @@ export function AppShell() {
               </button>
             </div>
 
-            {/* Меню разделов */}
-            <nav className="space-y-6">
-              {NAV_GROUPS.map((group) => {
-                const allowedItems = group.items.filter((item) =>
-                  canUserAccessSection(currentUser, item.id)
-                );
-                if (allowedItems.length === 0) return null;
-
-                return (
-                  <div key={group.groupTitle} className="space-y-1">
-                    <div className="px-3.5 pb-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373]">
-                      {group.groupTitle}
-                    </div>
-                    {allowedItems.map((item) => {
-                      const isActive = activeSection === item.id;
-
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            navigateTo(item.id);
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-[15px] transition-colors cursor-pointer ${
-                            isActive
-                              ? 'bg-[#111111] text-white font-semibold'
-                              : 'text-[#171717] dark:text-zinc-300 hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium'
+            {/* Меню разделов: Простой режим (без перегруза) vs Полный PRO-режим */}
+            <nav className="space-y-4">
+              {simpleMode ? (
+                <div className="space-y-2">
+                  <div className="px-3 pb-1 flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#D97745]">
+                      Стратегия и работа · 6 шагов
+                    </span>
+                  </div>
+                  {SIMPLE_NAV_ITEMS.filter((item) =>
+                    canUserAccessSection(currentUser, item.id)
+                  ).map((item) => {
+                    const isActive = activeSection === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          navigateTo(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full rounded-xl px-3.5 py-3 text-left transition-all cursor-pointer border ${
+                          isActive
+                            ? 'bg-[#111111] text-white border-[#111111] shadow-xs'
+                            : 'bg-[#F7F7F5]/60 hover:bg-[#F7F7F5] text-[#171717] border-transparent hover:border-[#E8E8E5]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
+                              isActive
+                                ? 'bg-[#D97745] text-white'
+                                : 'bg-white text-[#737373] border border-[#E8E8E5]'
+                            }`}
+                          >
+                            {item.step}
+                          </span>
+                          <span className="text-[15px] font-bold truncate">{item.label}</span>
+                        </div>
+                        <div
+                          className={`text-[12px] mt-1 pl-7 leading-snug ${
+                            isActive ? 'text-neutral-300' : 'text-[#737373]'
                           }`}
                         >
-                          <span className="truncate">{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                          {item.hint}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setSimpleMode(false)}
+                    className="w-full mt-3 py-2.5 px-3.5 rounded-xl border border-dashed border-[#E8E8E5] hover:border-[#171717] text-[13px] font-semibold text-[#737373] hover:text-[#171717] transition cursor-pointer text-center"
+                  >
+                    + Показать все 13 разделов (PRO)
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  <button
+                    type="button"
+                    onClick={() => setSimpleMode(true)}
+                    className="w-full py-2 px-3 rounded-xl bg-[#D97745]/10 border border-[#D97745]/30 text-[#D97745] text-[13px] font-bold hover:bg-[#D97745] hover:text-white transition cursor-pointer text-center"
+                  >
+                    ← Включить простой вид (без перегруза)
+                  </button>
+
+                  {NAV_GROUPS.map((group) => {
+                    const allowedItems = group.items.filter((item) =>
+                      canUserAccessSection(currentUser, item.id)
+                    );
+                    if (allowedItems.length === 0) return null;
+
+                    return (
+                      <div key={group.groupTitle} className="space-y-1">
+                        <div className="px-3.5 pb-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373]">
+                          {group.groupTitle}
+                        </div>
+                        {allowedItems.map((item) => {
+                          const isActive = activeSection === item.id;
+
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                navigateTo(item.id);
+                                setMobileMenuOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-[15px] transition-colors cursor-pointer ${
+                                isActive
+                                  ? 'bg-[#111111] text-white font-semibold'
+                                  : 'text-[#171717] dark:text-zinc-300 hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium'
+                              }`}
+                            >
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </nav>
           </div>
 
@@ -544,32 +657,61 @@ export function AppShell() {
 
             {/* Правая группа действий */}
             <div className="flex items-center gap-2.5 shrink-0">
-              {/* Переключатель Strategy Mode / Management Mode (п. 14 ТЗ) */}
+              {/* Главный переключатель: Простой вид (без перегруза) vs PRO-режим */}
               <div
-                title="Переключение между операционным режимом управления и чистым режимом презентации стратегии (п. 14 ТЗ)"
-                className="hidden lg:flex items-center bg-[#F7F7F5] dark:bg-zinc-800 p-1 rounded-xl border border-[#E8E8E5]"
+                title="Переключение между простым понятным видом и полным экспертным режимом со всеми таблицами"
+                className="flex items-center bg-[#F7F7F5] dark:bg-zinc-800 p-1 rounded-xl border border-[#E8E8E5]"
               >
                 <button
-                  onClick={() => setPlatformMode('management')}
-                  className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                    platformMode === 'management'
-                      ? 'bg-white text-[#171717] shadow-2xs'
+                  onClick={() => setSimpleMode(true)}
+                  className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    simpleMode
+                      ? 'bg-[#D97745] text-white shadow-2xs'
                       : 'text-[#737373] hover:text-[#171717]'
                   }`}
                 >
-                  Управление
+                  Простой вид
                 </button>
                 <button
-                  onClick={() => setPlatformMode('strategy')}
-                  className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                    platformMode === 'strategy'
+                  onClick={() => setSimpleMode(false)}
+                  className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    !simpleMode
                       ? 'bg-[#111111] text-white shadow-2xs'
                       : 'text-[#737373] hover:text-[#171717]'
                   }`}
                 >
-                  Презентация
+                  PRO (Все детали)
                 </button>
               </div>
+
+              {/* Переключатель Strategy Mode / Management Mode (п. 14 ТЗ) — виден в PRO-режиме */}
+              {!simpleMode && (
+                <div
+                  title="Переключение между операционным режимом управления и чистым режимом презентации стратегии (п. 14 ТЗ)"
+                  className="hidden xl:flex items-center bg-[#F7F7F5] dark:bg-zinc-800 p-1 rounded-xl border border-[#E8E8E5]"
+                >
+                  <button
+                    onClick={() => setPlatformMode('management')}
+                    className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+                      platformMode === 'management'
+                        ? 'bg-white text-[#171717] shadow-2xs'
+                        : 'text-[#737373] hover:text-[#171717]'
+                    }`}
+                  >
+                    Управление
+                  </button>
+                  <button
+                    onClick={() => setPlatformMode('strategy')}
+                    className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+                      platformMode === 'strategy'
+                        ? 'bg-[#111111] text-white shadow-2xs'
+                        : 'text-[#737373] hover:text-[#171717]'
+                    }`}
+                  >
+                    Презентация
+                  </button>
+                </div>
+              )}
 
               {/* Поиск */}
               <button

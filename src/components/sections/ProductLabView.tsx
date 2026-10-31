@@ -67,6 +67,8 @@ export function ProductLabView() {
     brandFilter,
     setBrandFilter,
     platformMode,
+    simpleMode,
+    setSimpleMode,
     selectedConceptId,
     setSelectedConceptId,
     createConcept,
@@ -640,56 +642,100 @@ export function ProductLabView() {
       {/* =====================================================================
           16. ОПЕРАЦИОННЫЕ ПОКАЗАТЕЛИ ВЕРХНЕЙ ПАНЕЛИ И СКВОЗНАЯ АНАЛИТИКА
       ===================================================================== */}
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
-          {[
-            { label: 'Активных разработок', val: labMetrics.totalActive, accent: false },
-            { label: 'Идеи и на анализе', val: labMetrics.ideasAndAnalysis, accent: false },
-            { label: 'Образцы на проверке', val: labMetrics.samplesInCheck, accent: false },
-            { label: 'Ожидают решения', val: labMetrics.awaitingDecision, accent: true },
-            { label: 'Риск задержки пр-ва', val: labMetrics.delayedProductions, accent: false },
-            { label: 'На этапе запуска', val: labMetrics.upcomingLaunches, accent: false },
-            { label: 'Просроченные задачи', val: labMetrics.overdueTasksCount, accent: false },
-          ].map((kpi, i) => (
-            <div
-              key={i}
-              className={`rounded-2xl border p-4 ${
-                kpi.accent && kpi.val > 0
-                  ? 'bg-[#D97745]/10 border-[#D97745]/40'
-                  : 'bg-white border-[#E8E8E5]'
-              }`}
-            >
-              <div className="text-[12px] font-medium text-[#737373] leading-tight">
-                {kpi.label}
+      {simpleMode ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
+            <div>
+              <div className="text-[13px] font-medium text-[#737373]">В разработке сейчас</div>
+              <div className="text-[30px] font-bold text-[#171717] mt-0.5">
+                {labMetrics.totalActive} новинок
               </div>
-              <div className="text-[26px] font-bold text-[#171717] mt-1">{kpi.val}</div>
             </div>
-          ))}
-        </div>
+            <span className="px-3 py-1 rounded-xl bg-[#F7F7F5] text-[12px] font-semibold text-[#737373]">
+              Образцов: {labMetrics.samplesInCheck}
+            </span>
+          </div>
 
-        {/* Сквозная аналитика процесса (рассчитывается строго по фактическим событиям, п. 16 ТЗ) */}
-        <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/70 px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-[13px]">
-          <span className="font-bold text-[#171717]">
-            Сквозная конверсия воронки R&D (по фактическим карточкам):
-          </span>
-          <div className="flex flex-wrap items-center gap-6">
-            <span>
-              Идея → Анализ: <b className="text-[#171717]">{labMetrics.ideaToAnalysisPct}%</b>
+          <div className="rounded-2xl border border-[#D97745]/40 bg-[#D97745]/10 p-5 flex items-center justify-between">
+            <div>
+              <div className="text-[13px] font-bold text-[#D97745]">Ожидают решения руководителя</div>
+              <div className="text-[30px] font-bold text-[#171717] mt-0.5">
+                {labMetrics.awaitingDecision} проект
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-xl bg-white text-[12px] font-bold text-[#D97745]">
+              Этап 05
             </span>
-            <span>
-              Анализ → Образец: <b className="text-[#171717]">{labMetrics.analysisToSamplePct}%</b>
-            </span>
-            <span>
-              Образец → Прошли тест:{' '}
-              <b className="text-[#16805D]">{labMetrics.sampleToTestPassPct}%</b>
-            </span>
-            <span>
-              Вышли в продажу: <b className="text-[#171717]">{labMetrics.totalToLaunchPct}%</b>
-            </span>
-            <span className="text-[#737373]">Средний цикл этапа: ~6,5 дн. (по журналу)</span>
+          </div>
+
+          <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
+            <div>
+              <div className="text-[13px] font-medium text-[#737373]">Производство и запуск</div>
+              <div className="text-[30px] font-bold text-[#171717] mt-0.5">
+                {labMetrics.upcomingLaunches + labMetrics.delayedProductions} в тираже
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSimpleMode(false)}
+              className="px-3 py-1.5 rounded-xl border border-[#E8E8E5] hover:border-[#171717] text-[12px] font-semibold text-[#737373] hover:text-[#171717] cursor-pointer"
+            >
+              Все 12 метрик (PRO)
+            </button>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
+            {[
+              { label: 'Активных разработок', val: labMetrics.totalActive, accent: false },
+              { label: 'Идеи и на анализе', val: labMetrics.ideasAndAnalysis, accent: false },
+              { label: 'Образцы на проверке', val: labMetrics.samplesInCheck, accent: false },
+              { label: 'Ожидают решения', val: labMetrics.awaitingDecision, accent: true },
+              { label: 'Риск задержки пр-ва', val: labMetrics.delayedProductions, accent: false },
+              { label: 'На этапе запуска', val: labMetrics.upcomingLaunches, accent: false },
+              { label: 'Просроченные задачи', val: labMetrics.overdueTasksCount, accent: false },
+            ].map((kpi, i) => (
+              <div
+                key={i}
+                className={`rounded-2xl border p-4 ${
+                  kpi.accent && kpi.val > 0
+                    ? 'bg-[#D97745]/10 border-[#D97745]/40'
+                    : 'bg-white border-[#E8E8E5]'
+                }`}
+              >
+                <div className="text-[12px] font-medium text-[#737373] leading-tight">
+                  {kpi.label}
+                </div>
+                <div className="text-[26px] font-bold text-[#171717] mt-1">{kpi.val}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Сквозная аналитика процесса (рассчитывается строго по фактическим событиям, п. 16 ТЗ) */}
+          <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/70 px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-[13px]">
+            <span className="font-bold text-[#171717]">
+              Сквозная конверсия воронки R&D (по фактическим карточкам):
+            </span>
+            <div className="flex flex-wrap items-center gap-6">
+              <span>
+                Идея → Анализ: <b className="text-[#171717]">{labMetrics.ideaToAnalysisPct}%</b>
+              </span>
+              <span>
+                Анализ → Образец: <b className="text-[#171717]">{labMetrics.analysisToSamplePct}%</b>
+              </span>
+              <span>
+                Образец → Прошли тест:{' '}
+                <b className="text-[#16805D]">{labMetrics.sampleToTestPassPct}%</b>
+              </span>
+              <span>
+                Вышли в продажу: <b className="text-[#171717]">{labMetrics.totalToLaunchPct}%</b>
+              </span>
+              <span className="text-[#737373]">Средний цикл этапа: ~6,5 дн. (по журналу)</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =====================================================================
           3.3. ФИЛЬТРЫ И ПОИСК + АРХИТЕКТУРА БРЕНДОВ (П. 2 И 3.3 ТЗ)
@@ -753,71 +799,73 @@ export function ProductLabView() {
           </div>
         </div>
 
-        {/* Расширенные фильтры (тип разработки, этап, приоритет, ответственный, фабрика) */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-[#E8E8E5] text-[13px]">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-          >
-            <option value="ALL">Все типы разработок (5)</option>
-            {Object.entries(RND_DEVELOPMENT_TYPE_LABELS_RU).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
+        {/* Расширенные фильтры (показываются в PRO-режиме) */}
+        {!simpleMode && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-[#E8E8E5] text-[13px]">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
+            >
+              <option value="ALL">Все типы разработок (5)</option>
+              {Object.entries(RND_DEVELOPMENT_TYPE_LABELS_RU).map(([k, v]) => (
+                <option key={k} value={k}>
+                  {v}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={stageFilter}
-            onChange={(e) => setStageFilter(e.target.value)}
-            className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-          >
-            <option value="ALL">Все 7 этапов цепочки</option>
-            {SEVEN_KANBAN_STAGES.map((st) => (
-              <option key={st} value={st}>
-                {CONCEPT_STAGE_LABELS_RU[st]}
-              </option>
-            ))}
-          </select>
+            <select
+              value={stageFilter}
+              onChange={(e) => setStageFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
+            >
+              <option value="ALL">Все 7 этапов цепочки</option>
+              {SEVEN_KANBAN_STAGES.map((st) => (
+                <option key={st} value={st}>
+                  {CONCEPT_STAGE_LABELS_RU[st]}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-          >
-            <option value="ALL">Любой приоритет</option>
-            <option value="Critical">Критический</option>
-            <option value="High">Высокий</option>
-            <option value="Medium">Средний</option>
-            <option value="Low">Низкий</option>
-          </select>
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
+            >
+              <option value="ALL">Любой приоритет</option>
+              <option value="Critical">Критический</option>
+              <option value="High">Высокий</option>
+              <option value="Medium">Средний</option>
+              <option value="Low">Низкий</option>
+            </select>
 
-          <select
-            value={ownerFilter}
-            onChange={(e) => setOwnerFilter(e.target.value)}
-            className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-          >
-            <option value="ALL">Все ответственные</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName}
-              </option>
-            ))}
-          </select>
+            <select
+              value={ownerFilter}
+              onChange={(e) => setOwnerFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
+            >
+              <option value="ALL">Все ответственные</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.fullName}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={factoryFilter}
-            onChange={(e) => setFactoryFilter(e.target.value)}
-            className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-          >
-            <option value="ALL">Все фабрики / страны</option>
-            <option value="Узбекистан">Узбекистан</option>
-            <option value="Китай">Китай</option>
-            <option value="Гуандун">Фабрика Гуандун</option>
-            <option value="Ханчжоу">Фабрика Ханчжоу</option>
-          </select>
-        </div>
+            <select
+              value={factoryFilter}
+              onChange={(e) => setFactoryFilter(e.target.value)}
+              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
+            >
+              <option value="ALL">Все фабрики / страны</option>
+              <option value="Узбекистан">Узбекистан</option>
+              <option value="Китай">Китай</option>
+              <option value="Гуандун">Фабрика Гуандун</option>
+              <option value="Ханчжоу">Фабрика Ханчжоу</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* =====================================================================
