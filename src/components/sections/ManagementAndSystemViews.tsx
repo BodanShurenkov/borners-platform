@@ -1,0 +1,1978 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import {
+  ArrowUpRight,
+  Download,
+  GripVertical,
+  Paperclip,
+  RefreshCw,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { usePlatform } from '@/context/PlatformContext';
+import {
+  DocumentCategory,
+  TaskItem,
+  TaskPriority,
+  TaskStatus,
+  UserRole,
+} from '@/types/platform';
+import {
+  ROLE_LABELS_RU,
+  TASK_PRIORITY_LABELS_RU,
+  TASK_STATUS_LABELS_RU,
+  canUserViewFinance,
+} from '@/lib/finance';
+import { isSupabaseConfigured } from '@/lib/supabase';
+
+// =============================================================================
+// РЫНОК И КОНКУРЕНТЫ (п. 11 ТЗ)
+// =============================================================================
+export function MarketIntelligenceView() {
+  const {
+    competitors,
+    research,
+    opportunities,
+    brandFilter,
+    createCompetitor,
+    createResearch,
+  } = usePlatform();
+
+  const [tab, setTab] = useState<'competitors' | 'matrix' | 'trends'>('competitors');
+  const [compModalOpen, setCompModalOpen] = useState(false);
+  const [insightModalOpen, setInsightModalOpen] = useState(false);
+
+  const [compForm, setCompForm] = useState({
+    brandName: '',
+    websiteUrl: 'https://example.ru',
+    priceRangeRub: '1 800 – 3 200 ₽',
+    positioning: '',
+    keyProducts: 'Боксеры, футболки, базовые комплекты',
+    strengths: '',
+    weaknesses: '',
+  });
+
+  const [insightForm, setInsightForm] = useState({
+    title: '',
+    category: 'Тренды рынка' as
+      | 'Тренды рынка'
+      | 'Потребительские инсайты'
+      | 'Материалы и фабрики'
+      | 'Аналитика маркетплейсов',
+    brandId: 'ALL',
+    conclusions: '',
+  });
+
+  const filteredResearch = useMemo(
+    () =>
+      research.filter(
+        (i) => brandFilter === 'ALL' || i.brandId === 'ALL' || i.brandId === brandFilter
+      ),
+    [research, brandFilter]
+  );
+
+  const filteredOpportunities = useMemo(
+    () =>
+      opportunities.filter(
+        (o) => brandFilter === 'ALL' || o.brandId === 'ALL' || o.brandId === brandFilter
+      ),
+    [opportunities, brandFilter]
+  );
+
+  return (
+    <div className="space-y-10 pb-20">
+      {/* Шапка раздела */}
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+        <div>
+          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
+            Конкурентный анализ, рыночные ниши и исследования
+          </div>
+          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+            Рынок и конкуренты
+          </h1>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+            <button
+              onClick={() => setTab('competitors')}
+              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+                tab === 'competitors'
+                  ? 'bg-white text-[#171717] shadow-2xs'
+                  : 'text-[#737373] hover:text-[#171717]'
+              }`}
+            >
+              Досье ({competitors.length})
+            </button>
+            <button
+              onClick={() => setTab('matrix')}
+              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+                tab === 'matrix'
+                  ? 'bg-white text-[#171717] shadow-2xs'
+                  : 'text-[#737373] hover:text-[#171717]'
+              }`}
+            >
+              Сводная таблица
+            </button>
+            <button
+              onClick={() => setTab('trends')}
+              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+                tab === 'trends'
+                  ? 'bg-white text-[#171717] shadow-2xs'
+                  : 'text-[#737373] hover:text-[#171717]'
+              }`}
+            >
+              Исследования и ниши ({filteredResearch.length + filteredOpportunities.length})
+            </button>
+          </div>
+
+          <button
+            onClick={() => setCompModalOpen(true)}
+            className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+          >
+            + Добавить конкурента
+          </button>
+        </div>
+      </div>
+
+      {/* Вкладка 1: Досье конкурентов */}
+      {tab === 'competitors' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {competitors.map((comp) => (
+            <div
+              key={comp.id}
+              className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 flex flex-col justify-between space-y-5"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-4 border-b border-[#E8E8E5] pb-4">
+                  <div>
+                    <div className="text-[13px] font-medium text-[#737373]">
+                      Каналы: {comp.marketplaces.join(', ')}
+                    </div>
+                    <h3 className="text-[24px] font-bold text-[#171717] dark:text-white mt-0.5">
+                      {comp.brandName}
+                    </h3>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[15px] font-bold rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5 py-1.5 text-[#171717]">
+                      {comp.priceRangeRub}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[15px] text-[#737373] leading-relaxed">{comp.positioning}</p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-3 border-t border-[#E8E8E5]">
+                  <div>
+                    <div className="text-[13px] font-semibold text-[#16805D] mb-1">
+                      Сильные стороны
+                    </div>
+                    <p className="text-[14px] text-[#171717] dark:text-zinc-300 leading-relaxed">
+                      {comp.strengths}
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="text-[13px] font-semibold text-[#C94B4B] mb-1">
+                      Слабые места
+                    </div>
+                    <p className="text-[14px] text-[#171717] dark:text-zinc-300 leading-relaxed">
+                      {comp.weaknesses}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#E8E8E5] flex items-center justify-between text-[13px]">
+                <span className="text-[#737373]">
+                  Ключевой ассортимент: <b className="text-[#171717]">{comp.keyProducts}</b>
+                </span>
+                <span className="text-[#737373]">{comp.researchedAt}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Вкладка 2: Сводная таблица */}
+      {tab === 'matrix' && (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] overflow-x-auto">
+          <table className="w-full text-left text-[15px]">
+            <thead className="border-b border-[#E8E8E5] text-[13px] font-semibold uppercase tracking-wider text-[#737373] bg-[#F7F7F5]/60">
+              <tr>
+                <th className="py-4 px-6">Бренд конкурента</th>
+                <th className="py-4 px-4">Ценовой диапазон</th>
+                <th className="py-4 px-4">Позиционирование</th>
+                <th className="py-4 px-4">Сильные стороны</th>
+                <th className="py-4 px-6">Слабые места</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8E8E5]">
+              {competitors.map((comp) => (
+                <tr key={comp.id} className="hover:bg-[#F7F7F5]/60 transition">
+                  <td className="py-4 px-6 font-bold text-[16px] text-[#171717] dark:text-white">
+                    {comp.brandName}
+                  </td>
+                  <td className="py-4 px-4 font-semibold">
+                    {comp.priceRangeRub}
+                  </td>
+                  <td className="py-4 px-4 text-[#737373]">{comp.positioning}</td>
+                  <td className="py-4 px-4 text-[#16805D] font-medium">
+                    {comp.strengths}
+                  </td>
+                  <td className="py-4 px-6 text-[#C94B4B] font-medium">
+                    {comp.weaknesses}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Вкладка 3: Исследования и ниши */}
+      {tab === 'trends' && (
+        <div className="space-y-6">
+          <div className="flex justify-end">
+            <button
+              onClick={() => setInsightModalOpen(true)}
+              className="h-11 px-5 rounded-xl border border-[#E8E8E5] bg-white text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
+            >
+              + Зафиксировать исследование
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredResearch.map((ins) => (
+              <div
+                key={ins.id}
+                className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-3"
+              >
+                <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373] border-b border-[#E8E8E5] pb-3">
+                  <span>{ins.category}</span>
+                  <span>{ins.researchDate}</span>
+                </div>
+                <h4 className="text-[20px] font-bold text-[#171717] dark:text-white">
+                  {ins.title}
+                </h4>
+                <p className="text-[15px] text-[#737373] leading-relaxed">{ins.conclusions}</p>
+              </div>
+            ))}
+
+            {filteredOpportunities.map((opp) => (
+              <div
+                key={opp.id}
+                className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-3"
+              >
+                <div className="flex items-center justify-between text-[13px] font-semibold text-[#737373] border-b border-[#E8E8E5] pb-3">
+                  <span>Рыночная ниша · {opp.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : opp.brandId}</span>
+                  <span>Конкуренция: {opp.competitionLevel}</span>
+                </div>
+                <h4 className="text-[20px] font-bold text-[#171717] dark:text-white">
+                  {opp.title}
+                </h4>
+                <p className="text-[15px] text-[#737373] leading-relaxed">
+                  Аудитория: {opp.audience} · Потенциал: {opp.potentialDemand}
+                </p>
+                <div className="text-[14px] font-semibold text-[#171717] pt-2 border-t border-[#E8E8E5]">
+                  Экономика: {opp.economicsNote}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно добавления конкурента */}
+      {compModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
+              <h3 className="text-[22px] font-bold">Новое досье конкурента</h3>
+              <button
+                onClick={() => setCompModalOpen(false)}
+                className="text-[13px] font-semibold text-[#737373] hover:text-[#171717] cursor-pointer"
+              >
+                Закрыть
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[14px]">
+              <div>
+                <label className="block font-semibold mb-1.5">Название бренда</label>
+                <input
+                  value={compForm.brandName}
+                  onChange={(e) => setCompForm({ ...compForm, brandName: e.target.value })}
+                  placeholder="Например: Belle YOU"
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1.5">Ценовой коридор</label>
+                <input
+                  value={compForm.priceRangeRub}
+                  onChange={(e) => setCompForm({ ...compForm, priceRangeRub: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block font-semibold mb-1.5">Позиционирование</label>
+                <input
+                  value={compForm.positioning}
+                  onChange={(e) => setCompForm({ ...compForm, positioning: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1.5">Сильные стороны</label>
+                <input
+                  value={compForm.strengths}
+                  onChange={(e) => setCompForm({ ...compForm, strengths: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1.5">Слабые места</label>
+                <input
+                  value={compForm.weaknesses}
+                  onChange={(e) => setCompForm({ ...compForm, weaknesses: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#E8E8E5]">
+              <button
+                onClick={() => setCompModalOpen(false)}
+                className="h-11 px-5 rounded-xl border border-[#E8E8E5] text-[14px] font-semibold cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  if (!compForm.brandName.trim()) return;
+                  createCompetitor({
+                    brandName: compForm.brandName.trim(),
+                    websiteUrl: compForm.websiteUrl,
+                    marketplaces: ['Wildberries', 'Ozon'],
+                    positioning: compForm.positioning || 'Игрок категории базового белья',
+                    priceRangeRub: compForm.priceRangeRub,
+                    keyProducts: compForm.keyProducts,
+                    strengths: compForm.strengths || 'Широкая представленность',
+                    weaknesses: compForm.weaknesses || 'Стандартная посадка',
+                    photoUrl: '',
+                    sources: 'Аналитика BORNERS GROUP',
+                    researchedAt: new Date().toISOString().slice(0, 10),
+                  });
+                  setCompModalOpen(false);
+                }}
+                className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно добавления исследования */}
+      {insightModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+            <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
+              Новое рыночное исследование
+            </h3>
+            <div className="space-y-4 text-[14px]">
+              <div>
+                <label className="block font-semibold mb-1.5">Заголовок наблюдения</label>
+                <input
+                  value={insightForm.title}
+                  onChange={(e) => setInsightForm({ ...insightForm, title: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold mb-1.5">Выводы и рекомендации</label>
+                <textarea
+                  rows={3}
+                  value={insightForm.conclusions}
+                  onChange={(e) =>
+                    setInsightForm({ ...insightForm, conclusions: e.target.value })
+                  }
+                  className="w-full rounded-xl border border-[#E8E8E5] p-3.5 text-[15px]"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#E8E8E5]">
+              <button
+                onClick={() => setInsightModalOpen(false)}
+                className="h-11 px-5 rounded-xl border border-[#E8E8E5] text-[14px] font-semibold cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  if (!insightForm.title.trim()) return;
+                  createResearch({
+                    title: insightForm.title.trim(),
+                    category: insightForm.category,
+                    brandId: insightForm.brandId,
+                    conclusions: insightForm.conclusions,
+                    sourceLinks: [],
+                    researchDate: new Date().toISOString().slice(0, 10),
+                  });
+                  setInsightModalOpen(false);
+                }}
+                className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// ЗАДАЧИ И ПРОЕКТЫ (КРУПНЫЙ КАНБАН С DRAG & DROP + ТАБЛИЦА, п. 12 ТЗ)
+// =============================================================================
+const TASK_COLUMNS: TaskStatus[] = ['To Do', 'In Progress', 'Review', 'Done', 'Blocked'];
+
+export function RoadmapTasksView() {
+  const {
+    strategicGoals,
+    projects,
+    tasks,
+    users,
+    currentUser,
+    products,
+    concepts,
+    launches,
+    brandFilter,
+    platformMode,
+    updateTask,
+    updateTaskStatus,
+    createTask,
+    archiveEntity,
+    navigateTo,
+    notify,
+  } = usePlatform();
+
+  const isStrategyMode = platformMode === 'strategy';
+  const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'projects'>('kanban');
+  const [assigneeFilter, setAssigneeFilter] = useState<string>('ALL');
+  const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
+  const [roadmapPeriodFilter, setRoadmapPeriodFilter] = useState<string>('ALL');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskCommentText, setTaskCommentText] = useState('');
+
+  // Состояние Drag & Drop
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
+
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    brandId: 'BORNERS',
+    projectId: projects[0]?.id || 'proj-1',
+    priority: 'High' as TaskPriority,
+    assigneeId: users[0]?.id || 'user-owner',
+    deadline: '2027-02-20',
+  });
+
+  const todayStr = '2027-02-01';
+
+  const overdueCount = useMemo(() => {
+    return tasks.filter(
+      (t) =>
+        !t.isArchived &&
+        (brandFilter === 'ALL' || t.brandId === 'ALL' || t.brandId === brandFilter) &&
+        t.deadline < todayStr &&
+        t.status !== 'Done'
+    ).length;
+  }, [tasks, brandFilter]);
+
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((t) => {
+      if (t.isArchived) return false;
+      if (brandFilter !== 'ALL' && t.brandId !== 'ALL' && t.brandId !== brandFilter) {
+        return false;
+      }
+      if (assigneeFilter !== 'ALL' && t.assigneeId !== assigneeFilter) {
+        return false;
+      }
+      if (overdueOnly && !(t.deadline < todayStr && t.status !== 'Done')) {
+        return false;
+      }
+      return true;
+    });
+  }, [tasks, brandFilter, assigneeFilter, overdueOnly]);
+
+  const selectedTask: TaskItem | null = useMemo(
+    () => tasks.find((t) => t.id === selectedTaskId) || null,
+    [tasks, selectedTaskId]
+  );
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    if (isStrategyMode) return;
+    setDraggedTaskId(taskId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', taskId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, status: TaskStatus) => {
+    if (isStrategyMode) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumn !== status) {
+      setDragOverColumn(status);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStatus: TaskStatus) => {
+    if (isStrategyMode) return;
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData('text/plain') || draggedTaskId;
+    if (taskId) {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task && task.status !== targetStatus) {
+        updateTaskStatus(taskId, targetStatus);
+      }
+    }
+    setDraggedTaskId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleAttachFileToTask = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    task: TaskItem
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    updateTask(task.id, {
+      attachments: [...task.attachments, file.name],
+    });
+    notify('success', `Файл «${file.name}» прикреплён к задаче`);
+  };
+
+  return (
+    <div className="space-y-10 pb-20">
+      {/* Крупная шапка раздела */}
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+        <div>
+          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
+            Дорожная карта и Канбан-доска с перетаскиванием карточек
+          </div>
+          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+            Задачи и проекты
+          </h1>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setOverdueOnly(!overdueOnly)}
+            className={`h-11 px-4 rounded-xl border text-[13px] font-semibold transition cursor-pointer ${
+              overdueOnly
+                ? 'bg-[#C94B4B] text-white border-[#C94B4B]'
+                : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#C94B4B]'
+            }`}
+          >
+            Просроченные ({overdueCount})
+          </button>
+
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-[#E8E8E5] px-4 text-[14px] font-semibold text-[#171717] dark:text-zinc-200 outline-none cursor-pointer"
+          >
+            <option value="ALL">Все исполнители</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.fullName}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+                viewMode === 'kanban'
+                  ? 'bg-white text-[#171717] shadow-2xs'
+                  : 'text-[#737373] hover:text-[#171717]'
+              }`}
+            >
+              Доска
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-white text-[#171717] shadow-2xs'
+                  : 'text-[#737373] hover:text-[#171717]'
+              }`}
+            >
+              Таблица
+            </button>
+            <button
+              onClick={() => setViewMode('projects')}
+              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+                viewMode === 'projects'
+                  ? 'bg-white text-[#171717] shadow-2xs'
+                  : 'text-[#737373] hover:text-[#171717]'
+              }`}
+            >
+              Дорожная карта ({strategicGoals.length} целей · {projects.length} проектов)
+            </button>
+          </div>
+
+          {!isStrategyMode && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+            >
+              + Новая задача
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* КАНБАН-ДОСКА С ПЕРЕТАСКИВАНИЕМ (КРУПНЫЕ КАРТОЧКИ) */}
+      {viewMode === 'kanban' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-5">
+          {TASK_COLUMNS.map((status) => {
+            const colTasks = filteredTasks.filter((t) => t.status === status);
+            const isDropTarget = dragOverColumn === status;
+
+            return (
+              <div
+                key={status}
+                onDragOver={(e) => handleDragOver(e, status)}
+                onDragLeave={() => setDragOverColumn(null)}
+                onDrop={(e) => handleDrop(e, status)}
+                className={`p-4 rounded-2xl min-h-[540px] flex flex-col transition-all border ${
+                  isDropTarget
+                    ? 'bg-white border-2 border-[#D97745] shadow-lg'
+                    : 'bg-white/70 dark:bg-zinc-900 border-[#E8E8E5]'
+                }`}
+              >
+                {/* Шапка колонки */}
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#E8E8E5]">
+                  <span className="text-[14px] font-bold text-[#171717] dark:text-zinc-200">
+                    {TASK_STATUS_LABELS_RU[status]}
+                  </span>
+                  <span className="text-[13px] font-semibold text-[#737373] bg-[#F7F7F5] px-2.5 py-0.5 rounded-lg border border-[#E8E8E5]">
+                    {colTasks.length}
+                  </span>
+                </div>
+
+                {/* Список карточек */}
+                <div className="space-y-3.5 flex-1">
+                  {colTasks.map((task) => {
+                    const assignee = users.find((u) => u.id === task.assigneeId);
+                    const linkedProduct = products.find((p) => p.id === task.productId);
+                    const linkedConcept = concepts.find((c) => c.id === task.conceptId);
+                    const linkedLaunch = launches.find((l) => l.id === task.launchId);
+                    const isBeingDragged = draggedTaskId === task.id;
+                    const isOverdue = task.deadline < todayStr && task.status !== 'Done';
+
+                    return (
+                      <div
+                        key={task.id}
+                        draggable={!isStrategyMode}
+                        onDragStart={(e) => handleDragStart(e, task.id)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => setSelectedTaskId(task.id)}
+                        className={`bg-white dark:bg-zinc-950 rounded-xl border border-[#E8E8E5] hover:border-[#171717] p-4 space-y-3 cursor-grab active:cursor-grabbing transition select-none ${
+                          isBeingDragged ? 'opacity-40 scale-[0.98]' : ''
+                        }`}
+                      >
+                        {/* Верхняя строка: Бренд и Приоритет */}
+                        <div className="flex items-center justify-between gap-2 text-[13px]">
+                          <div className="flex items-center gap-1.5 font-semibold text-[#737373]">
+                            <GripVertical className="h-4 w-4 text-[#737373]" />
+                            <span
+                              style={{
+                                color:
+                                  task.brandId === 'BORNERS'
+                                    ? '#D97745'
+                                    : task.brandId === 'NA_TELE'
+                                    ? '#8B8078'
+                                    : '#737373',
+                              }}
+                            >
+                              {task.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : task.brandId}
+                            </span>
+                          </div>
+                          <span
+                            className={`font-semibold ${
+                              task.priority === 'Critical'
+                                ? 'text-[#C94B4B]'
+                                : task.priority === 'High'
+                                ? 'text-[#D99527]'
+                                : 'text-[#737373]'
+                            }`}
+                          >
+                            {TASK_PRIORITY_LABELS_RU[task.priority]}
+                          </span>
+                        </div>
+
+                        {/* Крупное название задачи */}
+                        <div className="text-[16px] font-bold text-[#171717] dark:text-zinc-100 leading-snug">
+                          {task.title}
+                        </div>
+
+                        {/* Привязанный объект */}
+                        {(linkedProduct || linkedConcept || linkedLaunch) && (
+                          <div className="pt-0.5">
+                            {linkedProduct && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateTo('product-catalog', { productId: linkedProduct.id });
+                                }}
+                                className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#171717] hover:underline cursor-pointer"
+                              >
+                                <span>SKU: {linkedProduct.sku}</span>
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {linkedConcept && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateTo('product-lab', { conceptId: linkedConcept.id });
+                                }}
+                                className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#171717] hover:underline cursor-pointer"
+                              >
+                                <span>R&D: {linkedConcept.code}</span>
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {linkedLaunch && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigateTo('launch-calendar', { launchId: linkedLaunch.id });
+                                }}
+                                className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#171717] hover:underline cursor-pointer"
+                              >
+                                <span>Релиз: {linkedLaunch.name}</span>
+                                <ArrowUpRight className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Подвал карточки: Исполнитель, Вложения/Комментарии и Дедлайн */}
+                        <div className="flex items-center justify-between pt-3 border-t border-[#E8E8E5] text-[13px]">
+                          <span className="font-medium text-[#737373] truncate">
+                            {assignee?.fullName.split(' ')[0] || 'Команда'}
+                            {(task.comments.length > 0 || task.attachments.length > 0) && (
+                              <span className="ml-1.5 text-[11px] text-[#737373]">
+                                · 💬{task.comments.length} 📎{task.attachments.length}
+                              </span>
+                            )}
+                          </span>
+                          <span
+                            className={`font-semibold ${
+                              isOverdue ? 'text-[#C94B4B]' : 'text-[#171717]'
+                            }`}
+                          >
+                            {task.deadline}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {colTasks.length === 0 && (
+                    <div className="h-36 rounded-xl border border-dashed border-[#E8E8E5] flex items-center justify-center text-[14px] text-[#737373] text-center px-4">
+                      Перетащите карточку сюда
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ТАБЛИЧНЫЙ СПИСОК ЗАДАЧ */}
+      {viewMode === 'list' && (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] overflow-x-auto">
+          <table className="w-full text-left text-[15px]">
+            <thead className="border-b border-[#E8E8E5] text-[13px] font-semibold uppercase tracking-wider text-[#737373] bg-[#F7F7F5]/60">
+              <tr>
+                <th className="py-4 px-6">Задача</th>
+                <th className="py-4 px-4">Бренд</th>
+                <th className="py-4 px-4">Приоритет</th>
+                <th className="py-4 px-4">Ответственный</th>
+                <th className="py-4 px-4">Срок</th>
+                <th className="py-4 px-6 text-right">Статус</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8E8E5]">
+              {filteredTasks.map((task) => {
+                const assignee = users.find((u) => u.id === task.assigneeId);
+                const isOverdue = task.deadline < todayStr && task.status !== 'Done';
+                return (
+                  <tr
+                    key={task.id}
+                    onClick={() => setSelectedTaskId(task.id)}
+                    className="hover:bg-[#F7F7F5]/60 transition cursor-pointer"
+                  >
+                    <td className="py-4 px-6">
+                      <div className="font-semibold text-[16px] text-[#171717] dark:text-white">
+                        {task.title}
+                      </div>
+                      <div className="text-[13px] text-[#737373] mt-0.5">{task.description}</div>
+                    </td>
+                    <td className="py-4 px-4 font-semibold">
+                      {task.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : task.brandId}
+                    </td>
+                    <td className="py-4 px-4 font-semibold">
+                      {TASK_PRIORITY_LABELS_RU[task.priority]}
+                    </td>
+                    <td className="py-4 px-4 text-[#737373]">
+                      {assignee?.fullName}
+                    </td>
+                    <td className="py-4 px-4 font-semibold">
+                      <span className={isOverdue ? 'text-[#C94B4B]' : ''}>
+                        {task.deadline}
+                      </span>
+                    </td>
+                    <td
+                      className="py-4 px-6 text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <select
+                        disabled={isStrategyMode}
+                        value={task.status}
+                        onChange={(e) =>
+                          updateTaskStatus(task.id, e.target.value as TaskStatus)
+                        }
+                        className="h-10 rounded-xl border border-[#E8E8E5] px-3 text-[14px] font-semibold bg-white cursor-pointer"
+                      >
+                        {TASK_COLUMNS.map((st) => (
+                          <option key={st} value={st}>
+                            {TASK_STATUS_LABELS_RU[st]}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ДОРОЖНАЯ КАРТА (ИЕРАРХИЯ ПО П. 12 ТЗ: СТРАТЕГИЧЕСКАЯ ЦЕЛЬ → ПРОЕКТЫ → ЗАДАЧИ) */}
+      {viewMode === 'projects' && (
+        <div className="space-y-8">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="text-[14px] text-[#737373]">
+              Иерархия дорожной карты:{' '}
+              <b className="text-[#171717]">Стратегическая цель → Проекты → Задачи</b>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {['ALL', 'Q1 2027', 'Q2 2027', '2026', '2027'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setRoadmapPeriodFilter(period)}
+                  className={`px-3.5 py-1.5 rounded-xl text-[13px] font-semibold border transition cursor-pointer ${
+                    roadmapPeriodFilter === period
+                      ? 'bg-[#111111] text-white border-[#111111]'
+                      : 'bg-white text-[#171717] border-[#E8E8E5]'
+                  }`}
+                >
+                  {period === 'ALL' ? 'Все периоды' : period}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {strategicGoals
+              .filter(
+                (g) =>
+                  brandFilter === 'ALL' || g.brandId === 'ALL' || g.brandId === brandFilter
+              )
+              .map((goal) => {
+                const goalProjects = projects.filter((p) => {
+                  if (p.strategicGoalId !== goal.id) return false;
+                  if (
+                    roadmapPeriodFilter !== 'ALL' &&
+                    !p.quarter.includes(roadmapPeriodFilter)
+                  ) {
+                    return false;
+                  }
+                  return true;
+                });
+
+                return (
+                  <div
+                    key={goal.id}
+                    className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-6"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E8E8E5] pb-4">
+                      <div>
+                        <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
+                          Стратегическая цель · {goal.periodQuarter} ({goal.periodYear}) ·{' '}
+                          {goal.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : goal.brandId}
+                        </div>
+                        <h3 className="text-[22px] font-bold text-[#171717] dark:text-white mt-1">
+                          {goal.title}
+                        </h3>
+                      </div>
+                      <span className="px-3.5 py-1.5 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-bold text-[#16805D]">
+                        Целевой KPI: {goal.targetMetric} ({goal.progressPct}%)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      {goalProjects.map((proj) => {
+                        const owner = users.find((u) => u.id === proj.ownerId);
+                        const projTasks = tasks.filter(
+                          (t) => !t.isArchived && t.projectId === proj.id
+                        );
+                        const doneCount = projTasks.filter(
+                          (t) => t.status === 'Done'
+                        ).length;
+
+                        return (
+                          <div
+                            key={proj.id}
+                            className="rounded-xl bg-[#F7F7F5]/60 border border-[#E8E8E5] p-5 space-y-4"
+                          >
+                            <div className="flex items-center justify-between text-[12px] font-semibold text-[#737373]">
+                              <span>Проект · {proj.quarter}</span>
+                              <span className="text-[#171717]">{proj.status}</span>
+                            </div>
+
+                            <div>
+                              <h4 className="text-[18px] font-bold text-[#171717]">
+                                {proj.name}
+                              </h4>
+                              <p className="text-[13px] text-[#737373] mt-1">
+                                {proj.description}
+                              </p>
+                            </div>
+
+                            {/* Список связанных задач проекта */}
+                            {projTasks.length > 0 && (
+                              <div className="space-y-2 pt-2 border-t border-[#E8E8E5]">
+                                <div className="flex items-center justify-between text-[12px] font-semibold text-[#737373]">
+                                  <span>Задачи проекта ({projTasks.length})</span>
+                                  <span>
+                                    Выполнено: {doneCount}/{projTasks.length}
+                                  </span>
+                                </div>
+                                {projTasks.map((pt) => (
+                                  <div
+                                    key={pt.id}
+                                    onClick={() => setSelectedTaskId(pt.id)}
+                                    className="rounded-lg bg-white border border-[#E8E8E5] px-3 py-2 flex items-center justify-between text-[13px] hover:border-[#171717] cursor-pointer"
+                                  >
+                                    <span className="font-semibold text-[#171717] truncate pr-2">
+                                      {pt.title}
+                                    </span>
+                                    <span className="text-[11px] font-semibold text-[#737373] shrink-0">
+                                      {TASK_STATUS_LABELS_RU[pt.status]}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="pt-2 border-t border-[#E8E8E5] text-[12px] text-[#737373] flex justify-between">
+                              <span>
+                                Руководитель:{' '}
+                                <b className="text-[#171717]">{owner?.fullName}</b>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* БОКОВАЯ ПАНЕЛЬ ДЕТАЛЕЙ ЗАДАЧИ, КОММЕНТАРИЕВ И ВЛОЖЕНИЙ (п. 12 ТЗ) */}
+      {selectedTask && (
+        <div
+          onClick={() => setSelectedTaskId(null)}
+          className="fixed inset-0 z-50 flex justify-end bg-black/40"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl bg-white dark:bg-zinc-900 h-full overflow-y-auto p-8 space-y-6 shadow-2xl border-l border-[#E8E8E5]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
+              <div>
+                <div className="text-[12px] font-semibold uppercase text-[#737373]">
+                  Карточка задачи · ID {selectedTask.id}
+                </div>
+                <h2 className="text-[24px] font-bold text-[#171717] dark:text-white mt-1">
+                  {selectedTask.title}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedTaskId(null)}
+                className="rounded-xl border border-[#E8E8E5] p-2 text-[#171717] hover:bg-[#111111] hover:text-white cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-[14px]">
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">Статус</label>
+                <select
+                  disabled={isStrategyMode}
+                  value={selectedTask.status}
+                  onChange={(e) =>
+                    updateTaskStatus(selectedTask.id, e.target.value as TaskStatus)
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
+                >
+                  {TASK_COLUMNS.map((st) => (
+                    <option key={st} value={st}>
+                      {TASK_STATUS_LABELS_RU[st]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">Приоритет</label>
+                <select
+                  disabled={isStrategyMode}
+                  value={selectedTask.priority}
+                  onChange={(e) =>
+                    updateTask(selectedTask.id, {
+                      priority: e.target.value as TaskPriority,
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
+                >
+                  <option value="Critical">Критический</option>
+                  <option value="High">Высокий</option>
+                  <option value="Medium">Средний</option>
+                  <option value="Low">Низкий</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">Ответственный</label>
+                <select
+                  disabled={isStrategyMode}
+                  value={selectedTask.assigneeId}
+                  onChange={(e) =>
+                    updateTask(selectedTask.id, { assigneeId: e.target.value })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">Дедлайн</label>
+                <input
+                  type="date"
+                  disabled={isStrategyMode}
+                  value={selectedTask.deadline}
+                  onChange={(e) =>
+                    updateTask(selectedTask.id, { deadline: e.target.value })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-semibold text-[#737373] mb-1.5">
+                Описание задачи
+              </label>
+              <textarea
+                rows={3}
+                disabled={isStrategyMode}
+                value={selectedTask.description}
+                onChange={(e) =>
+                  updateTask(selectedTask.id, { description: e.target.value })
+                }
+                className="w-full rounded-xl border border-[#E8E8E5] p-3.5 text-[14px]"
+              />
+            </div>
+
+            {/* Вложения к задаче */}
+            <div className="space-y-3 pt-4 border-t border-[#E8E8E5]">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[16px] font-bold">
+                  Вложения ({selectedTask.attachments.length})
+                </h4>
+                {!isStrategyMode && (
+                  <label className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#171717] hover:underline cursor-pointer">
+                    <Paperclip className="h-4 w-4" />
+                    <span>Прикрепить файл</span>
+                    <input
+                      type="file"
+                      onChange={(e) => handleAttachFileToTask(e, selectedTask)}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {selectedTask.attachments.map((att, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-medium text-[#171717]"
+                  >
+                    📎 {att}
+                  </span>
+                ))}
+                {selectedTask.attachments.length === 0 && (
+                  <span className="text-[13px] text-[#737373]">Вложений пока нет</span>
+                )}
+              </div>
+            </div>
+
+            {/* Комментарии к задаче */}
+            <div className="space-y-4 pt-4 border-t border-[#E8E8E5]">
+              <h4 className="text-[16px] font-bold">
+                Комментарии ({selectedTask.comments.length})
+              </h4>
+              <div className="space-y-2.5 max-h-56 overflow-y-auto">
+                {selectedTask.comments.map((cm) => (
+                  <div
+                    key={cm.id}
+                    className="rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] p-3.5 text-[14px]"
+                  >
+                    <div className="flex items-center justify-between text-[12px] text-[#737373] mb-1">
+                      <span className="font-semibold text-[#171717]">
+                        {cm.authorName}
+                      </span>
+                      <span>{cm.createdAt}</span>
+                    </div>
+                    <p className="text-[#171717]">{cm.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {!isStrategyMode && (
+                <div className="flex gap-2">
+                  <input
+                    value={taskCommentText}
+                    onChange={(e) => setTaskCommentText(e.target.value)}
+                    placeholder="Написать комментарий по задаче..."
+                    className="flex-1 h-10 rounded-xl border border-[#E8E8E5] px-3.5 text-[14px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!taskCommentText.trim()) return;
+                      updateTask(selectedTask.id, {
+                        comments: [
+                          ...selectedTask.comments,
+                          {
+                            id: `tcm-${Date.now()}`,
+                            authorName: currentUser.fullName,
+                            text: taskCommentText.trim(),
+                            createdAt: new Date().toISOString().slice(0, 10),
+                          },
+                        ],
+                      });
+                      setTaskCommentText('');
+                    }}
+                    className="h-10 px-4 rounded-xl bg-[#111111] text-white text-[13px] font-semibold cursor-pointer"
+                  >
+                    Отправить
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!isStrategyMode && (
+              <div className="pt-4 border-t border-[#E8E8E5] flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    archiveEntity('task', selectedTask.id);
+                    setSelectedTaskId(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#C94B4B] hover:underline cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Архивировать задачу</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Модальное окно создания задачи */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+            <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
+              Постановка задачи
+            </h3>
+            <div className="space-y-4 text-[14px]">
+              <div>
+                <label className="block font-semibold mb-1.5">Формулировка задачи</label>
+                <input
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  placeholder="Например: Проверить посадку образца после стирки"
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold mb-1.5">Бренд</label>
+                  <select
+                    value={newTask.brandId}
+                    onChange={(e) => setNewTask({ ...newTask, brandId: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white"
+                  >
+                    <option value="BORNERS">BORNERS</option>
+                    <option value="NA_TELE">НА ТЕЛЕ</option>
+                    <option value="ALL">Общая задача</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1.5">Приоритет</label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, priority: e.target.value as TaskPriority })
+                    }
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white"
+                  >
+                    <option value="Critical">Критический</option>
+                    <option value="High">Высокий</option>
+                    <option value="Medium">Средний</option>
+                    <option value="Low">Низкий</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1.5">Исполнитель</label>
+                  <select
+                    value={newTask.assigneeId}
+                    onChange={(e) =>
+                      setNewTask({ ...newTask, assigneeId: e.target.value })
+                    }
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white"
+                  >
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1.5">Дедлайн</label>
+                  <input
+                    type="date"
+                    value={newTask.deadline}
+                    onChange={(e) => setNewTask({ ...newTask, deadline: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#E8E8E5]">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="h-11 px-5 rounded-xl border border-[#E8E8E5] text-[14px] font-semibold cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  if (!newTask.title.trim()) return;
+                  createTask({
+                    title: newTask.title.trim(),
+                    description: newTask.description || 'Операционная задача',
+                    brandId: newTask.brandId,
+                    projectId: newTask.projectId,
+                    priority: newTask.priority,
+                    assigneeId: newTask.assigneeId,
+                    deadline: newTask.deadline,
+                  });
+                  setModalOpen(false);
+                }}
+                className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+              >
+                Создать задачу
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// ДОКУМЕНТЫ И БАЗА ЗНАНИЙ (п. 13 ТЗ)
+// =============================================================================
+const DOC_CATEGORIES: DocumentCategory[] = [
+  'стратегия',
+  'производство',
+  'поставщики',
+  'каталоги',
+  'дизайн',
+  'аналитика',
+  'маркетинг',
+  'финансы',
+  'прочее',
+];
+
+export function DocumentsView() {
+  const {
+    documents,
+    currentUser,
+    brandFilter,
+    createDocument,
+    notify,
+  } = usePlatform();
+
+  const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const hasFinanceAccess = canUserViewFinance(currentUser);
+
+  const [form, setForm] = useState({
+    title: '',
+    category: 'производство' as DocumentCategory,
+    brandId: 'BORNERS',
+    fileName: '',
+    isFinancialRestricted: false,
+  });
+
+  const filteredDocs = useMemo(() => {
+    return documents.filter((d) => {
+      if (d.isArchived) return false;
+      if (d.isFinancialRestricted && !hasFinanceAccess) return false;
+      if (brandFilter !== 'ALL' && d.brandId !== 'ALL' && d.brandId !== brandFilter) {
+        return false;
+      }
+      if (categoryFilter !== 'ALL' && d.category !== categoryFilter) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          d.title.toLowerCase().includes(q) || d.fileName.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [documents, hasFinanceAccess, brandFilter, categoryFilter, searchQuery]);
+
+  const handleDownloadDocument = (doc: (typeof documents)[number]) => {
+    const content = [
+      `ДОКУМЕНТ BORNERS GROUP`,
+      `==================================================`,
+      `Название: ${doc.title}`,
+      `Файл: ${doc.fileName}`,
+      `Категория: ${doc.category}`,
+      `Бренд: ${doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}`,
+      `Дата обновления: ${doc.uploadedAt}`,
+      `Автор: ${doc.uploadedBy}`,
+    ].join('\n');
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${doc.fileName.replace(/\.[^/.]+$/, '')}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify('success', `Файл «${doc.fileName}» выгружен`);
+  };
+
+  return (
+    <div className="space-y-10 pb-20">
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+        <div>
+          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
+            Реестр документации, спецификаций и лекал
+          </div>
+          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+            Документы и файлы
+          </h1>
+        </div>
+
+        <button
+          onClick={() => setModalOpen(true)}
+          className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+        >
+          + Загрузить документ
+        </button>
+      </div>
+
+      {/* Фильтры и поиск */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setCategoryFilter('ALL')}
+            className={`px-4 py-2 rounded-xl text-[14px] font-semibold border transition cursor-pointer ${
+              categoryFilter === 'ALL'
+                ? 'bg-[#111111] text-white border-[#111111]'
+                : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#171717]'
+            }`}
+          >
+            Все ({filteredDocs.length})
+          </button>
+          {DOC_CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategoryFilter(cat)}
+              className={`px-4 py-2 rounded-xl text-[14px] font-semibold border capitalize transition cursor-pointer ${
+                categoryFilter === cat
+                  ? 'bg-[#111111] text-white border-[#111111]'
+                  : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#171717]'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full md:w-80">
+          <Search className="h-4 w-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Поиск документа..."
+            className="w-full h-11 rounded-xl bg-white border border-[#E8E8E5] pl-10 pr-4 text-[15px] outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Таблица документов */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] overflow-x-auto">
+        <table className="w-full text-left text-[15px]">
+          <thead className="border-b border-[#E8E8E5] text-[13px] font-semibold uppercase tracking-wider text-[#737373] bg-[#F7F7F5]/60">
+            <tr>
+              <th className="py-4 px-6">Наименование и файл</th>
+              <th className="py-4 px-4">Категория</th>
+              <th className="py-4 px-4">Бренд</th>
+              <th className="py-4 px-4">Дата и автор</th>
+              <th className="py-4 px-6 text-right">Действие</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#E8E8E5]">
+            {filteredDocs.map((doc) => (
+              <tr key={doc.id} className="hover:bg-[#F7F7F5]/60 transition">
+                <td className="py-4 px-6">
+                  <div className="font-semibold text-[16px] text-[#171717] dark:text-white">
+                    {doc.title}
+                  </div>
+                  <div className="text-[13px] text-[#737373] mt-0.5">
+                    {doc.fileName} · {Math.round(doc.fileSizeBytes / 1024)} КБ
+                  </div>
+                </td>
+                <td className="py-4 px-4 font-medium capitalize text-[#737373]">
+                  {doc.category}
+                </td>
+                <td className="py-4 px-4 font-semibold">
+                  {doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}
+                </td>
+                <td className="py-4 px-4">
+                  <div className="font-semibold">{doc.uploadedAt}</div>
+                  <div className="text-[13px] text-[#737373]">{doc.uploadedBy}</div>
+                </td>
+                <td className="py-4 px-6 text-right">
+                  <button
+                    onClick={() => handleDownloadDocument(doc)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-[#E8E8E5] px-4 py-2 text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Скачать</span>
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+            <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
+              Регистрация документа
+            </h3>
+            <div className="space-y-4 text-[14px]">
+              <div>
+                <label className="block font-semibold mb-1.5">Название документа</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold mb-1.5">Категория</label>
+                  <select
+                    value={form.category}
+                    onChange={(e) =>
+                      setForm({ ...form, category: e.target.value as DocumentCategory })
+                    }
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white capitalize"
+                  >
+                    {DOC_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1.5">Бренд</label>
+                  <select
+                    value={form.brandId}
+                    onChange={(e) => setForm({ ...form, brandId: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white"
+                  >
+                    <option value="ALL">BORNERS GROUP (Общий)</option>
+                    <option value="BORNERS">BORNERS</option>
+                    <option value="NA_TELE">НА ТЕЛЕ</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block font-semibold mb-1.5">Имя файла</label>
+                <input
+                  value={form.fileName}
+                  onChange={(e) => setForm({ ...form, fileName: e.target.value })}
+                  placeholder="BORNERS_Spec_2027.pdf"
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-[#E8E8E5]">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="h-11 px-5 rounded-xl border border-[#E8E8E5] text-[14px] font-semibold cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={() => {
+                  if (!form.title.trim()) return;
+                  createDocument({
+                    title: form.title.trim(),
+                    category: form.category,
+                    brandId: form.brandId,
+                    fileName: form.fileName || 'Document_2027.pdf',
+                    fileType: 'PDF',
+                    fileSizeBytes: 2450000,
+                    tags: [form.category],
+                    isFinancialRestricted: form.isFinancialRestricted,
+                    minRole: 'Viewer',
+                    isDemo: false,
+                  });
+                  setModalOpen(false);
+                }}
+                className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// КОМАНДА И ДОСТУП (п. 14, 15 ТЗ: БЕЗ КОЛОНКИ «ПЕРЕКЛЮЧИТЬСЯ»)
+// =============================================================================
+export function TeamView() {
+  const {
+    brands,
+    users,
+    currentUser,
+    updateUserRoleOrPermissions,
+    auditLog,
+  } = usePlatform();
+
+  const canManageUsers = currentUser.role === 'Owner' || currentUser.role === 'Admin';
+
+  const toggleBrandAccess = (userId: string, currentBrands: string[], targetBrand: string) => {
+    if (!canManageUsers) return;
+    const exists = currentBrands.includes(targetBrand);
+    const nextBrands = exists
+      ? currentBrands.filter((b) => b !== targetBrand)
+      : [...currentBrands, targetBrand];
+    if (nextBrands.length === 0) return;
+    updateUserRoleOrPermissions(userId, { assignedBrandIds: nextBrands });
+  };
+
+  return (
+    <div className="space-y-10 pb-20">
+      {/* Крупный заголовок */}
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+        <div>
+          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
+            Матрица ролей и прав доступа · {users.length} участников
+          </div>
+          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+            Команда и роли
+          </h1>
+        </div>
+
+        <div className="text-[14px] font-semibold rounded-xl border border-[#E8E8E5] bg-white px-4 py-2.5">
+          Текущий профиль: {currentUser.fullName} ({ROLE_LABELS_RU[currentUser.role]})
+        </div>
+      </div>
+
+      {/* Крупная таблица участников без колонки «Переключиться» */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] overflow-x-auto">
+        <table className="w-full text-left text-[15px]">
+          <thead className="border-b border-[#E8E8E5] text-[13px] font-semibold uppercase tracking-wider text-[#737373] bg-[#F7F7F5]/60">
+            <tr>
+              <th className="py-4 px-6">Сотрудник / Партнёр</th>
+              <th className="py-4 px-4">Системная роль</th>
+              <th className="py-4 px-4">Доступ к брендам</th>
+              <th className="py-4 px-4">Финансы и P&L</th>
+              <th className="py-4 px-4">Себестоимость (COGS)</th>
+              <th className="py-4 px-6 text-right">Статус</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[#E8E8E5]">
+            {users.map((u) => {
+              const isCurrent = u.id === currentUser.id;
+              return (
+                <tr
+                  key={u.id}
+                  className={
+                    isCurrent
+                      ? 'bg-[#F7F7F5]/80 dark:bg-zinc-800/40'
+                      : 'hover:bg-[#F7F7F5]/40 transition'
+                  }
+                >
+                  <td className="py-4 px-6">
+                    <div className="flex items-center gap-4">
+                      <span className="h-10 w-10 rounded-xl bg-[#111111] text-white flex items-center justify-center text-[14px] font-semibold shrink-0">
+                        {u.avatarInitials}
+                      </span>
+                      <div>
+                        <div className="font-bold text-[16px] text-[#171717] dark:text-white flex items-center gap-2.5">
+                          <span>{u.fullName}</span>
+                          {isCurrent && (
+                            <span className="rounded-md bg-[#F7F7F5] border border-[#E8E8E5] px-2 py-0.5 text-[11px] font-semibold uppercase text-[#737373]">
+                              Вы
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[13px] text-[#737373] mt-0.5">
+                          {u.jobTitle} · {u.email}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td className="py-4 px-4">
+                    <select
+                      disabled={!canManageUsers}
+                      value={u.role}
+                      onChange={(e) =>
+                        updateUserRoleOrPermissions(u.id, {
+                          role: e.target.value as UserRole,
+                        })
+                      }
+                      className="h-10 rounded-xl border border-[#E8E8E5] px-3 text-[14px] font-semibold bg-white text-[#171717] disabled:opacity-60 outline-none cursor-pointer"
+                    >
+                      <option value="Owner">Владелец</option>
+                      <option value="Admin">Администратор</option>
+                      <option value="Manager">Менеджер</option>
+                      <option value="Viewer">Наблюдатель</option>
+                      <option value="Partner">Партнёр</option>
+                    </select>
+                  </td>
+
+                  <td className="py-4 px-4">
+                    <div className="inline-flex flex-wrap items-center gap-2">
+                      {brands.map((brand) => {
+                        const active =
+                          u.assignedBrandIds.includes('ALL') ||
+                          u.assignedBrandIds.includes(brand.code) ||
+                          u.assignedBrandIds.includes(brand.id);
+                        return (
+                          <button
+                            key={brand.id}
+                            type="button"
+                            disabled={!canManageUsers}
+                            onClick={() =>
+                              toggleBrandAccess(u.id, u.assignedBrandIds, brand.code)
+                            }
+                            className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold border transition ${
+                              active
+                                ? 'bg-[#111111] text-white border-[#111111]'
+                                : 'bg-white text-[#737373] border-[#E8E8E5]'
+                            } ${
+                              canManageUsers ? 'cursor-pointer hover:opacity-85' : 'cursor-default'
+                            }`}
+                          >
+                            {brand.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </td>
+
+                  <td className="py-4 px-4">
+                    <label className="inline-flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        disabled={!canManageUsers}
+                        checked={u.canViewFinance}
+                        onChange={(e) =>
+                          updateUserRoleOrPermissions(u.id, {
+                            canViewFinance: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 accent-[#111111] cursor-pointer"
+                      />
+                      <span className="text-[14px] font-medium text-[#171717]">
+                        {u.canViewFinance ? 'Разрешено' : 'Скрыто'}
+                      </span>
+                    </label>
+                  </td>
+
+                  <td className="py-4 px-4">
+                    <label className="inline-flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        disabled={!canManageUsers}
+                        checked={u.canViewCostPrice}
+                        onChange={(e) =>
+                          updateUserRoleOrPermissions(u.id, {
+                            canViewCostPrice: e.target.checked,
+                          })
+                        }
+                        className="h-4 w-4 accent-[#111111] cursor-pointer"
+                      />
+                      <span className="text-[14px] font-medium text-[#171717]">
+                        {u.canViewCostPrice ? 'Разрешено' : 'Скрыто'}
+                      </span>
+                    </label>
+                  </td>
+
+                  <td className="py-4 px-6 text-right">
+                    <span className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#16805D]">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#16805D]" />
+                      <span>Активен</span>
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Справка по ролям и Журнал действий */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-4">
+          <h3 className="text-[20px] font-bold border-b border-[#E8E8E5] pb-3">
+            Матрица полномочий
+          </h3>
+          <div className="space-y-3 text-[14px] text-[#737373] leading-relaxed">
+            <div>
+              <b className="text-[#171717]">Владелец и Администратор:</b> полный доступ ко всем разделам, утверждение стратегий и управление ролями.
+            </div>
+            <div>
+              <b className="text-[#171717]">Менеджер:</b> управление каталогом, R&D и запусками; утверждённые блоки стратегии защищены от изменений.
+            </div>
+            <div>
+              <b className="text-[#171717]">Наблюдатель и Партнёр:</b> без доступа к разделу «Финансы», себестоимости (COGS) и маржинальности.
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-3">
+            <h3 className="text-[20px] font-bold">Журнал действий</h3>
+            <span className="text-[13px] text-[#737373]">
+              Записей: {auditLog.length}
+            </span>
+          </div>
+          <div className="divide-y divide-[#E8E8E5] max-h-72 overflow-y-auto text-[14px]">
+            {auditLog.slice(0, 12).map((entry) => (
+              <div
+                key={entry.id}
+                className="py-3 flex items-center justify-between gap-4"
+              >
+                <div className="truncate">
+                  <b className="text-[#171717]">{entry.actorName}</b>{' '}
+                  <span className="text-[#737373]">({ROLE_LABELS_RU[entry.actorRole]})</span> —{' '}
+                  <span className="text-[#737373]">{entry.summary}</span>
+                </div>
+                <span className="text-[13px] text-[#737373] shrink-0">
+                  {entry.createdAt}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// НАСТРОЙКИ СИСТЕМЫ (п. 16 ТЗ)
+// =============================================================================
+export function SettingsView() {
+  const {
+    brands,
+    darkMode,
+    setDarkMode,
+    updateBrandPalette,
+    resetToDemoDefaults,
+    notify,
+  } = usePlatform();
+
+  return (
+    <div className="space-y-10 pb-20">
+      <div className="border-b border-[#E8E8E5] pb-6">
+        <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
+          Конфигурация системы и резервное копирование
+        </div>
+        <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+          Настройки
+        </h1>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-5">
+          <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-3">
+            Акцентные цвета брендов
+          </h3>
+
+          <div className="divide-y divide-[#E8E8E5]">
+            {brands.map((brand) => (
+              <div
+                key={brand.id}
+                className="py-4 flex items-center justify-between gap-4"
+              >
+                <div>
+                  <div className="text-[18px] font-bold text-[#171717] dark:text-white">
+                    {brand.name}
+                  </div>
+                  <div className="text-[14px] text-[#737373]">{brand.accentColor}</div>
+                </div>
+                <input
+                  type="color"
+                  value={brand.accentColor}
+                  onChange={(e) =>
+                    updateBrandPalette(brand.id, e.target.value, brand.secondaryColor)
+                  }
+                  className="h-10 w-16 rounded-lg border border-[#E8E8E5] cursor-pointer"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-6">
+          <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
+            <div>
+              <h3 className="text-[22px] font-bold">Тема оформления</h3>
+              <p className="text-[14px] text-[#737373] mt-0.5">
+                Светлая минималистичная (#F7F7F5) или тёмная тема
+              </p>
+            </div>
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+            >
+              {darkMode ? 'Включить светлую' : 'Включить тёмную'}
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-[18px] font-bold text-[#171717]">
+                Резервное копирование данных
+              </h4>
+              <p className="text-[14px] text-[#737373] mt-0.5">
+                {isSupabaseConfigured
+                  ? 'Синхронизация с базой Supabase активна'
+                  : 'Автосохранение в браузере активно'}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => {
+                  const raw =
+                    window.localStorage.getItem('borners_group_platform_state_ru_v3') || '{}';
+                  const blob = new Blob([raw], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `BORNERS_GROUP_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  notify('success', 'Резервная копия JSON скачана');
+                }}
+                className="inline-flex items-center gap-2 h-11 rounded-xl border border-[#E8E8E5] px-5 text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
+              >
+                <Download className="h-4 w-4" />
+                <span>Экспорт базы JSON</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Сбросить внесённые изменения к начальным демонстрационным данным?'
+                    )
+                  ) {
+                    resetToDemoDefaults();
+                  }
+                }}
+                className="inline-flex items-center gap-2 h-11 rounded-xl border border-[#C94B4B] text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white px-5 text-[14px] font-semibold transition cursor-pointer"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Сбросить демо-данные</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BORNERS GROUP — Strategy & Product Development Platform (v1.0 | 2026–2027)
 
-## Getting Started
+Закрытая корпоративная веб-платформа стратегического управления, продуктовой лаборатории (**Product Lab**) и бизнес-аналитики для портфеля брендов мужского нижнего белья **BORNERS** и **НА ТЕЛЕ**, расширяемая на новые бренды.
 
-First, run the development server:
+---
 
+## 1. Три ключевых контура платформы
+1. **Strategy Platform** — интерактивная презентация стратегии брендов (`BORNERS` / `НА ТЕЛЕ`), 14 обязательных стратегических блоков с версионностью, черновиками, статусами согласования (`Черновик / На согласовании / Утверждено`), защитой утверждённых версий по ролям, **Strategy Mode** и базой `Market Intelligence`.
+2. **Product Development System** — единый сквозной цикл от концепции в `Product Lab` (`IDEA → RESEARCH → DESIGN → PROTOTYPE → TESTING → APPROVED → PRODUCTION → READY TO LAUNCH`) и трёхъязычного производственного ТЗ для фабрики (`中文 / ENGLISH / РУССКИЙ`, китайский первым + экспорт в PDF) до карточки в `Product Catalog` и коммерческого релиза в `Launch Calendar`.
+3. **Business Management System** — управление `Launch Calendar` (10 этапов запуска, предупреждение о конфликтах сроков при переносе даты без молчаливого сдвига), `Finance` (6 подразделов, сценарии `Conservative / Base / Optimistic`, формулы выручки и юнит-экономики, 8-шаговый импорт CSV/Excel), `Roadmap & Tasks`, `Documents` и `Team & Access Control`.
+
+---
+
+## 2. Технический стек (п. 16 ТЗ)
+- **Frontend & Framework:** Next.js (App Router) + React + TypeScript
+- **Styling & UI:** Tailwind CSS + кастомная дизайн-система *Premium Minimalism × Fashion Tech × Business Intelligence* (`#F7F7F5`, `#FFFFFF`, `#171717`, `#737373`, `#E8E8E5`, `#111111`, `BORNERS #D97745`, `НА ТЕЛЕ #8B8078`, `#16805D`, `#D99527`, `#C94B4B`)
+- **Charts & Analytics:** Recharts
+- **Database & Auth / Storage:** PostgreSQL / Supabase (полные SQL-миграции и RLS-политики в [`supabase/migrations/`](./supabase/migrations)) + локальное персистентное хранилище (`localStorage`) с предзагруженными DEMO-данными (`BIG LOVE`, `Skin Tone Collection`)
+
+---
+
+## 3. Инструкция локального запуска (п. 26 ТЗ)
+
+### Шаг 1. Установка зависимостей
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Шаг 2. Настройка переменных окружения
+Скопируйте шаблон `.env.example` в `.env.local`:
+```bash
+cp .env.example .env.local
+```
+*Примечание:* Платформа запускается сразу в автономном персистентном режиме с демонстрационными данными (`NEXT_PUBLIC_ENABLE_DEMO_MODE=true`). Для подключения облачного проекта Supabase укажите `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY` и примените миграции из папки `supabase/migrations/`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Шаг 3. Запуск сервера разработки
+```bash
+npm run dev
+```
+Откройте [http://localhost:3000](http://localhost:3000) в браузере.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Шаг 4. Запуск автоматических тестов
+```bash
+node --experimental-strip-types --test tests/platform.test.ts
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 4. Сценарий приёмки (п. 25 ТЗ)
+Пользователь без участия разработчика может пройти весь сквозной путь:
+1. Войти в систему → выбрать бренд **BORNERS** в верхнем переключателе.
+2. Открыть **Product Lab** → нажать **+ NEW PRODUCT CONCEPT** → создать концепцию → загрузить фото / AI-рендер → добавить характеристики → сохранить.
+3. Изменить статус концепции на `APPROVED` → нажать **Создать Продукт в каталоге**.
+4. Перейти во вкладку **Запуск, Задачи, Бюджет & Связи** → установить дату и маркетинговый бюджет → нажать **Создать запуск с бюджетом** → назначить задачи и ответственных.
+5. Увидеть созданный запуск в **Launch Calendar** и в блоке **Upcoming Launches** на **Dashboard**.
+6. Открыть запуск с **Dashboard** → нажать **Перейти обратно к продукту**.
+7. Включить **Strategy Mode** в верхней панели → просмотреть презентацию стратегии.
+8. Нажать **Выйти из системы** в меню профиля и снова войти — все созданные объекты и связи сохраняются без потерь.
