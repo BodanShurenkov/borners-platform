@@ -1305,8 +1305,8 @@ export function ProductLabCardBody({
     };
 
     const checkpoints: RnDPostLaunchCheckpoint[] =
-      concept.postLaunchCheckpoints && concept.postLaunchCheckpoints.length === 3
-        ? concept.postLaunchCheckpoints
+      concept.postLaunchMetrics && concept.postLaunchMetrics.length === 3
+        ? concept.postLaunchMetrics
         : [
             {
               day: 7,
@@ -1356,7 +1356,7 @@ export function ProductLabCardBody({
       const next = checkpoints.map((cp) =>
         cp.day === day ? { ...cp, ...patch } : cp
       );
-      onUpdateConcept(concept.id, { postLaunchCheckpoints: next });
+      onUpdateConcept(concept.id, { postLaunchMetrics: next });
     };
 
     return (
