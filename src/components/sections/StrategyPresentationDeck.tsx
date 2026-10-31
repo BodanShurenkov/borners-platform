@@ -1280,14 +1280,13 @@ export function StrategyPresentationDeck({
                       : g.brandId === 'NA_TELE'
                       ? 'НА ТЕЛЕ'
                       : 'BORNERS'}{' '}
-                    · Срок: {g.deadline}
+                    · Период: {g.periodQuarter}
                   </span>
                   <span className="text-[#16805D]">{g.progressPct}% выполнено</span>
                 </div>
                 <h4 className="text-[18px] font-bold text-[#171717]">{g.title}</h4>
                 <div className="text-[14px] text-[#737373]">
-                  Целевой ориентир: <b className="text-[#171717]">{g.targetMetric}</b> (сейчас:{' '}
-                  {g.currentValue})
+                  Целевой ориентир: <b className="text-[#171717]">{g.targetMetric}</b> ({g.status})
                 </div>
                 <div className="h-2.5 w-full rounded-full bg-[#E8E8E5] overflow-hidden">
                   <div
