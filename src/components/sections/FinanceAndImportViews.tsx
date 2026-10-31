@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import {
+  Download,
   Lock,
   Upload,
   X,
@@ -31,13 +32,17 @@ export function FinanceView() {
     financialPlans,
     currentUser,
     brandFilter,
+    platformMode,
     financialScenario,
     setFinancialScenario,
     updateFinancialPlanRow,
+    addFinancialPlanRow,
     createProduct,
     createCompetitor,
     notify,
   } = usePlatform();
+
+  const isStrategyMode = platformMode === 'strategy';
 
   const [subTab, setSubTab] = useState<
     | 'overview'
@@ -162,13 +167,15 @@ export function FinanceView() {
             ))}
           </div>
 
-          <button
-            onClick={() => setImportModalOpen(true)}
-            className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#111111] text-white px-5 text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Импорт таблиц CSV/XLSX</span>
-          </button>
+          {!isStrategyMode && (
+            <button
+              onClick={() => setImportModalOpen(true)}
+              className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#111111] text-white px-5 text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Upload className="h-4 w-4" />
+              <span>Импорт таблиц CSV/XLSX</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -288,18 +295,26 @@ export function FinanceView() {
                       {formatCurrencyRub(row.plannedRevenueRub)}
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <input
-                        type="number"
-                        placeholder="Нет данных"
-                        value={row.actualRevenueRub ?? ''}
-                        onChange={(e) => {
-                          const raw = e.target.value.trim();
-                          updateFinancialPlanRow(row.id, {
-                            actualRevenueRub: raw === '' ? null : Number(raw),
-                          });
-                        }}
-                        className="w-40 text-right h-10 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-[#F7F7F5]"
-                      />
+                      {isStrategyMode ? (
+                        <span className="font-semibold text-[#171717]">
+                          {row.actualRevenueRub !== null
+                            ? formatCurrencyRub(row.actualRevenueRub)
+                            : 'Нет данных'}
+                        </span>
+                      ) : (
+                        <input
+                          type="number"
+                          placeholder="Нет данных"
+                          value={row.actualRevenueRub ?? ''}
+                          onChange={(e) => {
+                            const raw = e.target.value.trim();
+                            updateFinancialPlanRow(row.id, {
+                              actualRevenueRub: raw === '' ? null : Number(raw),
+                            });
+                          }}
+                          className="w-40 text-right h-10 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-[#F7F7F5]"
+                        />
+                      )}
                     </td>
                     <td className="py-4 px-4 text-right font-semibold">
                       {v.hasFact ? (
@@ -561,21 +576,76 @@ export function FinanceView() {
       {/* 7. Шаблоны CSV */}
       {subTab === 'import' && (
         <div className="bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E8E5] pb-5">
             <div>
               <h3 className="text-[22px] font-bold">
-                Пакетная загрузка данных из CSV / Excel
+                Пакетная загрузка данных из CSV / Excel (3 контура ТЗ)
               </h3>
               <p className="text-[15px] text-[#737373] mt-1">
-                Проверка обязательных полей и защита от дубликатов артикулов перед записью в базу.
+                Проверка обязательных полей, маппинг колонок и защита от дубликатов артикулов перед записью в базу.
               </p>
             </div>
-            <button
-              onClick={() => setImportModalOpen(true)}
-              className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
-            >
-              Открыть мастер импорта →
-            </button>
+            {!isStrategyMode && (
+              <button
+                onClick={() => setImportModalOpen(true)}
+                className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+              >
+                Открыть мастер импорта →
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[14px]">
+            {[
+              {
+                title: '1. Шаблон каталога SKU',
+                file: 'BORNERS_Template_SKU.csv',
+                csv: 'sku;name;brandId;retailPriceRub;costPriceRub;materials\nBRN-IMP-01;Футболка BORNERS Heavy Pima 240;BORNERS;3490;680;100% Пима-хлопок\nNTL-IMP-02;Боди НА ТЕЛЕ Invisible Skin;NA_TELE;3890;720;Микрофибра Free-cut',
+              },
+              {
+                title: '2. Шаблон таблицы конкурентов',
+                file: 'BORNERS_Template_Competitors.csv',
+                csv: 'brandName;priceRangeRub;positioning\nSHU Underwear;1 990 – 2 990 ₽;Базовый городской трикотаж\nBelle YOU;2 500 – 4 900 ₽;Бесшовное женское бельё',
+              },
+              {
+                title: '3. Шаблон Финплана (План/Факт)',
+                file: 'BORNERS_Template_FinancePlan.csv',
+                csv: 'periodMonth;periodLabel;brandId;plannedBuyoutUnits;avgSellingPriceRub;plannedRevenueRub;plannedOperatingProfitRub\n2027-04;Апрель 2027;BORNERS;5200;2190;11388000;3650000',
+              },
+            ].map((tpl) => (
+              <div
+                key={tpl.file}
+                className="rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] p-5 flex flex-col justify-between space-y-4"
+              >
+                <div>
+                  <div className="font-bold text-[#171717] text-[16px]">
+                    {tpl.title}
+                  </div>
+                  <div className="text-[12px] text-[#737373] mt-1 font-mono">
+                    {tpl.file}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const blob = new Blob([tpl.csv], {
+                      type: 'text/csv;charset=utf-8',
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = tpl.file;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    notify('success', `Шаблон ${tpl.file} выгружен`);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-white border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] hover:bg-[#111111] hover:text-white transition cursor-pointer"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Скачать шаблон .CSV</span>
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -610,7 +680,7 @@ export function FinanceView() {
                 },
               });
             });
-            notify('success', `Импортировано позиций: ${rows.length}`);
+            notify('success', `Импортировано позиций SKU: ${rows.length}`);
             setImportModalOpen(false);
           }}
           onImportCompetitors={(rows) => {
@@ -632,6 +702,35 @@ export function FinanceView() {
             notify('success', `Импортировано конкурентов: ${rows.length}`);
             setImportModalOpen(false);
           }}
+          onImportFinance={(rows) => {
+            rows.forEach((r) => {
+              const units = Number(r.plannedBuyoutUnits) || 4500;
+              const avgPrice = Number(r.avgSellingPriceRub) || 2190;
+              const rev = Number(r.plannedRevenueRub) || units * avgPrice;
+              const prof = Number(r.plannedOperatingProfitRub) || Math.round(rev * 0.32);
+              addFinancialPlanRow({
+                brandId: r.brandId === 'NA_TELE' ? 'NA_TELE' : 'BORNERS',
+                scenario: financialScenario,
+                periodMonth: r.periodMonth || '2027-04',
+                periodLabel: r.periodLabel || 'Апрель 2027',
+                currency: 'RUB',
+                plannedBuyoutUnits: units,
+                actualBuyoutUnits: r.actualBuyoutUnits ? Number(r.actualBuyoutUnits) : null,
+                avgSellingPriceRub: avgPrice,
+                plannedRevenueRub: rev,
+                actualRevenueRub: r.actualRevenueRub ? Number(r.actualRevenueRub) : null,
+                plannedOperatingProfitRub: prof,
+                actualOperatingProfitRub: null,
+                fixedCostsRub: 850000,
+                marketingBudgetRub: 750000,
+                launchInvestmentRub: 400000,
+                sourceLabel: 'Импорт CSV',
+                isDemo: false,
+              });
+            });
+            notify('success', `Импортировано строк финансового плана: ${rows.length}`);
+            setImportModalOpen(false);
+          }}
         />
       )}
     </div>
@@ -639,21 +738,25 @@ export function FinanceView() {
 }
 
 // =============================================================================
-// МАСТЕР ИМПОРТА CSV / XLSX
+// МАСТЕР ИМПОРТА CSV / XLSX (3 ТИПА ПО П. 19 ТЗ + ЗАГРУЗКА ФАЙЛА С ДИСКА)
 // =============================================================================
 function CsvImportWizardModal({
   onClose,
   existingProducts,
   onImportProducts,
   onImportCompetitors,
+  onImportFinance,
 }: {
   onClose: () => void;
   existingProducts: { sku: string }[];
   onImportProducts: (rows: Record<string, string>[]) => void;
   onImportCompetitors: (rows: Record<string, string>[]) => void;
+  onImportFinance: (rows: Record<string, string>[]) => void;
 }) {
   const [step, setStep] = useState<number>(1);
-  const [targetType, setTargetType] = useState<'products' | 'competitors'>('products');
+  const [targetType, setTargetType] = useState<'products' | 'competitors' | 'finance'>(
+    'products'
+  );
   const [rawCsv, setRawCsv] = useState<string>(
     `sku;name;brandId;retailPriceRub;costPriceRub;materials\nBRN-IMP-01;Футболка BORNERS Heavy Pima 240;BORNERS;3490;680;100% Пима-хлопок\nNTL-IMP-02;Боди НА ТЕЛЕ Invisible Skin;NA_TELE;3890;720;Микрофибра Free-cut`
   );
@@ -671,15 +774,26 @@ function CsvImportWizardModal({
     const requiredFields =
       targetType === 'products'
         ? ['sku', 'name', 'brandId', 'retailPriceRub']
-        : ['brandName'];
+        : targetType === 'competitors'
+        ? ['brandName']
+        : ['periodMonth', 'periodLabel', 'brandId', 'plannedBuyoutUnits'];
     const numericFields =
-      targetType === 'products' ? ['retailPriceRub', 'costPriceRub'] : [];
+      targetType === 'products'
+        ? ['retailPriceRub', 'costPriceRub']
+        : targetType === 'finance'
+        ? ['plannedBuyoutUnits', 'avgSellingPriceRub']
+        : [];
     const existingKeys = new Set(
       targetType === 'products'
         ? existingProducts.map((p) => p.sku.toUpperCase())
         : []
     );
-    const uniqueTargetField = targetType === 'products' ? 'sku' : 'brandName';
+    const uniqueTargetField =
+      targetType === 'products'
+        ? 'sku'
+        : targetType === 'competitors'
+        ? 'brandName'
+        : 'periodMonth';
 
     return validateAndCheckDuplicates({
       rows: parsed.rows,
@@ -713,9 +827,14 @@ function CsvImportWizardModal({
 
         {step === 1 && (
           <div className="space-y-5 text-[14px]">
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2.5">
               <button
-                onClick={() => setTargetType('products')}
+                onClick={() => {
+                  setTargetType('products');
+                  setRawCsv(
+                    `sku;name;brandId;retailPriceRub;costPriceRub;materials\nBRN-IMP-01;Футболка BORNERS Heavy Pima 240;BORNERS;3490;680;100% Пима-хлопок\nNTL-IMP-02;Боди НА ТЕЛЕ Invisible Skin;NA_TELE;3890;720;Микрофибра Free-cut`
+                  );
+                }}
                 className={`px-4 py-2.5 rounded-xl font-semibold border cursor-pointer ${
                   targetType === 'products'
                     ? 'bg-[#111111] text-white border-[#111111]'
@@ -739,6 +858,47 @@ function CsvImportWizardModal({
               >
                 2. Таблица конкурентов
               </button>
+              <button
+                onClick={() => {
+                  setTargetType('finance');
+                  setRawCsv(
+                    `periodMonth;periodLabel;brandId;plannedBuyoutUnits;avgSellingPriceRub;plannedRevenueRub;plannedOperatingProfitRub\n2027-04;Апрель 2027;BORNERS;5200;2190;11388000;3650000`
+                  );
+                }}
+                className={`px-4 py-2.5 rounded-xl font-semibold border cursor-pointer ${
+                  targetType === 'finance'
+                    ? 'bg-[#111111] text-white border-[#111111]'
+                    : 'bg-white text-[#171717] border-[#E8E8E5]'
+                }`}
+              >
+                3. Финансовый план продаж
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] p-4">
+              <div className="text-[13px] text-[#737373]">
+                Вы можете загрузить готовый файл <b className="text-[#171717]">.CSV / .TXT</b> с компьютера или вставить строки из Excel ниже:
+              </div>
+              <label className="inline-flex items-center gap-2 h-10 rounded-lg bg-white border border-[#E8E8E5] px-4 text-[13px] font-semibold text-[#171717] hover:bg-[#111111] hover:text-white transition cursor-pointer">
+                <Upload className="h-4 w-4" />
+                <span>Загрузить файл .CSV с диска</span>
+                <input
+                  type="file"
+                  accept=".csv,.txt"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        setRawCsv(reader.result);
+                      }
+                    };
+                    reader.readAsText(file, 'utf-8');
+                  }}
+                  className="hidden"
+                />
+              </label>
             </div>
 
             <div>
@@ -780,7 +940,8 @@ function CsvImportWizardModal({
                     <tr key={r.rowIndex}>
                       <td className="py-3 px-4">{r.rowIndex}</td>
                       <td className="py-3 px-4 font-semibold">
-                        {r.raw.sku || r.raw.brandName} — {r.raw.name || r.raw.positioning}
+                        {r.raw.sku || r.raw.brandName || r.raw.periodMonth} —{' '}
+                        {r.raw.name || r.raw.positioning || r.raw.periodLabel}
                       </td>
                       <td className="py-3 px-4 font-semibold">
                         {r.errors.length > 0 ? (
@@ -826,7 +987,7 @@ function CsvImportWizardModal({
                   checked={duplicateResolution === 'skip'}
                   onChange={() => setDuplicateResolution('skip')}
                 />
-                <span>Пропускать существующие артикулы (без перезаписи)</span>
+                <span>Пропускать существующие записи (без перезаписи)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -857,8 +1018,10 @@ function CsvImportWizardModal({
 
                   if (targetType === 'products') {
                     onImportProducts(rowsToCommit);
-                  } else {
+                  } else if (targetType === 'competitors') {
                     onImportCompetitors(rowsToCommit);
+                  } else {
+                    onImportFinance(rowsToCommit);
                   }
                 }}
                 className="h-11 px-6 rounded-xl bg-[#111111] text-white font-semibold cursor-pointer"

@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import {
+  Campaign,
+  ExperimentStatus,
+  GrowthExperiment,
   Launch,
   MarketingChannel,
 } from '@/types/platform';
@@ -36,6 +39,7 @@ export function LaunchCalendarView() {
     users,
     currentUser,
     brandFilter,
+    platformMode,
     selectedLaunchId,
     setSelectedLaunchId,
     createLaunch,
@@ -44,6 +48,8 @@ export function LaunchCalendarView() {
     createTask,
     navigateTo,
   } = usePlatform();
+
+  const isStrategyMode = platformMode === 'strategy';
 
   const [viewMode, setViewMode] = useState<'timeline' | 'calendar' | 'list' | 'kanban'>(
     'timeline'
@@ -170,13 +176,15 @@ export function LaunchCalendarView() {
             </button>
           </div>
 
-          <button
-            onClick={() => setCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#111111] text-white px-5 text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Новый запуск</span>
-          </button>
+          {!isStrategyMode && (
+            <button
+              onClick={() => setCreateModalOpen(true)}
+              className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#111111] text-white px-5 text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Новый запуск</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -240,12 +248,14 @@ export function LaunchCalendarView() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <button
-                        onClick={() => openRescheduleModal(launch)}
-                        className="h-11 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-4 text-[14px] font-semibold hover:border-[#171717] cursor-pointer"
-                      >
-                        Сдвинуть дату
-                      </button>
+                      {!isStrategyMode && (
+                        <button
+                          onClick={() => openRescheduleModal(launch)}
+                          className="h-11 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-4 text-[14px] font-semibold hover:border-[#171717] cursor-pointer"
+                        >
+                          Сдвинуть дату
+                        </button>
+                      )}
                       <button
                         onClick={() => setSelectedLaunchId(launch.id)}
                         className="h-11 rounded-xl bg-[#111111] text-white px-4 text-[14px] font-semibold hover:bg-neutral-800 cursor-pointer"
@@ -558,7 +568,7 @@ export function LaunchCalendarView() {
         </div>
       )}
 
-      {/* Боковая панель этапов релиза */}
+      {/* Боковая панель этапов релиза (расширенное управление 10 этапами и привязкой SKU) */}
       {activeLaunch && (
         <div
           onClick={() => setSelectedLaunchId(null)}
@@ -566,7 +576,7 @@ export function LaunchCalendarView() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-2xl bg-white h-full overflow-y-auto p-8 md:p-10 space-y-8 shadow-2xl border-l border-[#E8E8E5]"
+            className="w-full max-w-3xl bg-white h-full overflow-y-auto p-8 md:p-10 space-y-8 shadow-2xl border-l border-[#E8E8E5]"
           >
             <div className="flex items-start justify-between gap-4 border-b border-[#E8E8E5] pb-6">
               <div>
@@ -586,39 +596,77 @@ export function LaunchCalendarView() {
               </button>
             </div>
 
+            {/* Привязанные модели SKU */}
+            <div className="space-y-3">
+              <div className="text-[14px] font-bold text-[#171717]">
+                Модели релиза (SKU в партии):
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {products
+                  .filter((p) => !p.isArchived && p.brandId === activeLaunch.brandId)
+                  .map((p) => {
+                    const isLinked = activeLaunch.productIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={isStrategyMode}
+                        onClick={() => {
+                          const nextIds = isLinked
+                            ? activeLaunch.productIds.filter((id) => id !== p.id)
+                            : [...activeLaunch.productIds, p.id];
+                          updateLaunch(activeLaunch.id, { productIds: nextIds });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition cursor-pointer ${
+                          isLinked
+                            ? 'bg-[#111111] text-white border-[#111111]'
+                            : 'bg-white text-[#737373] border-[#E8E8E5]'
+                        }`}
+                      >
+                        {isLinked ? '✓ ' : '+ '}
+                        {p.sku} · {p.name}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-3">
                 <h3 className="text-[20px] font-bold">
-                  Этапы подготовки ({activeLaunch.readinessPct}%)
+                  10 этапов подготовки релиза (готовность: {activeLaunch.readinessPct}%)
                 </h3>
-                <button
-                  onClick={() => {
-                    createTask({
-                      title: `Подготовка к запуску ${activeLaunch.name}`,
-                      description: `Операционная задача по релизу ${activeLaunch.collectionName}`,
-                      brandId: activeLaunch.brandId,
-                      projectId: 'proj-1',
-                      priority: 'High',
-                      assigneeId: users[0]?.id || 'user-owner',
-                      deadline: activeLaunch.startDate,
-                      launchId: activeLaunch.id,
-                    });
-                  }}
-                  className="rounded-xl border border-[#E8E8E5] px-3.5 py-1.5 text-[13px] font-semibold hover:bg-[#111111] hover:text-white cursor-pointer"
-                >
-                  + Создать задачу
-                </button>
+                {!isStrategyMode && (
+                  <button
+                    onClick={() => {
+                      createTask({
+                        title: `Подготовка к запуску ${activeLaunch.name}`,
+                        description: `Операционная задача по релизу ${activeLaunch.collectionName}`,
+                        brandId: activeLaunch.brandId,
+                        projectId: 'proj-1',
+                        priority: 'High',
+                        assigneeId: users[0]?.id || 'user-owner',
+                        deadline: activeLaunch.startDate,
+                        launchId: activeLaunch.id,
+                      });
+                    }}
+                    className="rounded-xl border border-[#E8E8E5] px-3.5 py-1.5 text-[13px] font-semibold hover:bg-[#111111] hover:text-white cursor-pointer"
+                  >
+                    + Создать задачу по запуску
+                  </button>
+                )}
               </div>
 
               <div className="divide-y divide-[#E8E8E5] rounded-2xl border border-[#E8E8E5] overflow-hidden">
                 {activeLaunch.stages.map((st) => (
-                  <label
+                  <div
                     key={st.code}
-                    className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-[#F7F7F5]"
+                    className="p-4 flex flex-wrap items-center justify-between gap-3 hover:bg-[#F7F7F5]/60"
                   >
-                    <div className="flex items-center gap-3 text-[15px]">
+                    <label className="flex items-center gap-3 text-[15px] cursor-pointer min-w-[210px]">
                       <input
                         type="checkbox"
+                        disabled={isStrategyMode}
                         checked={st.status === 'Done'}
                         onChange={(e) => {
                           const updatedStages = activeLaunch.stages.map((s) =>
@@ -655,9 +703,68 @@ export function LaunchCalendarView() {
                       >
                         {st.label}
                       </span>
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-2 text-[13px]">
+                      <select
+                        disabled={isStrategyMode}
+                        value={st.status}
+                        onChange={(e) => {
+                          const nextStatus = e.target.value as typeof st.status;
+                          const updatedStages = activeLaunch.stages.map((s) =>
+                            s.code === st.code ? { ...s, status: nextStatus } : s
+                          );
+                          const doneCount = updatedStages.filter(
+                            (s) => s.status === 'Done'
+                          ).length;
+                          const pct = Math.round(
+                            (doneCount / updatedStages.length) * 100
+                          );
+                          updateLaunch(activeLaunch.id, {
+                            stages: updatedStages,
+                            readinessPct: pct,
+                          });
+                        }}
+                        className="h-9 rounded-lg border border-[#E8E8E5] bg-white px-2.5 font-semibold"
+                      >
+                        <option value="Done">Готово</option>
+                        <option value="In Progress">В работе</option>
+                        <option value="Pending">Ожидает</option>
+                        <option value="Delayed">Задержка</option>
+                      </select>
+
+                      <select
+                        disabled={isStrategyMode}
+                        value={st.ownerId}
+                        onChange={(e) => {
+                          const updatedStages = activeLaunch.stages.map((s) =>
+                            s.code === st.code ? { ...s, ownerId: e.target.value } : s
+                          );
+                          updateLaunch(activeLaunch.id, { stages: updatedStages });
+                        }}
+                        className="h-9 rounded-lg border border-[#E8E8E5] bg-white px-2.5 text-[#737373]"
+                      >
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.fullName.split(' ')[0]}
+                          </option>
+                        ))}
+                      </select>
+
+                      <input
+                        type="date"
+                        disabled={isStrategyMode}
+                        value={st.deadline}
+                        onChange={(e) => {
+                          const updatedStages = activeLaunch.stages.map((s) =>
+                            s.code === st.code ? { ...s, deadline: e.target.value } : s
+                          );
+                          updateLaunch(activeLaunch.id, { stages: updatedStages });
+                        }}
+                        className="h-9 rounded-lg border border-[#E8E8E5] bg-white px-2.5 font-medium"
+                      />
                     </div>
-                    <span className="text-[13px] text-[#737373]">{st.deadline}</span>
-                  </label>
+                  </div>
                 ))}
               </div>
             </div>
@@ -753,14 +860,30 @@ export function MarketingGrowthView() {
     campaigns,
     experiments,
     brandFilter,
+    platformMode,
     currentUser,
     createCampaign,
+    updateCampaign,
     createExperiment,
+    updateExperiment,
   } = usePlatform();
 
+  const isStrategyMode = platformMode === 'strategy';
   const [tab, setTab] = useState<'campaigns' | 'experiments'>('campaigns');
   const [expModalOpen, setExpModalOpen] = useState(false);
   const [campModalOpen, setCampModalOpen] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+  const [selectedExperimentId, setSelectedExperimentId] = useState<string | null>(null);
+
+  const selectedCampaign: Campaign | null = useMemo(
+    () => campaigns.find((c) => c.id === selectedCampaignId) || null,
+    [campaigns, selectedCampaignId]
+  );
+
+  const selectedExperiment: GrowthExperiment | null = useMemo(
+    () => experiments.find((e) => e.id === selectedExperimentId) || null,
+    [experiments, selectedExperimentId]
+  );
 
   const [expForm, setExpForm] = useState({
     hypothesis: '',
@@ -837,14 +960,16 @@ export function MarketingGrowthView() {
             </button>
           </div>
 
-          <button
-            onClick={() =>
-              tab === 'campaigns' ? setCampModalOpen(true) : setExpModalOpen(true)
-            }
-            className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold cursor-pointer"
-          >
-            {tab === 'campaigns' ? '+ Новая кампания' : '+ Новая гипотеза'}
-          </button>
+          {!isStrategyMode && (
+            <button
+              onClick={() =>
+                tab === 'campaigns' ? setCampModalOpen(true) : setExpModalOpen(true)
+              }
+              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold cursor-pointer"
+            >
+              {tab === 'campaigns' ? '+ Новая кампания' : '+ Новая гипотеза'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -865,7 +990,11 @@ export function MarketingGrowthView() {
             </thead>
             <tbody className="divide-y divide-[#E8E8E5]">
               {filteredCampaigns.map((c) => (
-                <tr key={c.id} className="hover:bg-[#F7F7F5]/60 transition">
+                <tr
+                  key={c.id}
+                  onClick={() => setSelectedCampaignId(c.id)}
+                  className="hover:bg-[#F7F7F5]/60 transition cursor-pointer"
+                >
                   <td className="py-4 px-6">
                     <div className="font-semibold text-[16px] text-[#171717]">{c.name}</div>
                     <div className="text-[13px] text-[#737373]">{c.goal}</div>
@@ -909,7 +1038,8 @@ export function MarketingGrowthView() {
           {filteredExperiments.map((exp) => (
             <div
               key={exp.id}
-              className="bg-white rounded-2xl border border-[#E8E8E5] p-7 flex flex-col justify-between space-y-5"
+              onClick={() => setSelectedExperimentId(exp.id)}
+              className="bg-white rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-7 flex flex-col justify-between space-y-5 cursor-pointer transition"
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-3 text-[13px]">
@@ -937,6 +1067,293 @@ export function MarketingGrowthView() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* БОКОВАЯ ПАНЕЛЬ КАМПАНИИ И ФАКТИЧЕСКИХ МЕТРИК (ДРР, ROAS, ВЫКУПЫ) */}
+      {selectedCampaign && (
+        <div
+          onClick={() => setSelectedCampaignId(null)}
+          className="fixed inset-0 z-50 flex justify-end bg-black/40"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl bg-white h-full overflow-y-auto p-8 space-y-6 shadow-2xl border-l border-[#E8E8E5]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
+              <div>
+                <div className="text-[12px] font-semibold uppercase text-[#737373]">
+                  Маркетинговая кампания · {selectedCampaign.channel}
+                </div>
+                <h2 className="text-[24px] font-bold text-[#171717] mt-1">
+                  {selectedCampaign.name}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedCampaignId(null)}
+                className="rounded-xl border border-[#E8E8E5] p-2 text-[#171717] cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-[14px]">
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Статус кампании
+                </label>
+                <select
+                  disabled={isStrategyMode}
+                  value={selectedCampaign.status}
+                  onChange={(e) =>
+                    updateCampaign(selectedCampaign.id, {
+                      status: e.target.value as Campaign['status'],
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
+                >
+                  <option value="Запланирована">Запланирована</option>
+                  <option value="Активна">Активна</option>
+                  <option value="Завершена">Завершена</option>
+                  <option value="На паузе">На паузе</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">Период</label>
+                <input
+                  disabled={isStrategyMode}
+                  value={selectedCampaign.periodLabel}
+                  onChange={(e) =>
+                    updateCampaign(selectedCampaign.id, {
+                      periodLabel: e.target.value,
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Фактический расход (₽)
+                </label>
+                <input
+                  type="number"
+                  disabled={isStrategyMode}
+                  placeholder="Нет данных"
+                  value={selectedCampaign.actualBudgetRub ?? ''}
+                  onChange={(e) => {
+                    const spend = e.target.value === '' ? null : Number(e.target.value);
+                    const rev = selectedCampaign.actualRevenueRub;
+                    const roas =
+                      spend && rev && spend > 0
+                        ? Number((rev / spend).toFixed(1))
+                        : selectedCampaign.metrics.roas;
+                    const drrPct =
+                      spend && rev && rev > 0
+                        ? Number(((spend / rev) * 100).toFixed(1))
+                        : selectedCampaign.metrics.drrPct;
+                    updateCampaign(selectedCampaign.id, {
+                      actualBudgetRub: spend,
+                      metrics: {
+                        ...selectedCampaign.metrics,
+                        spendRub: spend,
+                        roas,
+                        drrPct,
+                      },
+                    });
+                  }}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Фактическая выручка (₽)
+                </label>
+                <input
+                  type="number"
+                  disabled={isStrategyMode}
+                  placeholder="Нет данных"
+                  value={selectedCampaign.actualRevenueRub ?? ''}
+                  onChange={(e) => {
+                    const rev = e.target.value === '' ? null : Number(e.target.value);
+                    const spend = selectedCampaign.actualBudgetRub;
+                    const roas =
+                      spend && rev && spend > 0
+                        ? Number((rev / spend).toFixed(1))
+                        : selectedCampaign.metrics.roas;
+                    const drrPct =
+                      spend && rev && rev > 0
+                        ? Number(((spend / rev) * 100).toFixed(1))
+                        : selectedCampaign.metrics.drrPct;
+                    updateCampaign(selectedCampaign.id, {
+                      actualRevenueRub: rev,
+                      metrics: {
+                        ...selectedCampaign.metrics,
+                        revenueRub: rev,
+                        roas,
+                        drrPct,
+                      },
+                    });
+                  }}
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Клики (шт.)
+                </label>
+                <input
+                  type="number"
+                  disabled={isStrategyMode}
+                  value={selectedCampaign.metrics.clicks ?? ''}
+                  onChange={(e) =>
+                    updateCampaign(selectedCampaign.id, {
+                      metrics: {
+                        ...selectedCampaign.metrics,
+                        clicks: e.target.value === '' ? null : Number(e.target.value),
+                      },
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Выкупы (шт.)
+                </label>
+                <input
+                  type="number"
+                  disabled={isStrategyMode}
+                  value={selectedCampaign.metrics.buyouts ?? ''}
+                  onChange={(e) =>
+                    updateCampaign(selectedCampaign.id, {
+                      metrics: {
+                        ...selectedCampaign.metrics,
+                        buyouts: e.target.value === '' ? null : Number(e.target.value),
+                      },
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-5 grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-[12px] text-[#737373]">Расчётный ROAS</div>
+                <div className="text-[22px] font-bold text-[#16805D] mt-1">
+                  {selectedCampaign.metrics.roas !== null &&
+                  selectedCampaign.metrics.roas !== undefined
+                    ? `${selectedCampaign.metrics.roas}x`
+                    : 'Нет данных'}
+                </div>
+              </div>
+              <div>
+                <div className="text-[12px] text-[#737373]">Доля рекламных расходов (ДРР)</div>
+                <div className="text-[22px] font-bold text-[#171717] mt-1">
+                  {selectedCampaign.metrics.drrPct !== null &&
+                  selectedCampaign.metrics.drrPct !== undefined
+                    ? `${selectedCampaign.metrics.drrPct}%`
+                    : 'Нет данных'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* БОКОВАЯ ПАНЕЛЬ ТЕСТА ГИПОТЕЗЫ РОСТА */}
+      {selectedExperiment && (
+        <div
+          onClick={() => setSelectedExperimentId(null)}
+          className="fixed inset-0 z-50 flex justify-end bg-black/40"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl bg-white h-full overflow-y-auto p-8 space-y-6 shadow-2xl border-l border-[#E8E8E5]"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
+              <div>
+                <div className="text-[12px] font-semibold uppercase text-[#737373]">
+                  Эксперимент роста · {selectedExperiment.timeframe}
+                </div>
+                <h2 className="text-[22px] font-bold text-[#171717] mt-1">
+                  {selectedExperiment.hypothesis}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedExperimentId(null)}
+                className="rounded-xl border border-[#E8E8E5] p-2 text-[#171717] cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-[14px]">
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Статус эксперимента
+                </label>
+                <select
+                  disabled={isStrategyMode}
+                  value={selectedExperiment.status}
+                  onChange={(e) =>
+                    updateExperiment(selectedExperiment.id, {
+                      status: e.target.value as ExperimentStatus,
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
+                >
+                  {(
+                    [
+                      'Idea',
+                      'Planned',
+                      'Running',
+                      'Completed',
+                      'Scaled',
+                      'Rejected',
+                    ] as ExperimentStatus[]
+                  ).map((st) => (
+                    <option key={st} value={st}>
+                      {EXPERIMENT_STATUS_LABELS_RU[st]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Фактический результат замеров
+                </label>
+                <textarea
+                  rows={3}
+                  disabled={isStrategyMode}
+                  value={selectedExperiment.resultSummary}
+                  onChange={(e) =>
+                    updateExperiment(selectedExperiment.id, {
+                      resultSummary: e.target.value,
+                    })
+                  }
+                  className="w-full rounded-xl border border-[#E8E8E5] p-3.5"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-[#737373] mb-1">
+                  Управленческое решение
+                </label>
+                <input
+                  disabled={isStrategyMode}
+                  value={selectedExperiment.decision}
+                  onChange={(e) =>
+                    updateExperiment(selectedExperiment.id, {
+                      decision: e.target.value,
+                    })
+                  }
+                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 font-semibold"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

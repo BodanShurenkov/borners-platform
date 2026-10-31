@@ -36,9 +36,12 @@ export function MarketIntelligenceView() {
     research,
     opportunities,
     brandFilter,
+    platformMode,
     createCompetitor,
     createResearch,
   } = usePlatform();
+
+  const isStrategyMode = platformMode === 'strategy';
 
   const [tab, setTab] = useState<'competitors' | 'matrix' | 'trends'>('competitors');
   const [compModalOpen, setCompModalOpen] = useState(false);
@@ -128,12 +131,14 @@ export function MarketIntelligenceView() {
             </button>
           </div>
 
-          <button
-            onClick={() => setCompModalOpen(true)}
-            className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-          >
-            + Добавить конкурента
-          </button>
+          {!isStrategyMode && (
+            <button
+              onClick={() => setCompModalOpen(true)}
+              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+            >
+              + Добавить конкурента
+            </button>
+          )}
         </div>
       </div>
 
@@ -235,14 +240,16 @@ export function MarketIntelligenceView() {
       {/* Вкладка 3: Исследования и ниши */}
       {tab === 'trends' && (
         <div className="space-y-6">
-          <div className="flex justify-end">
-            <button
-              onClick={() => setInsightModalOpen(true)}
-              className="h-11 px-5 rounded-xl border border-[#E8E8E5] bg-white text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
-            >
-              + Зафиксировать исследование
-            </button>
-          </div>
+          {!isStrategyMode && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setInsightModalOpen(true)}
+                className="h-11 px-5 rounded-xl border border-[#E8E8E5] bg-white text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
+              >
+                + Зафиксировать исследование
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {filteredResearch.map((ins) => (
@@ -1356,10 +1363,12 @@ export function DocumentsView() {
     documents,
     currentUser,
     brandFilter,
+    platformMode,
     createDocument,
     notify,
   } = usePlatform();
 
+  const isStrategyMode = platformMode === 'strategy';
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -1371,6 +1380,9 @@ export function DocumentsView() {
     category: 'производство' as DocumentCategory,
     brandId: 'BORNERS',
     fileName: '',
+    fileType: 'PDF',
+    fileSizeBytes: 2450000,
+    dataUrl: '',
     isFinancialRestricted: false,
   });
 
@@ -1395,6 +1407,15 @@ export function DocumentsView() {
   }, [documents, hasFinanceAccess, brandFilter, categoryFilter, searchQuery]);
 
   const handleDownloadDocument = (doc: (typeof documents)[number]) => {
+    if (doc.dataUrl) {
+      const a = document.createElement('a');
+      a.href = doc.dataUrl;
+      a.download = doc.fileName;
+      a.click();
+      notify('success', `Оригинальный файл «${doc.fileName}» выгружен`);
+      return;
+    }
+
     const content = [
       `ДОКУМЕНТ BORNERS GROUP`,
       `==================================================`,
@@ -1428,12 +1449,14 @@ export function DocumentsView() {
           </h1>
         </div>
 
-        <button
-          onClick={() => setModalOpen(true)}
-          className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-        >
-          + Загрузить документ
-        </button>
+        {!isStrategyMode && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+          >
+            + Загрузить документ
+          </button>
+        )}
       </div>
 
       {/* Фильтры и поиск */}
@@ -1569,7 +1592,31 @@ export function DocumentsView() {
                 </div>
               </div>
               <div>
-                <label className="block font-semibold mb-1.5">Имя файла</label>
+                <label className="block font-semibold mb-1.5">
+                  Выбрать файл с компьютера (PDF, XLSX, DOCX, PNG, SVG)
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      setForm((prev) => ({
+                        ...prev,
+                        title: prev.title || file.name.replace(/\.[^/.]+$/, ''),
+                        fileName: file.name,
+                        fileType: ext,
+                        fileSizeBytes: file.size || 245000,
+                        dataUrl: typeof reader.result === 'string' ? reader.result : '',
+                      }));
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                  className="w-full text-[13px] text-[#737373] mb-3"
+                />
+                <label className="block font-semibold mb-1.5">Имя файла в реестре</label>
                 <input
                   value={form.fileName}
                   onChange={(e) => setForm({ ...form, fileName: e.target.value })}
@@ -1593,8 +1640,9 @@ export function DocumentsView() {
                     category: form.category,
                     brandId: form.brandId,
                     fileName: form.fileName || 'Document_2027.pdf',
-                    fileType: 'PDF',
-                    fileSizeBytes: 2450000,
+                    fileType: form.fileType || 'PDF',
+                    fileSizeBytes: form.fileSizeBytes || 2450000,
+                    dataUrl: form.dataUrl || undefined,
                     tags: [form.category],
                     isFinancialRestricted: form.isFinancialRestricted,
                     minRole: 'Viewer',

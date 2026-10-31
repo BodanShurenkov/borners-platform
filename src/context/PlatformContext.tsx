@@ -168,7 +168,9 @@ interface PlatformContextValue extends PersistedState {
   updateFinancialPlanRow: (id: string, patch: Partial<FinancialPlanRow>) => void;
   addFinancialPlanRow: (row: Omit<FinancialPlanRow, 'id' | 'updatedAt' | 'updatedBy'>) => void;
   createCampaign: (input: Omit<Campaign, 'id' | 'isDemo' | 'isArchived'>) => void;
+  updateCampaign: (id: string, patch: Partial<Campaign>) => void;
   createExperiment: (input: Omit<GrowthExperiment, 'id' | 'isDemo'>) => void;
+  updateExperiment: (id: string, patch: Partial<GrowthExperiment>) => void;
   createCompetitor: (input: Omit<Competitor, 'id' | 'isDemo'>) => void;
   createResearch: (input: Omit<ResearchItem, 'id' | 'isDemo'>) => void;
   createDocument: (input: Omit<DocumentItem, 'id' | 'uploadedAt' | 'uploadedBy' | 'isArchived'>) => void;
@@ -1158,6 +1160,28 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     [notify]
   );
 
+  const updateCampaign = useCallback(
+    (id: string, patch: Partial<Campaign>) => {
+      setState((prev) => ({
+        ...prev,
+        campaigns: prev.campaigns.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      }));
+      notify('success', 'Метрики маркетинговой кампании обновлены');
+    },
+    [notify]
+  );
+
+  const updateExperiment = useCallback(
+    (id: string, patch: Partial<GrowthExperiment>) => {
+      setState((prev) => ({
+        ...prev,
+        experiments: prev.experiments.map((e) => (e.id === id ? { ...e, ...patch } : e)),
+      }));
+      notify('success', 'Статус и результаты гипотезы обновлены');
+    },
+    [notify]
+  );
+
   const createCompetitor = useCallback(
     (input: Omit<Competitor, 'id' | 'isDemo'>) => {
       const id = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
@@ -1315,7 +1339,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       updateFinancialPlanRow,
       addFinancialPlanRow,
       createCampaign,
+      updateCampaign,
       createExperiment,
+      updateExperiment,
       createCompetitor,
       createResearch,
       createDocument,
@@ -1362,7 +1388,9 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       updateFinancialPlanRow,
       addFinancialPlanRow,
       createCampaign,
+      updateCampaign,
       createExperiment,
+      updateExperiment,
       createCompetitor,
       createResearch,
       createDocument,
