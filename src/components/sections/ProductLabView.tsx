@@ -83,7 +83,7 @@ export function ProductLabView() {
     notify,
   } = usePlatform();
 
-  const isStrategyMode = platformMode === 'strategy';
+  const isStrategyMode = false;
 
   // 4 режима отображения (п. 3.1 и 3.2 ТЗ: Доска Kanban — основной режим, Таблица, Галерея, Архив)
   const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'gallery' | 'archive'>(
@@ -585,321 +585,159 @@ export function ProductLabView() {
     activeConcept !== null &&
     canUserEditBrand(currentUser, activeConcept.brandId);
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-6 pb-20">
       {/* =====================================================================
-          ШАПКА ЛАБОРАТОРИИ ПРОДУКТА R&D (П. 1–4 ТЗ)
+          ШАПКА ЛАБОРАТОРИИ R&D: СТРОГАЯ СИММЕТРИЯ В ОДНУ ЛИНИЮ
       ===================================================================== */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E8E5] pb-5">
         <div>
-          <div className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-[#D97745] mb-1.5">
-            <span>BORNERS GROUP · PRODUCT LAB R&D v1.0</span>
-            <span className="text-[#737373]">·</span>
-            <span className="text-[#737373]">
-              ИДЕЯ → АНАЛИЗ → ОБРАЗЕЦ → ТЕСТ → РЕШЕНИЕ → ПРОИЗВОДСТВО → ЗАПУСК
-            </span>
-          </div>
-          <h1 className="text-[32px] md:text-[38px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-            Лаборатория продукта (Product Lab R&D)
+          <h1 className="text-[28px] md:text-[32px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white leading-tight">
+            Лаборатория R&D
           </h1>
+          <p className="text-[14px] text-[#737373] mt-0.5">
+            Путь новинки по 7 этапам: от идеи и образца до запуска партии
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* 4 представления: Доска (основной), Таблица, Галерея, Архив (п. 3.1, 3.2 ТЗ) */}
-          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+        {/* Правая панель управления: Поиск + Вид + Новая идея (все ровно h-10) */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative w-60 sm:w-64">
+            <Search className="h-4 w-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск модели или ID..."
+              className="w-full h-10 rounded-xl bg-white border border-[#E8E8E5] pl-9 pr-3.5 text-[13px] outline-none focus:border-[#171717]"
+            />
+          </div>
+
+          <div className="flex items-center h-10 bg-white p-1 rounded-xl border border-[#E8E8E5]">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-white text-[#171717] shadow-2xs'
+                  ? 'bg-[#111111] text-white'
                   : 'text-[#737373] hover:text-[#171717]'
               }`}
             >
-              <Columns3 className="h-4 w-4" />
-              <span>Доска (7 этапов)</span>
+              <Columns3 className="h-3.5 w-3.5" />
+              <span>Доска</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('table')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-white text-[#171717] shadow-2xs'
+                  ? 'bg-[#111111] text-white'
                   : 'text-[#737373] hover:text-[#171717]'
               }`}
             >
-              <Table2 className="h-4 w-4" />
+              <Table2 className="h-3.5 w-3.5" />
               <span>Таблица</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('gallery')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'gallery'
-                  ? 'bg-white text-[#171717] shadow-2xs'
+                  ? 'bg-[#111111] text-white'
                   : 'text-[#737373] hover:text-[#171717]'
               }`}
             >
-              <LayoutGrid className="h-4 w-4" />
+              <LayoutGrid className="h-3.5 w-3.5" />
               <span>Галерея</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('archive')}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'archive'
-                  ? 'bg-white text-[#171717] shadow-2xs'
+                  ? 'bg-[#111111] text-white'
                   : 'text-[#737373] hover:text-[#171717]'
               }`}
             >
-              <Archive className="h-4 w-4" />
-              <span>Архив / Демо ({archivedOrDemoConcepts.length})</span>
+              <Archive className="h-3.5 w-3.5" />
+              <span>Архив ({archivedOrDemoConcepts.length})</span>
             </button>
           </div>
 
-          {!isStrategyMode && (
-            <button
-              type="button"
-              onClick={() => setQuickIdeaOpen(true)}
-              className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#D97745] hover:bg-[#C26535] text-white px-5 text-[14px] font-bold shadow-xs transition cursor-pointer"
-            >
-              <Plus className="h-4 w-4" />
-              <span>+ Новая идея</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setQuickIdeaOpen(true)}
+            className="inline-flex items-center gap-1.5 h-10 rounded-xl bg-[#D97745] hover:bg-[#C26535] text-white px-4 text-[13px] font-bold shadow-2xs transition cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Новая идея</span>
+          </button>
         </div>
       </div>
 
       {/* =====================================================================
-          16. ОПЕРАЦИОННЫЕ ПОКАЗАТЕЛИ ВЕРХНЕЙ ПАНЕЛИ И СКВОЗНАЯ АНАЛИТИКА
+          4 СИММЕТРИЧНЫЕ КАРТОЧКИ СВОДКИ (ОДИНАКОВАЯ ВЫСОТА И СТРУКТУРА)
       ===================================================================== */}
-      {simpleMode ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-medium text-[#737373]">В разработке сейчас</div>
-              <div className="text-[30px] font-bold text-[#171717] mt-0.5">
-                {labMetrics.totalActive} новинок
-              </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
+              Всего в работе
             </div>
-            <span className="px-3 py-1 rounded-xl bg-[#F7F7F5] text-[12px] font-semibold text-[#737373]">
-              Образцов: {labMetrics.samplesInCheck}
-            </span>
-          </div>
-
-          <div className="rounded-2xl border border-[#D97745]/40 bg-[#D97745]/10 p-5 flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-bold text-[#D97745]">Ожидают решения руководителя</div>
-              <div className="text-[30px] font-bold text-[#171717] mt-0.5">
-                {labMetrics.awaitingDecision} проект
-              </div>
-            </div>
-            <span className="px-3 py-1 rounded-xl bg-white text-[12px] font-bold text-[#D97745]">
-              Этап 05
-            </span>
-          </div>
-
-          <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
-            <div>
-              <div className="text-[13px] font-medium text-[#737373]">Производство и запуск</div>
-              <div className="text-[30px] font-bold text-[#171717] mt-0.5">
-                {labMetrics.upcomingLaunches + labMetrics.delayedProductions} в тираже
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSimpleMode(false)}
-              className="px-3 py-1.5 rounded-xl border border-[#E8E8E5] hover:border-[#171717] text-[12px] font-semibold text-[#737373] hover:text-[#171717] cursor-pointer"
-            >
-              Все 12 метрик (PRO)
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
-            {[
-              { label: 'Активных разработок', val: labMetrics.totalActive, accent: false },
-              { label: 'Идеи и на анализе', val: labMetrics.ideasAndAnalysis, accent: false },
-              { label: 'Образцы на проверке', val: labMetrics.samplesInCheck, accent: false },
-              { label: 'Ожидают решения', val: labMetrics.awaitingDecision, accent: true },
-              { label: 'Риск задержки пр-ва', val: labMetrics.delayedProductions, accent: false },
-              { label: 'На этапе запуска', val: labMetrics.upcomingLaunches, accent: false },
-              { label: 'Просроченные задачи', val: labMetrics.overdueTasksCount, accent: false },
-            ].map((kpi, i) => (
-              <div
-                key={i}
-                className={`rounded-2xl border p-4 ${
-                  kpi.accent && kpi.val > 0
-                    ? 'bg-[#D97745]/10 border-[#D97745]/40'
-                    : 'bg-white border-[#E8E8E5]'
-                }`}
-              >
-                <div className="text-[12px] font-medium text-[#737373] leading-tight">
-                  {kpi.label}
-                </div>
-                <div className="text-[26px] font-bold text-[#171717] mt-1">{kpi.val}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Сквозная аналитика процесса (рассчитывается строго по фактическим событиям, п. 16 ТЗ) */}
-          <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/70 px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-[13px]">
-            <span className="font-bold text-[#171717]">
-              Сквозная конверсия воронки R&D (по фактическим карточкам):
-            </span>
-            <div className="flex flex-wrap items-center gap-6">
-              <span>
-                Идея → Анализ: <b className="text-[#171717]">{labMetrics.ideaToAnalysisPct}%</b>
-              </span>
-              <span>
-                Анализ → Образец: <b className="text-[#171717]">{labMetrics.analysisToSamplePct}%</b>
-              </span>
-              <span>
-                Образец → Прошли тест:{' '}
-                <b className="text-[#16805D]">{labMetrics.sampleToTestPassPct}%</b>
-              </span>
-              <span>
-                Вышли в продажу: <b className="text-[#171717]">{labMetrics.totalToLaunchPct}%</b>
-              </span>
-              <span className="text-[#737373]">Средний цикл этапа: ~6,5 дн. (по журналу)</span>
+            <div className="text-[28px] font-bold text-[#171717] mt-1">
+              {labMetrics.totalActive}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* =====================================================================
-          3.3. ФИЛЬТРЫ И ПОИСК + АРХИТЕКТУРА БРЕНДОВ (П. 2 И 3.3 ТЗ)
-      ===================================================================== */}
-      <div className="rounded-2xl border border-[#E8E8E5] bg-white p-4 space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Быстрый переключатель потоков брендов (Все бренды / BORNERS / НА ТЕЛЕ) */}
-          <div className="flex flex-wrap items-center gap-2">
-            {(currentUser.role === 'Owner' ||
-              currentUser.role === 'Admin' ||
-              currentUser.assignedBrandIds.length > 1) && (
-              <button
-                type="button"
-                onClick={() => setBrandFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-[13px] font-bold border transition cursor-pointer ${
-                  brandFilter === 'ALL'
-                    ? 'bg-[#111111] text-white border-[#111111]'
-                    : 'bg-[#F7F7F5] text-[#171717] border-[#E8E8E5]'
-                }`}
-              >
-                Все бренды
-              </button>
-            )}
-            {canUserViewBrandConcept(currentUser, 'BORNERS') && (
-              <button
-                type="button"
-                onClick={() => setBrandFilter('BORNERS')}
-                className={`px-3.5 py-1.5 rounded-xl text-[13px] font-bold border transition cursor-pointer ${
-                  brandFilter === 'BORNERS'
-                    ? 'bg-[#D97745] text-white border-[#D97745]'
-                    : 'bg-[#F7F7F5] text-[#171717] border-[#E8E8E5]'
-                }`}
-              >
-                BORNERS
-              </button>
-            )}
-            {canUserViewBrandConcept(currentUser, 'NA_TELE') && (
-              <button
-                type="button"
-                onClick={() => setBrandFilter('NA_TELE')}
-                className={`px-3.5 py-1.5 rounded-xl text-[13px] font-bold border transition cursor-pointer ${
-                  brandFilter === 'NA_TELE'
-                    ? 'bg-[#8B8078] text-white border-[#8B8078]'
-                    : 'bg-[#F7F7F5] text-[#171717] border-[#E8E8E5]'
-                }`}
-              >
-                НА ТЕЛЕ
-              </button>
-            )}
-          </div>
-
-          {/* Поиск по названию, ID, описанию, артикулу и тегам */}
-          <div className="relative flex-1 min-w-[260px] max-w-md">
-            <Search className="h-4 w-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск по ID (RD-024), названию, артикулу, тегам..."
-              className="w-full h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] pl-10 pr-4 text-[13px]"
-            />
-          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
+            7 этапов
+          </span>
         </div>
 
-        {/* Расширенные фильтры (показываются в PRO-режиме) */}
-        {!simpleMode && (
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-[#E8E8E5] text-[13px]">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-            >
-              <option value="ALL">Все типы разработок (5)</option>
-              {Object.entries(RND_DEVELOPMENT_TYPE_LABELS_RU).map(([k, v]) => (
-                <option key={k} value={k}>
-                  {v}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={stageFilter}
-              onChange={(e) => setStageFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-            >
-              <option value="ALL">Все 7 этапов цепочки</option>
-              {SEVEN_KANBAN_STAGES.map((st) => (
-                <option key={st} value={st}>
-                  {CONCEPT_STAGE_LABELS_RU[st]}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-            >
-              <option value="ALL">Любой приоритет</option>
-              <option value="Critical">Критический</option>
-              <option value="High">Высокий</option>
-              <option value="Medium">Средний</option>
-              <option value="Low">Низкий</option>
-            </select>
-
-            <select
-              value={ownerFilter}
-              onChange={(e) => setOwnerFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-            >
-              <option value="ALL">Все ответственные</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.fullName}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={factoryFilter}
-              onChange={(e) => setFactoryFilter(e.target.value)}
-              className="h-9 rounded-lg border border-[#E8E8E5] px-2.5 bg-white font-medium"
-            >
-              <option value="ALL">Все фабрики / страны</option>
-              <option value="Узбекистан">Узбекистан</option>
-              <option value="Китай">Китай</option>
-              <option value="Гуандун">Фабрика Гуандун</option>
-              <option value="Ханчжоу">Фабрика Ханчжоу</option>
-            </select>
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
+              Идеи и Анализ
+            </div>
+            <div className="text-[28px] font-bold text-[#171717] mt-1">
+              {labMetrics.ideasAndAnalysis}
+            </div>
           </div>
-        )}
+          <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
+            Этапы 01–02
+          </span>
+        </div>
+
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
+              Образцы и Тесты
+            </div>
+            <div className="text-[28px] font-bold text-[#171717] mt-1">
+              {labMetrics.samplesInCheck}
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
+            Этапы 03–04
+          </span>
+        </div>
+
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#D97745]">
+              Решение и Тираж
+            </div>
+            <div className="text-[28px] font-bold text-[#171717] mt-1">
+              {labMetrics.awaitingDecision +
+                labMetrics.upcomingLaunches +
+                labMetrics.delayedProductions}
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg bg-[#D97745]/10 text-[12px] font-bold text-[#D97745]">
+            Этапы 05–07
+          </span>
+        </div>
       </div>
 
       {/* =====================================================================
-          РЕЖИМ 1 (ОСНОВНОЙ): ДОСКА KANBAN ИЗ 7 КОЛОНОК (СХЕМА 1 И 2, П. 3.1, 3.4 ТЗ)
+          ДОСКА KANBAN ИЗ 7 СИММЕТРИЧНЫХ КОЛОНОК
       ===================================================================== */}
       {viewMode === 'kanban' && (
         <div className="flex gap-4 overflow-x-auto pb-6">
@@ -914,13 +752,11 @@ export function ProductLabView() {
               <div
                 key={stage}
                 onDragOver={(e) => {
-                  if (isStrategyMode) return;
                   e.preventDefault();
                   if (dragOverStage !== stage) setDragOverStage(stage);
                 }}
                 onDragLeave={() => setDragOverStage(null)}
                 onDrop={(e) => {
-                  if (isStrategyMode) return;
                   e.preventDefault();
                   const cid = e.dataTransfer.getData('text/plain') || draggedConceptId;
                   setDraggedConceptId(null);
@@ -931,46 +767,42 @@ export function ProductLabView() {
                     attemptStageTransition(card, stage);
                   }
                 }}
-                className={`w-[295px] shrink-0 rounded-2xl p-3.5 min-h-[560px] flex flex-col border transition-all ${
+                className={`w-[280px] shrink-0 rounded-2xl p-3.5 min-h-[540px] flex flex-col border transition-all ${
                   isDropTarget
                     ? 'bg-white border-2 border-[#D97745] shadow-lg'
-                    : 'bg-[#F7F7F5]/90 border-[#E8E8E5]'
+                    : 'bg-[#F7F7F5] border-[#E8E8E5]'
                 }`}
               >
-                {/* Заголовок колонки (Схема 1 и 2 ТЗ) */}
-                <div className="flex items-start justify-between mb-3.5 pb-3 border-b border-[#E8E8E5]">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[12px] font-bold text-[#D97745]">
-                        {stageMeta.num}
-                      </span>
-                      <span className="text-[14px] font-bold tracking-tight text-[#171717]">
+                {/* Заголовок колонки: строгая симметрия */}
+                <div className="flex items-center justify-between mb-3.5 pb-3 border-b border-[#E8E8E5]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-md bg-[#111111] text-white text-[11px] font-bold flex items-center justify-center">
+                      {stageMeta.num}
+                    </span>
+                    <div>
+                      <div className="text-[13px] font-bold tracking-tight text-[#171717] leading-none">
                         {stageMeta.title}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-[#737373] mt-0.5">
-                      {stageMeta.subtitle}
+                      </div>
+                      <div className="text-[11px] text-[#737373] mt-0.5">
+                        {stageMeta.subtitle}
+                      </div>
                     </div>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-lg bg-white border border-[#E8E8E5] text-[13px] font-bold text-[#171717]">
+                  <span className="w-6 h-6 rounded-lg bg-white border border-[#E8E8E5] text-[12px] font-bold text-[#171717] flex items-center justify-center">
                     {stageCards.length}
                   </span>
                 </div>
 
-                {/* Карточки на превью (строго по п. 3.4 ТЗ: без перегрузки финансами!) */}
+                {/* Карточки: одинаковая высота и структура для идеальной симметрии */}
                 <div className="space-y-3 flex-1">
                   {stageCards.map((card) => {
                     const isBorners = card.brandId === 'BORNERS';
                     const owner = users.find((u) => u.id === card.ownerId);
-                    const devTypeLabel =
-                      RND_DEVELOPMENT_TYPE_LABELS_RU[
-                        card.developmentType || 'new_construction'
-                      ];
 
                     return (
                       <div
                         key={card.id}
-                        draggable={!isStrategyMode}
+                        draggable
                         onDragStart={(e) => {
                           setDraggedConceptId(card.id);
                           e.dataTransfer.setData('text/plain', card.id);
@@ -997,94 +829,59 @@ export function ProductLabView() {
                               : 'overview'
                           );
                         }}
-                        className="bg-white rounded-xl border border-[#E8E8E5] hover:border-[#171717] p-3.5 space-y-3 cursor-pointer transition group shadow-2xs"
+                        className="bg-white rounded-xl border border-[#E8E8E5] hover:border-[#171717] p-3.5 flex flex-col justify-between gap-3 cursor-pointer transition group shadow-2xs"
                       >
-                        {/* Главное изображение, бренд и ID */}
-                        <div className="flex items-center gap-3">
-                          <div className="h-14 w-14 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] p-1.5 shrink-0 flex items-center justify-center">
+                        {/* Верхняя строка: Бренд + ID слева, Кнопка удаления справа */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                            <span
+                              className="px-2 py-0.5 rounded-md text-white"
+                              style={{
+                                backgroundColor: isBorners ? '#D97745' : '#8B8078',
+                              }}
+                            >
+                              {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-md bg-[#F7F7F5] border border-[#E8E8E5] text-[#737373]">
+                              {card.code}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            title="Удалить карточку"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteConcept(card.id);
+                            }}
+                            className="p-1.5 rounded-lg text-[#737373] hover:text-[#DC2626] hover:bg-[#DC2626]/10 cursor-pointer transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Центр: Симметричное превью фото + Название (ровно 2 строки) */}
+                        <div className="space-y-2.5">
+                          <div className="h-28 w-full rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] p-2 flex items-center justify-center">
                             <img
                               src={card.imageUrl}
                               alt={card.name}
-                              className="h-full w-full object-contain"
+                              className="max-h-24 w-full object-contain"
                             />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-1 text-[11px] font-bold">
-                              <span
-                                style={{ color: isBorners ? '#D97745' : '#8B8078' }}
-                              >
-                                {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <span className="px-1.5 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5] text-[#171717]">
-                                  {card.code}
-                                </span>
-                                {!isStrategyMode && (
-                                  <button
-                                    type="button"
-                                    title="Удалить карточку"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteConcept(card.id);
-                                    }}
-                                    className="p-1 rounded-md text-[#737373] hover:text-[#DC2626] hover:bg-[#DC2626]/10 cursor-pointer transition"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-[14px] font-bold text-[#171717] leading-snug mt-0.5 line-clamp-2">
-                              {card.name}
-                            </div>
+
+                          <div className="text-[14px] font-bold text-[#171717] group-hover:text-[#D97745] transition leading-snug line-clamp-2 min-h-[38px]">
+                            {card.name}
                           </div>
                         </div>
 
-                        {/* Тип разработки и приоритет */}
-                        <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
-                          <span className="px-2 py-0.5 rounded-md bg-[#F7F7F5] text-[#737373] font-medium truncate max-w-[185px]">
-                            {devTypeLabel}
-                          </span>
-                          <span
-                            className={`px-2 py-0.5 rounded-md font-bold ${
-                              card.priority === 'Critical'
-                                ? 'bg-[#DC2626]/15 text-[#DC2626]'
-                                : card.priority === 'High'
-                                ? 'bg-[#D97745]/15 text-[#D97745]'
-                                : 'bg-[#F7F7F5] text-[#737373]'
-                            }`}
-                          >
-                            {TASK_PRIORITY_LABELS_RU[card.priority || 'Medium']}
-                          </span>
-                        </div>
-
-                        {/* Индикатор блокировки, если проект остановлен (п. 3.4 ТЗ) */}
-                        {card.isBlocked && (
-                          <div className="rounded-lg bg-[#DC2626]/10 border border-[#DC2626]/30 px-2.5 py-1.5 text-[11px] font-semibold text-[#DC2626] flex items-center gap-1.5">
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">
-                              Блок: {card.blockReason || 'Ожидает решения'}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Один следующий шаг (п. 3.4 ТЗ) */}
-                        {card.nextStep && (
-                          <div className="rounded-lg bg-[#F7F7F5] px-2.5 py-1.5 text-[12px] text-[#171717] leading-snug">
-                            <span className="text-[#737373] font-semibold">Шаг: </span>
-                            {card.nextStep}
-                          </div>
-                        )}
-
-                        {/* Ответственный и ближайший срок */}
-                        <div className="flex items-center justify-between pt-2 border-t border-[#E8E8E5] text-[11px] text-[#737373]">
-                          <span className="font-medium text-[#171717] truncate">
+                        {/* Нижняя строка: Ответственный и Дата */}
+                        <div className="flex items-center justify-between pt-2.5 border-t border-[#E8E8E5] text-[11px] text-[#737373]">
+                          <span className="font-semibold text-[#171717] truncate max-w-[130px]">
                             {owner ? owner.fullName : 'Не назначен'}
                           </span>
-                          <span>
-                            {card.targetLaunchDate
-                              ? `Срок: ${card.targetLaunchDate}`
-                              : 'Без срока'}
+                          <span className="shrink-0">
+                            {card.targetLaunchDate || 'Без срока'}
                           </span>
                         </div>
                       </div>

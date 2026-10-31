@@ -37,6 +37,7 @@ export function DashboardView() {
     setBrandFilter,
     periodFilter,
     platformMode,
+    setPlatformMode,
     simpleMode,
     setSimpleMode,
     financialScenario,
@@ -252,16 +253,16 @@ export function DashboardView() {
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
           <button
-            onClick={() => navigateTo('brand-strategy')}
-            className="h-12 px-6 rounded-xl bg-white text-[#171717] text-[15px] font-semibold hover:bg-neutral-200 transition cursor-pointer"
+            onClick={() => setPlatformMode('strategy')}
+            className="h-12 px-6 rounded-xl bg-white text-[#171717] text-[15px] font-bold hover:bg-neutral-200 transition cursor-pointer"
           >
-            Стратегия брендов →
+            🎬 Презентация (8 слайдов)
           </button>
           <button
             onClick={() => navigateTo('product-lab')}
-            className="h-12 px-6 rounded-xl bg-[#D97745] text-white text-[15px] font-semibold hover:opacity-90 transition cursor-pointer"
+            className="h-12 px-6 rounded-xl bg-[#D97745] text-white text-[15px] font-bold hover:opacity-90 transition cursor-pointer"
           >
-            Разработка новинок (R&D) →
+            Лаборатория R&D →
           </button>
         </div>
       </div>

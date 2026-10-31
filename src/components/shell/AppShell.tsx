@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   Bell,
+  ChevronDown,
   LogOut,
   Menu,
   Plus,
@@ -21,6 +22,7 @@ import {
 } from '@/lib/finance';
 import { DashboardView } from '@/components/sections/DashboardView';
 import { BrandPortfolioView, BrandStrategyView } from '@/components/sections/BrandStrategyView';
+import { StrategyPresentationDeck } from '@/components/sections/StrategyPresentationDeck';
 import { ProductCatalogView } from '@/components/sections/ProductCatalogView';
 import { ProductLabView } from '@/components/sections/ProductLabView';
 import { LaunchCalendarView, MarketingGrowthView } from '@/components/sections/LaunchAndGrowthViews';
@@ -45,43 +47,36 @@ const SIMPLE_NAV_ITEMS: {
   id: NavSectionId;
   step: string;
   label: string;
-  hint: string;
 }[] = [
   {
     id: 'dashboard',
     step: '01',
-    label: 'Стратегия в работе',
-    hint: 'Главный план 26–27 на живом функционале',
+    label: 'Дашборд и Сводка',
   },
   {
     id: 'product-lab',
     step: '02',
-    label: 'Разработка новинок (R&D)',
-    hint: 'От идеи и образца до запуска партии',
+    label: 'Лаборатория R&D',
   },
   {
     id: 'brand-strategy',
     step: '03',
     label: 'Стратегия брендов',
-    hint: 'ДНК, матрица BORNERS и НА ТЕЛЕ',
   },
   {
     id: 'product-catalog',
     step: '04',
     label: 'Каталог моделей',
-    hint: 'Артикулы, себестоимость и остатки',
   },
   {
     id: 'launch-calendar',
     step: '05',
     label: 'Календарь запусков',
-    hint: 'Релизы коллекций и задачи команды',
   },
   {
     id: 'finance',
     step: '06',
-    label: 'Финансы и План 2027',
-    hint: 'Выручка, прибыль и юнит-экономика',
+    label: 'Финансы 2027',
   },
 ];
 
@@ -163,6 +158,7 @@ export function AppShell() {
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -363,24 +359,27 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР (п. 3 ТЗ: светлый минимализм #FFFFFF, тонкая граница #E8E8E5, крупный шрифт) */}
+        {/* ЛЕВЫЙ САЙДБАР: строгая симметрия, чистая навигация в 1 строку без обрезаний */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[276px] bg-white dark:bg-zinc-900 border-r border-[#E8E8E5] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[256px] bg-white dark:bg-zinc-900 border-r border-[#E8E8E5] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="p-6 space-y-7 overflow-y-auto">
-            {/* Логотип группы */}
-            <div className="flex items-start justify-between border-b border-[#E8E8E5] dark:border-zinc-800 pb-5">
+          <div className="p-5 space-y-6 overflow-y-auto">
+            {/* Логотип группы (ровно h-16 по высоте с верхней шапкой) */}
+            <div className="flex items-center justify-between border-b border-[#E8E8E5] dark:border-zinc-800 pb-4">
               <button
-                onClick={() => navigateTo('dashboard')}
+                onClick={() => {
+                  setPlatformMode('management');
+                  navigateTo('dashboard');
+                }}
                 className="text-left cursor-pointer block"
               >
-                <span className="font-bold tracking-[-0.03em] text-[22px] text-[#171717] dark:text-white block leading-none">
+                <span className="font-bold tracking-[-0.03em] text-[20px] text-[#171717] dark:text-white block leading-none">
                   BORNERS GROUP
                 </span>
-                <span className="text-[13px] text-[#737373] mt-1.5 block font-medium">
-                  Стратегия и продукт · 26–27
+                <span className="text-[12px] text-[#737373] mt-1 block font-medium">
+                  Платформа · 2026–2027
                 </span>
               </button>
               <button
@@ -391,468 +390,356 @@ export function AppShell() {
               </button>
             </div>
 
-            {/* Меню разделов: Простой режим (без перегруза) vs Полный PRO-режим */}
-            <nav className="space-y-4">
-              {simpleMode ? (
-                <div className="space-y-2">
-                  <div className="px-3 pb-1 flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#D97745]">
-                      Стратегия и работа · 6 шагов
+            {/* Меню разделов: идеальная симметрия, одинаковая высота кнопок h-11 */}
+            <nav className="space-y-1.5">
+              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[#737373]">
+                Основные разделы
+              </div>
+
+              {SIMPLE_NAV_ITEMS.filter((item) =>
+                canUserAccessSection(currentUser, item.id)
+              ).map((item) => {
+                const isActive = platformMode === 'management' && activeSection === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setPlatformMode('management');
+                      navigateTo(item.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full h-11 rounded-xl px-3.5 flex items-center gap-3 text-left transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-[#111111] text-white font-semibold shadow-2xs'
+                        : 'text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                    }`}
+                  >
+                    <span
+                      className={`w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                        isActive
+                          ? 'bg-[#D97745] text-white'
+                          : 'bg-[#F7F7F5] text-[#737373] border border-[#E8E8E5]'
+                      }`}
+                    >
+                      {item.step}
                     </span>
+                    <span className="text-[14px] whitespace-nowrap">{item.label}</span>
+                  </button>
+                );
+              })}
+
+              {/* Дополнительные разделы (раскрываются аккуратно) */}
+              {!simpleMode && (
+                <div className="pt-4 mt-4 border-t border-[#E8E8E5] space-y-1">
+                  <div className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#737373]">
+                    Дополнительные разделы
                   </div>
-                  {SIMPLE_NAV_ITEMS.filter((item) =>
-                    canUserAccessSection(currentUser, item.id)
-                  ).map((item) => {
-                    const isActive = activeSection === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          navigateTo(item.id);
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full rounded-xl px-3.5 py-3 text-left transition-all cursor-pointer border ${
-                          isActive
-                            ? 'bg-[#111111] text-white border-[#111111] shadow-xs'
-                            : 'bg-[#F7F7F5]/60 hover:bg-[#F7F7F5] text-[#171717] border-transparent hover:border-[#E8E8E5]'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
-                              isActive
-                                ? 'bg-[#D97745] text-white'
-                                : 'bg-white text-[#737373] border border-[#E8E8E5]'
-                            }`}
-                          >
-                            {item.step}
-                          </span>
-                          <span className="text-[15px] font-bold truncate">{item.label}</span>
-                        </div>
-                        <div
-                          className={`text-[12px] mt-1 pl-7 leading-snug ${
-                            isActive ? 'text-neutral-300' : 'text-[#737373]'
+                  {[
+                    { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
+                    { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' },
+                    { id: 'marketing-growth' as NavSectionId, label: 'Маркетинг и рост' },
+                    { id: 'roadmap-tasks' as NavSectionId, label: 'Задачи и проекты' },
+                    { id: 'documents' as NavSectionId, label: 'Документы и файлы' },
+                    { id: 'team' as NavSectionId, label: 'Команда и роли' },
+                    { id: 'settings' as NavSectionId, label: 'Настройки' },
+                  ]
+                    .filter((item) => canUserAccessSection(currentUser, item.id))
+                    .map((item) => {
+                      const isActive =
+                        platformMode === 'management' && activeSection === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            setPlatformMode('management');
+                            navigateTo(item.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full h-10 rounded-xl px-3.5 flex items-center text-left text-[14px] transition-colors cursor-pointer ${
+                            isActive
+                              ? 'bg-[#111111] text-white font-semibold'
+                              : 'text-[#737373] hover:text-[#171717] hover:bg-[#F7F7F5] font-medium'
                           }`}
                         >
-                          {item.hint}
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  <button
-                    type="button"
-                    onClick={() => setSimpleMode(false)}
-                    className="w-full mt-3 py-2.5 px-3.5 rounded-xl border border-dashed border-[#E8E8E5] hover:border-[#171717] text-[13px] font-semibold text-[#737373] hover:text-[#171717] transition cursor-pointer text-center"
-                  >
-                    + Показать все 13 разделов (PRO)
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <button
-                    type="button"
-                    onClick={() => setSimpleMode(true)}
-                    className="w-full py-2 px-3 rounded-xl bg-[#D97745]/10 border border-[#D97745]/30 text-[#D97745] text-[13px] font-bold hover:bg-[#D97745] hover:text-white transition cursor-pointer text-center"
-                  >
-                    ← Включить простой вид (без перегруза)
-                  </button>
-
-                  {NAV_GROUPS.map((group) => {
-                    const allowedItems = group.items.filter((item) =>
-                      canUserAccessSection(currentUser, item.id)
-                    );
-                    if (allowedItems.length === 0) return null;
-
-                    return (
-                      <div key={group.groupTitle} className="space-y-1">
-                        <div className="px-3.5 pb-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373]">
-                          {group.groupTitle}
-                        </div>
-                        {allowedItems.map((item) => {
-                          const isActive = activeSection === item.id;
-
-                          return (
-                            <button
-                              key={item.id}
-                              onClick={() => {
-                                navigateTo(item.id);
-                                setMobileMenuOpen(false);
-                              }}
-                              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left text-[15px] transition-colors cursor-pointer ${
-                                isActive
-                                  ? 'bg-[#111111] text-white font-semibold'
-                                  : 'text-[#171717] dark:text-zinc-300 hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium'
-                              }`}
-                            >
-                              <span className="truncate">{item.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
+                          <span className="truncate">{item.label}</span>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
             </nav>
           </div>
 
-          {/* Быстрый фильтр по брендам внизу сайдбара (акценты по ТЗ: #D97745 и #8B8078 + Акуша и Liskani в проработке) */}
-          <div className="p-6 border-t border-[#E8E8E5] dark:border-zinc-800 space-y-3">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#737373]">
-              Бренды группы
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setBrandFilter(brandFilter === 'BORNERS' ? 'ALL' : 'BORNERS')}
-                className={`py-2.5 px-3 rounded-xl text-[14px] font-semibold border flex items-center justify-center gap-2 cursor-pointer transition ${
-                  brandFilter === 'BORNERS'
-                    ? 'bg-[#D97745] text-white border-[#D97745]'
-                    : 'bg-[#F7F7F5] border-[#E8E8E5] text-[#171717] hover:border-[#D97745]'
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    brandFilter === 'BORNERS' ? 'bg-white' : 'bg-[#D97745]'
-                  }`}
-                />
-                <span>BORNERS</span>
-              </button>
-              <button
-                onClick={() => setBrandFilter(brandFilter === 'NA_TELE' ? 'ALL' : 'NA_TELE')}
-                className={`py-2.5 px-3 rounded-xl text-[14px] font-semibold border flex items-center justify-center gap-2 cursor-pointer transition ${
-                  brandFilter === 'NA_TELE'
-                    ? 'bg-[#8B8078] text-white border-[#8B8078]'
-                    : 'bg-[#F7F7F5] border-[#E8E8E5] text-[#171717] hover:border-[#8B8078]'
-                }`}
-              >
-                <span
-                  className={`h-2 w-2 rounded-full ${
-                    brandFilter === 'NA_TELE' ? 'bg-white' : 'bg-[#8B8078]'
-                  }`}
-                />
-                <span>НА ТЕЛЕ</span>
-              </button>
-            </div>
-
-            {/* Неактивные бренды в проработке стратегии: Акуша и Liskani */}
-            <div className="pt-2 border-t border-dashed border-[#E8E8E5] space-y-1.5">
-              <div className="text-[11px] font-medium text-[#737373]">
-                Ведётся проработка стратегии:
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {brands
-                  .filter((b) => b.isStrategyInDevelopment)
-                  .map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      title="Неактивен · Ведётся проработка стратегии"
-                      onClick={() =>
-                        notify(
-                          'warning',
-                          `Бренд «${b.name}» в разработке`,
-                          'Сейчас ведётся проработка стратегии и концепции бренда'
-                        )
-                      }
-                      className="py-2 px-2.5 rounded-xl text-[13px] font-medium border border-dashed border-[#E8E8E5] bg-[#F7F7F5]/60 text-[#737373] flex items-center justify-center gap-1.5 cursor-not-allowed opacity-75"
-                    >
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#A3A39E]" />
-                      <span>{b.name}</span>
-                    </button>
-                  ))}
-              </div>
-            </div>
+          {/* Нижняя кнопка сайдбара: переключение 6 основных / все 13 разделов */}
+          <div className="p-5 border-t border-[#E8E8E5] dark:border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setSimpleMode(!simpleMode)}
+              className="w-full h-10 px-3.5 rounded-xl bg-[#F7F7F5] hover:bg-[#111111] hover:text-white border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] transition cursor-pointer flex items-center justify-center"
+            >
+              {simpleMode ? '+ Показать все разделы (13)' : '← Оставить 6 главных разделов'}
+            </button>
           </div>
         </aside>
 
         {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* ВЕРХНЯЯ ПАНЕЛЬ (п. 3, 14 ТЗ: бренды, режим Strategy/Management, период, поиск, + Создать, уведомления, профиль) */}
-          <header className="sticky top-0 z-30 h-20 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E8E8E5] dark:border-zinc-800 px-6 md:px-10 flex items-center justify-between gap-4">
-            {/* Левая часть: Назад + Переключатель брендов */}
-            <div className="flex items-center gap-3 min-w-0">
+          {/* ВЕРХНЯЯ ПАНЕЛЬ: идеальная симметрия, все элементы одинаковой высоты h-10 */}
+          <header className="sticky top-0 z-30 h-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E8E8E5] dark:border-zinc-800 px-6 md:px-8 flex items-center justify-between gap-4">
+            {/* Левая группа: Назад + Выпадающий список брендов + Период */}
+            <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden rounded-xl border border-[#E8E8E5] p-2.5"
+                className="lg:hidden h-10 w-10 rounded-xl border border-[#E8E8E5] flex items-center justify-center"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-4 w-4" />
               </button>
 
               {navHistory.length > 1 && (
                 <button
                   onClick={goBack}
                   title="Назад"
-                  className="inline-flex items-center gap-2 h-11 px-3.5 rounded-xl bg-[#F7F7F5] dark:bg-zinc-800 border border-[#E8E8E5] text-[14px] font-medium text-[#171717] hover:bg-[#111111] hover:text-white transition cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] hover:bg-[#111111] hover:text-white transition cursor-pointer shrink-0"
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Назад</span>
                 </button>
               )}
 
-              {/* Переключатель брендов: Все бренды | BORNERS | НА ТЕЛЕ + неактивные Акуша | Liskani */}
-              <div className="hidden md:flex items-center bg-[#F7F7F5] dark:bg-zinc-800 p-1 rounded-xl border border-[#E8E8E5] dark:border-zinc-700 overflow-x-auto">
+              {/* ВЫПАДАЮЩИЙ СПИСОК БРЕНДОВ (вместо длинной полосы кнопок) */}
+              <div className="relative">
                 <button
-                  onClick={() => setBrandFilter('ALL')}
-                  className={`px-3.5 py-2 rounded-lg text-[14px] transition cursor-pointer shrink-0 ${
-                    brandFilter === 'ALL'
-                      ? 'bg-white dark:bg-zinc-900 text-[#171717] dark:text-white font-semibold shadow-2xs'
-                      : 'text-[#737373] hover:text-[#171717] font-medium'
-                  }`}
+                  type="button"
+                  onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
+                  className="h-10 px-3.5 rounded-xl bg-[#F7F7F5] hover:border-[#171717] border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] inline-flex items-center gap-2.5 cursor-pointer transition min-w-[180px] justify-between"
                 >
-                  Все бренды
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor:
+                          brandFilter === 'BORNERS'
+                            ? '#D97745'
+                            : brandFilter === 'NA_TELE'
+                            ? '#8B8078'
+                            : '#111111',
+                      }}
+                    />
+                    <span>
+                      Бренд:{' '}
+                      <b>
+                        {brandFilter === 'ALL'
+                          ? 'Все бренды'
+                          : brandFilter === 'NA_TELE'
+                          ? 'НА ТЕЛЕ'
+                          : 'BORNERS'}
+                      </b>
+                    </span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-[#737373]" />
                 </button>
-                {brands.map((b) => {
-                  if (b.isStrategyInDevelopment) {
-                    return (
+
+                {brandDropdownOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setBrandDropdownOpen(false)}
+                    />
+                    <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white border border-[#E8E8E5] shadow-xl p-2 z-50 text-[13px] space-y-1">
                       <button
-                        key={b.id}
                         type="button"
-                        title="Ведётся проработка стратегии"
-                        onClick={() =>
-                          notify(
-                            'warning',
-                            `Бренд «${b.name}» пока неактивен`,
-                            'Ведётся проработка стратегии и позиционирования'
-                          )
-                        }
-                        className="px-3 py-2 rounded-lg text-[14px] text-[#737373]/70 font-medium inline-flex items-center gap-1.5 cursor-not-allowed shrink-0 select-none"
+                        onClick={() => {
+                          setBrandFilter('ALL');
+                          setBrandDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between cursor-pointer ${
+                          brandFilter === 'ALL'
+                            ? 'bg-[#111111] text-white font-bold'
+                            : 'text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                        }`}
                       >
-                        <span className="h-2 w-2 rounded-full bg-[#A3A39E]/60 shrink-0" />
-                        <span>{b.name}</span>
-                        <span className="hidden 2xl:inline text-[11px] px-1.5 py-0.5 rounded bg-white/80 border border-[#E8E8E5] text-[#737373]">
-                          в проработке
+                        <span className="inline-flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                          <span>Все бренды группы</span>
                         </span>
                       </button>
-                    );
-                  }
 
-                  const active = brandFilter === b.id || brandFilter === b.code;
-                  const dotColor =
-                    b.code === 'BORNERS'
-                      ? '#D97745'
-                      : b.code === 'NA_TELE'
-                      ? '#8B8078'
-                      : b.accentColor;
-                  return (
-                    <button
-                      key={b.id}
-                      onClick={() => setBrandFilter(b.code)}
-                      className={`px-3.5 py-2 rounded-lg text-[14px] transition cursor-pointer inline-flex items-center gap-2 shrink-0 ${
-                        active
-                          ? 'bg-white dark:bg-zinc-900 text-[#171717] dark:text-white font-semibold shadow-2xs'
-                          : 'text-[#737373] hover:text-[#171717] font-medium'
-                      }`}
-                    >
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: dotColor }}
-                      />
-                      <span>{b.name}</span>
-                    </button>
-                  );
-                })}
+                      {brands
+                        .filter((b) => !b.isStrategyInDevelopment)
+                        .map((b) => {
+                          const isSelected = brandFilter === b.code || brandFilter === b.id;
+                          const dotColor = b.code === 'BORNERS' ? '#D97745' : '#8B8078';
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => {
+                                setBrandFilter(b.code);
+                                setBrandDropdownOpen(false);
+                              }}
+                              className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[#111111] text-white font-bold'
+                                  : 'text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                              }`}
+                            >
+                              <span className="inline-flex items-center gap-2">
+                                <span
+                                  className="h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: dotColor }}
+                                />
+                                <span>{b.name}</span>
+                              </span>
+                              <span
+                                className={`text-[11px] ${
+                                  isSelected ? 'text-neutral-300' : 'text-[#737373]'
+                                }`}
+                              >
+                                Активен
+                              </span>
+                            </button>
+                          );
+                        })}
+
+                      <div className="pt-2 mt-1 border-t border-[#E8E8E5] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
+                        В проработке стратегии
+                      </div>
+
+                      {brands
+                        .filter((b) => b.isStrategyInDevelopment)
+                        .map((b) => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => {
+                              setBrandDropdownOpen(false);
+                              notify(
+                                'warning',
+                                `Бренд «${b.name}» в проработке`,
+                                'Сейчас формируется стратегия и позиционирование бренда'
+                              );
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-left flex items-center justify-between text-[#737373] hover:bg-[#F7F7F5] cursor-not-allowed"
+                          >
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-[#A3A39E]" />
+                              <span>{b.name}</span>
+                            </span>
+                            <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5]">
+                              в разработке
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* Выбор периода (одинаковая высота h-10) */}
+              <select
+                value={periodFilter}
+                onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
+                className="hidden md:block h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5 text-[13px] font-semibold text-[#171717] cursor-pointer outline-none"
+              >
+                <option value="2027">Период: 2027</option>
+                <option value="Q1 2027">Период: Q1 2027</option>
+                <option value="Q2 2027">Период: Q2 2027</option>
+                <option value="2026">Период: 2026</option>
+                <option value="ALL">Период: 2026–2027</option>
+              </select>
             </div>
 
-            {/* Правая группа действий */}
+            {/* Правая группа: идеальная симметрия элементов h-10 */}
             <div className="flex items-center gap-2.5 shrink-0">
-              {/* Главный переключатель: Простой вид (без перегруза) vs PRO-режим */}
-              <div
-                title="Переключение между простым понятным видом и полным экспертным режимом со всеми таблицами"
-                className="flex items-center bg-[#F7F7F5] dark:bg-zinc-800 p-1 rounded-xl border border-[#E8E8E5]"
-              >
+              {/* Переключатель: Рабочий режим vs Презентация */}
+              <div className="flex items-center h-10 bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
                 <button
-                  onClick={() => setSimpleMode(true)}
-                  className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer ${
-                    simpleMode
-                      ? 'bg-[#D97745] text-white shadow-2xs'
+                  onClick={() => setPlatformMode('management')}
+                  className={`h-8 px-3 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    platformMode === 'management'
+                      ? 'bg-white text-[#171717] shadow-2xs'
                       : 'text-[#737373] hover:text-[#171717]'
                   }`}
                 >
-                  Простой вид
+                  Работа
                 </button>
                 <button
-                  onClick={() => setSimpleMode(false)}
-                  className={`px-3 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer ${
-                    !simpleMode
-                      ? 'bg-[#111111] text-white shadow-2xs'
-                      : 'text-[#737373] hover:text-[#171717]'
+                  onClick={() => setPlatformMode('strategy')}
+                  className={`h-8 px-3 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    platformMode === 'strategy'
+                      ? 'bg-[#D97745] text-white shadow-2xs'
+                      : 'text-[#171717] hover:text-[#D97745]'
                   }`}
                 >
-                  PRO (Все детали)
+                  🎬 Презентация
                 </button>
               </div>
-
-              {/* Переключатель Strategy Mode / Management Mode (п. 14 ТЗ) — виден в PRO-режиме */}
-              {!simpleMode && (
-                <div
-                  title="Переключение между операционным режимом управления и чистым режимом презентации стратегии (п. 14 ТЗ)"
-                  className="hidden xl:flex items-center bg-[#F7F7F5] dark:bg-zinc-800 p-1 rounded-xl border border-[#E8E8E5]"
-                >
-                  <button
-                    onClick={() => setPlatformMode('management')}
-                    className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                      platformMode === 'management'
-                        ? 'bg-white text-[#171717] shadow-2xs'
-                        : 'text-[#737373] hover:text-[#171717]'
-                    }`}
-                  >
-                    Управление
-                  </button>
-                  <button
-                    onClick={() => setPlatformMode('strategy')}
-                    className={`px-3 py-1.5 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                      platformMode === 'strategy'
-                        ? 'bg-[#111111] text-white shadow-2xs'
-                        : 'text-[#737373] hover:text-[#171717]'
-                    }`}
-                  >
-                    Презентация
-                  </button>
-                </div>
-              )}
 
               {/* Поиск */}
               <button
                 onClick={() => setSearchModalOpen(true)}
-                className="inline-flex items-center gap-2.5 h-11 rounded-xl bg-[#F7F7F5] dark:bg-zinc-800 border border-[#E8E8E5] hover:border-[#737373] px-3.5 text-[14px] font-medium text-[#737373] hover:text-[#171717] transition cursor-pointer"
+                className="inline-flex items-center gap-2 h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] hover:border-[#171717] px-3.5 text-[13px] font-semibold text-[#171717] transition cursor-pointer"
               >
-                <Search className="h-4 w-4 text-[#171717]" />
+                <Search className="h-4 w-4 text-[#737373]" />
                 <span className="hidden sm:inline">Поиск</span>
-                <kbd className="hidden sm:inline-block text-[11px] text-[#737373] bg-white px-1.5 py-0.5 rounded-md border border-[#E8E8E5]">
-                  ⌘K
-                </kbd>
               </button>
 
-              {/* Выбор периода */}
-              <select
-                value={periodFilter}
-                onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
-                className="hidden xl:block h-11 rounded-xl bg-[#F7F7F5] dark:bg-zinc-800 border border-[#E8E8E5] px-3.5 text-[14px] font-medium text-[#171717] dark:text-zinc-200 cursor-pointer outline-none"
-              >
-                <option value="2027">Период: 2027</option>
-                <option value="Q1 2027">Q1 2027</option>
-                <option value="Q2 2027">Q2 2027</option>
-                <option value="2026">2026</option>
-                <option value="ALL">2026 — 2027</option>
-              </select>
-
-              {/* Кнопка + Создать (скрыта в режиме презентации по п. 14 ТЗ) */}
-              {platformMode === 'management' && (
-                <div className="relative">
-                  <button
-                    onClick={() => setQuickCreateOpen(!quickCreateOpen)}
-                    className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#111111] dark:bg-white text-white dark:text-zinc-900 px-4 text-[14px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">Создать</span>
-                  </button>
-
-                  {quickCreateOpen && (
-                    <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] shadow-xl p-2 z-50 text-[15px]">
-                      <button
-                        onClick={() => {
-                          setQuickCreateOpen(false);
-                          navigateTo('product-lab');
-                        }}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium cursor-pointer"
-                      >
-                        + Разработку в R&D
-                      </button>
-                      <button
-                        onClick={() => {
-                          setQuickCreateOpen(false);
-                          navigateTo('product-catalog');
-                        }}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium cursor-pointer"
-                      >
-                        + Модель в каталоге
-                      </button>
-                      <button
-                        onClick={() => {
-                          setQuickCreateOpen(false);
-                          navigateTo('launch-calendar');
-                        }}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium cursor-pointer"
-                      >
-                        + Запуск коллекции
-                      </button>
-                      <button
-                        onClick={() => {
-                          setQuickCreateOpen(false);
-                          navigateTo('roadmap-tasks');
-                        }}
-                        className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] dark:hover:bg-zinc-800 font-medium cursor-pointer"
-                      >
-                        + Задачу команде
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Уведомления */}
+              {/* Кнопка + Создать */}
               <div className="relative">
                 <button
-                  onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative h-11 w-11 rounded-xl bg-[#F7F7F5] dark:bg-zinc-800 border border-[#E8E8E5] flex items-center justify-center text-[#171717] cursor-pointer"
+                  onClick={() => setQuickCreateOpen(!quickCreateOpen)}
+                  className="inline-flex items-center gap-1.5 h-10 rounded-xl bg-[#111111] text-white px-4 text-[13px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
                 >
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-[#C94B4B]" />
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Создать</span>
                 </button>
 
-                {notificationsOpen && (
-                  <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] shadow-xl p-5 z-50 text-[14px] space-y-4">
-                    <div className="font-semibold text-[16px] flex justify-between items-center pb-3 border-b border-[#E8E8E5]">
-                      <span>Уведомления</span>
-                      <button
-                        onClick={() => setNotificationsOpen(false)}
-                        className="text-[13px] text-[#737373] hover:text-[#171717] cursor-pointer"
-                      >
-                        Закрыть
-                      </button>
-                    </div>
-                    <div
+                {quickCreateOpen && (
+                  <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl border border-[#E8E8E5] shadow-xl p-2 z-50 text-[14px]">
+                    <button
                       onClick={() => {
-                        setNotificationsOpen(false);
-                        navigateTo('roadmap-tasks');
+                        setQuickCreateOpen(false);
+                        setPlatformMode('management');
+                        navigateTo('product-lab');
                       }}
-                      className="rounded-xl bg-[#F7F7F5] p-3.5 cursor-pointer hover:border-[#C94B4B] border border-transparent transition"
+                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] font-medium cursor-pointer"
                     >
-                      <div className="font-semibold text-[#C94B4B]">Просрочен дедлайн задачи</div>
-                      <div className="text-[#171717] mt-1">
-                        Согласовать цветопробу Pantone Тон 03 (НА ТЕЛЕ)
-                      </div>
-                    </div>
-                    <div
+                      + Идею в R&D
+                    </button>
+                    <button
                       onClick={() => {
-                        setNotificationsOpen(false);
-                        navigateTo('launch-calendar', { launchId: 'launch-big-love' });
+                        setQuickCreateOpen(false);
+                        setPlatformMode('management');
+                        navigateTo('product-catalog');
                       }}
-                      className="rounded-xl bg-[#F7F7F5] p-3.5 cursor-pointer hover:border-[#D97745] border border-transparent transition"
+                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] font-medium cursor-pointer"
                     >
-                      <div className="font-semibold text-[#171717] dark:text-white">
-                        Запуск BIG LOVE · 14.02.2027
-                      </div>
-                      <div className="text-[#737373] mt-1">
-                        Партия 12 000 шт. · готовность 70%
-                      </div>
-                    </div>
+                      + Модель в каталоге
+                    </button>
+                    <button
+                      onClick={() => {
+                        setQuickCreateOpen(false);
+                        setPlatformMode('management');
+                        navigateTo('launch-calendar');
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] font-medium cursor-pointer"
+                    >
+                      + Запуск коллекции
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Профиль и переключение ролей */}
+              {/* Профиль */}
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="inline-flex items-center gap-2.5 h-11 rounded-xl bg-[#F7F7F5] dark:bg-zinc-800 border border-[#E8E8E5] px-3.5 text-[15px] font-medium cursor-pointer transition"
+                  className="inline-flex items-center gap-2 h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3 text-[13px] font-semibold cursor-pointer transition"
                 >
-                  <span className="h-7 w-7 rounded-lg bg-[#111111] text-white flex items-center justify-center text-[13px] font-semibold">
+                  <span className="h-6 w-6 rounded-md bg-[#111111] text-white flex items-center justify-center text-[11px] font-bold">
                     {currentUser.avatarInitials}
                   </span>
-                  <span className="hidden sm:inline text-[#171717] dark:text-zinc-200">
+                  <span className="hidden sm:inline text-[#171717]">
                     {ROLE_LABELS_RU[currentUser.role]}
                   </span>
                 </button>
@@ -935,102 +822,30 @@ export function AppShell() {
             </div>
           </header>
 
-          {/* РАБОЧАЯ ОБЛАСТЬ КОНТЕНТА (много воздуха по п. 2.4 ТЗ) */}
-          <main className="flex-1 px-6 md:px-10 py-8 md:py-10 max-w-[1600px] w-full mx-auto space-y-6">
-            {/* Навигационная цепочка Breadcrumbs (п. 20 ТЗ) + маркировка DEMO (п. 23 ТЗ) */}
-            {(() => {
-              const currentGroup = NAV_GROUPS.find((g) =>
-                g.items.some((i) => i.id === activeSection)
-              );
-              const currentItem = currentGroup?.items.find((i) => i.id === activeSection);
-              const activeBrandLabel =
-                brandFilter === 'ALL'
-                  ? 'Все бренды'
-                  : brands.find((b) => b.code === brandFilter || b.id === brandFilter)?.name ||
-                    brandFilter;
-              const selectedEntityName =
-                (activeSection === 'product-catalog' &&
-                  selectedProductId &&
-                  products.find((p) => p.id === selectedProductId)?.sku) ||
-                (activeSection === 'product-lab' &&
-                  selectedConceptId &&
-                  concepts.find((c) => c.id === selectedConceptId)?.code) ||
-                (activeSection === 'launch-calendar' &&
-                  selectedLaunchId &&
-                  launches.find((l) => l.id === selectedLaunchId)?.name) ||
-                null;
-
-              return (
-                <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-[#737373]">
-                  <nav aria-label="Breadcrumbs" className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => navigateTo('dashboard')}
-                      className="hover:text-[#171717] font-medium cursor-pointer"
-                    >
-                      BORNERS GROUP
-                    </button>
-                    <span>/</span>
-                    <span>{currentGroup?.groupTitle || 'Платформа'}</span>
-                    <span>/</span>
-                    <span className="font-semibold text-[#171717] dark:text-white">
-                      {currentItem?.label || 'Дашборд'}
-                    </span>
-                    <span>/</span>
-                    <span className="px-2 py-0.5 rounded-md bg-white dark:bg-zinc-900 border border-[#E8E8E5] font-medium text-[#171717] dark:text-zinc-200">
-                      {activeBrandLabel}
-                    </span>
-                    {selectedEntityName && (
-                      <>
-                        <span>/</span>
-                        <span className="font-semibold text-[#D97745]">{selectedEntityName}</span>
-                      </>
-                    )}
-                  </nav>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      title="Демонстрационные показатели маркированы DEMO согласно п. 23 ТЗ"
-                      className="px-2.5 py-0.5 rounded-md bg-white dark:bg-zinc-900 border border-[#E8E8E5] text-[11px] font-semibold uppercase tracking-wider text-[#737373]"
-                    >
-                      DEMO · Данные 2026–2027
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Плашка презентационного режима Strategy Mode (п. 14 ТЗ) */}
-            {platformMode === 'strategy' && (
-              <div className="bg-[#111111] text-white rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-[14px]">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#D97745]" />
-                  <span>
-                    <b>Режим презентации (Strategy Mode):</b> служебные кнопки редактирования,
-                    черновые формы и комментарии скрыты для защиты демонстрации.
-                  </span>
-                </div>
-                <button
-                  onClick={() => setPlatformMode('management')}
-                  className="px-3.5 py-1.5 rounded-lg bg-white text-[#171717] text-[13px] font-semibold hover:bg-neutral-200 transition cursor-pointer"
-                >
-                  Вернуться в режим управления
-                </button>
-              </div>
+          {/* РАБОЧАЯ ОБЛАСТЬ КОНТЕНТА (чистая симметрия, без лишних верхних полос) */}
+          <main className="flex-1 px-6 md:px-8 py-6 md:py-8 max-w-[1600px] w-full mx-auto space-y-6">
+            {/* Режим интерактивной презентации стратегии (8 слайдов + лонгрид + весь экран) */}
+            {platformMode === 'strategy' ? (
+              <StrategyPresentationDeck
+                onExitPresentation={() => setPlatformMode('management')}
+              />
+            ) : (
+              <>
+                {activeSection === 'dashboard' && <DashboardView />}
+                {activeSection === 'brand-portfolio' && <BrandPortfolioView />}
+                {activeSection === 'brand-strategy' && <BrandStrategyView />}
+                {activeSection === 'market-intelligence' && <MarketIntelligenceView />}
+                {activeSection === 'product-catalog' && <ProductCatalogView />}
+                {activeSection === 'product-lab' && <ProductLabView />}
+                {activeSection === 'marketing-growth' && <MarketingGrowthView />}
+                {activeSection === 'launch-calendar' && <LaunchCalendarView />}
+                {activeSection === 'finance' && <FinanceView />}
+                {activeSection === 'roadmap-tasks' && <RoadmapTasksView />}
+                {activeSection === 'documents' && <DocumentsView />}
+                {activeSection === 'team' && <TeamView />}
+                {activeSection === 'settings' && <SettingsView />}
+              </>
             )}
-
-            {activeSection === 'dashboard' && <DashboardView />}
-            {activeSection === 'brand-portfolio' && <BrandPortfolioView />}
-            {activeSection === 'brand-strategy' && <BrandStrategyView />}
-            {activeSection === 'market-intelligence' && <MarketIntelligenceView />}
-            {activeSection === 'product-catalog' && <ProductCatalogView />}
-            {activeSection === 'product-lab' && <ProductLabView />}
-            {activeSection === 'marketing-growth' && <MarketingGrowthView />}
-            {activeSection === 'launch-calendar' && <LaunchCalendarView />}
-            {activeSection === 'finance' && <FinanceView />}
-            {activeSection === 'roadmap-tasks' && <RoadmapTasksView />}
-            {activeSection === 'documents' && <DocumentsView />}
-            {activeSection === 'team' && <TeamView />}
-            {activeSection === 'settings' && <SettingsView />}
           </main>
         </div>
 

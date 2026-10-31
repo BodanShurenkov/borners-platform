@@ -377,11 +377,11 @@ export function BrandStrategyView() {
     strategies,
     currentUser,
     platformMode,
+    setPlatformMode,
     brandFilter,
     setBrandFilter,
     updateStrategyBlock,
     navigateTo,
-    notify,
   } = usePlatform();
 
   const activeBrands = brands.filter((b) => !b.isStrategyInDevelopment);
@@ -474,62 +474,28 @@ export function BrandStrategyView() {
 
   return (
     <div className="space-y-10 pb-20">
-      {/* Шапка стратегии */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+      {/* Шапка стратегии: идеальная симметрия */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E8E5] pb-5">
         <div>
-          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Стратегический паспорт · {brandBlocks.length} блоков
-          </div>
-          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-            Стратегия: {activeBrand.name}
+          <h1 className="text-[28px] md:text-[32px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white leading-tight">
+            Стратегия бренда: {activeBrand.name}
           </h1>
+          <p className="text-[14px] text-[#737373] mt-0.5">
+            Стратегический паспорт из {brandBlocks.length} блоков (переключение бренда — в выпадающем списке сверху)
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
-            {brands.map((b) => {
-              if (b.isStrategyInDevelopment) {
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    title="Неактивен · Ведётся проработка стратегии"
-                    onClick={() =>
-                      notify(
-                        'warning',
-                        `Бренд «${b.name}» в разработке`,
-                        'Сейчас ведётся проработка стратегии бренда'
-                      )
-                    }
-                    className="px-3.5 py-2 rounded-lg text-[14px] font-medium text-[#737373]/70 cursor-not-allowed inline-flex items-center gap-1.5"
-                  >
-                    <span>{b.name}</span>
-                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-white/80 border border-[#E8E8E5]">
-                      в проработке
-                    </span>
-                  </button>
-                );
-              }
-              const active = b.code === activeBrand.code;
-              return (
-                <button
-                  key={b.id}
-                  onClick={() => setBrandFilter(b.code)}
-                  className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
-                    active
-                      ? 'bg-white text-[#171717] shadow-2xs'
-                      : 'text-[#737373] hover:text-[#171717]'
-                  }`}
-                >
-                  {b.name}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setPlatformMode('strategy')}
+            className="h-10 px-4 rounded-xl bg-[#D97745] text-white text-[13px] font-bold hover:opacity-90 transition cursor-pointer"
+          >
+            🎬 Режим презентации (8 слайдов)
+          </button>
 
           <button
             onClick={() => navigateTo('product-catalog')}
-            className="h-11 px-5 rounded-xl border border-[#E8E8E5] bg-white text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
+            className="h-10 px-4 rounded-xl border border-[#E8E8E5] bg-white text-[13px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
           >
             Каталог моделей →
           </button>
