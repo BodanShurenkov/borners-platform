@@ -2,14 +2,16 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Токены строго по п. 2 ТЗ (Premium Minimalism × Fashion Tech × Business Intelligence) */
+/* Токены в эстетике Editorial Warm Minimalism (UX Spec v2.0) */
 :root {
-  --bg-page: #F7F7F5;
+  --bg-page: #FAF8F5;
   --bg-card: #FFFFFF;
+  --bg-subtle: #F4F1EC;
+  --bg-warm-tint: #FDF4EE;
   --text-primary: #171717;
-  --text-secondary: #737373;
-  --border-color: #E8E8E5;
-  --bg-dark-block: #111111;
+  --text-secondary: #6E6A64;
+  --border-color: #EAE6DF;
+  --bg-dark-block: #141413;
   --brand-borners: #D97745;
   --brand-natele: #8B8078;
   --status-success: #16805D;
@@ -17,8 +19,6 @@
   --status-error: #C94B4B;
 }
 
-/* Крупная типографика по п. 2 ТЗ:
-   hero 48–64px, заголовки страниц 32–40px, блоки 20–24px, текст 14–16px, подписи 12–13px */
 html {
   font-size: 16px;
 }
@@ -30,7 +30,7 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.014em;
   line-height: 1.5;
 }
 
@@ -49,10 +49,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D6D6D2;
+  background: #DCD7CE;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #A3A39E;
+  background: #B8B1A6;
 }

@@ -350,7 +350,7 @@ export function AppShell() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-[#F7F7F5] dark:bg-zinc-950 text-[#171717] dark:text-zinc-100 flex">
+      <div className="min-h-screen bg-[#FAF8F5] dark:bg-zinc-950 text-[#171717] dark:text-zinc-100 flex border-l-[6px] border-l-[#D97745]">
         {/* МОБИЛЬНЫЙ ОВЕРЛЕЙ */}
         {mobileMenuOpen && (
           <div
@@ -361,39 +361,42 @@ export function AppShell() {
 
         {/* ЛЕВЫЙ САЙДБАР: строгая симметрия, чистая навигация в 1 строку без обрезаний */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[256px] bg-white dark:bg-zinc-900 border-r border-[#E8E8E5] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[260px] bg-white dark:bg-zinc-900 border-r border-[#EAE6DF] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="p-5 space-y-6 overflow-y-auto">
-            {/* Логотип группы (ровно h-16 по высоте с верхней шапкой) */}
-            <div className="flex items-center justify-between border-b border-[#E8E8E5] dark:border-zinc-800 pb-4">
-              <button
-                onClick={() => {
-                  setPlatformMode('management');
-                  navigateTo('dashboard');
-                }}
-                className="text-left cursor-pointer block"
-              >
-                <span className="font-bold tracking-[-0.03em] text-[20px] text-[#171717] dark:text-white block leading-none">
-                  BORNERS GROUP
-                </span>
-                <span className="text-[12px] text-[#737373] mt-1 block font-medium">
-                  Платформа · 2026–2027
-                </span>
-              </button>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="lg:hidden p-1 text-[#737373] hover:text-[#171717]"
-              >
-                <X className="h-5 w-5" />
-              </button>
+          <div className="p-6 space-y-6 overflow-y-auto">
+            {/* Логотип группы (с фирменной терракотовой линией из PDF) */}
+            <div className="space-y-3 pb-4 border-b border-[#EAE6DF] dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setPlatformMode('management');
+                    navigateTo('dashboard');
+                  }}
+                  className="text-left cursor-pointer block"
+                >
+                  <span className="font-extrabold tracking-[-0.03em] text-[19px] text-[#171717] dark:text-white block leading-none">
+                    BORNERS GROUP
+                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#6E6A64] mt-1.5 block">
+                    STRATEGY 2027 / PRODUCT LAB
+                  </span>
+                </button>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="lg:hidden p-1 text-[#737373] hover:text-[#171717]"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="h-1 w-16 rounded-full bg-[#D97745]" />
             </div>
 
             {/* Меню разделов: идеальная симметрия, одинаковая высота кнопок h-11 */}
             <nav className="space-y-1.5">
-              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[#737373]">
-                Основные разделы
+              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6E6A64]">
+                Навигация платформы
               </div>
 
               {SIMPLE_NAV_ITEMS.filter((item) =>
@@ -408,17 +411,17 @@ export function AppShell() {
                       navigateTo(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full h-11 rounded-xl px-3.5 flex items-center gap-3 text-left transition-all cursor-pointer ${
+                    className={`w-full h-11 rounded-2xl px-3.5 flex items-center gap-3 text-left transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-[#111111] text-white font-semibold shadow-2xs'
-                        : 'text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                        ? 'bg-[#141413] text-white font-semibold shadow-xs'
+                        : 'text-[#171717] hover:bg-[#F4F1EC] font-medium'
                     }`}
                   >
                     <span
-                      className={`w-6 h-6 rounded-md text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                      className={`w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0 ${
                         isActive
                           ? 'bg-[#D97745] text-white'
-                          : 'bg-[#F7F7F5] text-[#737373] border border-[#E8E8E5]'
+                          : 'bg-[#FBF1EA] text-[#D97745]'
                       }`}
                     >
                       {item.step}
@@ -430,8 +433,8 @@ export function AppShell() {
 
               {/* Дополнительные разделы (раскрываются аккуратно) */}
               {!simpleMode && (
-                <div className="pt-4 mt-4 border-t border-[#E8E8E5] space-y-1">
-                  <div className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#737373]">
+                <div className="pt-4 mt-4 border-t border-[#EAE6DF] space-y-1">
+                  <div className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6E6A64]">
                     Дополнительные разделы
                   </div>
                   {[
@@ -457,8 +460,8 @@ export function AppShell() {
                           }}
                           className={`w-full h-10 rounded-xl px-3.5 flex items-center text-left text-[14px] transition-colors cursor-pointer ${
                             isActive
-                              ? 'bg-[#111111] text-white font-semibold'
-                              : 'text-[#737373] hover:text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                              ? 'bg-[#141413] text-white font-semibold'
+                              : 'text-[#6E6A64] hover:text-[#171717] hover:bg-[#F4F1EC] font-medium'
                           }`}
                         >
                           <span className="truncate">{item.label}</span>
@@ -471,11 +474,11 @@ export function AppShell() {
           </div>
 
           {/* Нижняя кнопка сайдбара: переключение 6 основных / все 13 разделов */}
-          <div className="p-5 border-t border-[#E8E8E5] dark:border-zinc-800">
+          <div className="p-5 border-t border-[#EAE6DF] dark:border-zinc-800">
             <button
               type="button"
               onClick={() => setSimpleMode(!simpleMode)}
-              className="w-full h-10 px-3.5 rounded-xl bg-[#F7F7F5] hover:bg-[#111111] hover:text-white border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] transition cursor-pointer flex items-center justify-center"
+              className="w-full h-10 px-3.5 rounded-full bg-[#F4F1EC] hover:bg-[#141413] hover:text-white text-[12px] font-bold text-[#171717] transition cursor-pointer flex items-center justify-center"
             >
               {simpleMode ? '+ Показать все разделы (13)' : '← Оставить 6 главных разделов'}
             </button>
@@ -484,13 +487,13 @@ export function AppShell() {
 
         {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* ВЕРХНЯЯ ПАНЕЛЬ: идеальная симметрия, все элементы одинаковой высоты h-10 */}
-          <header className="sticky top-0 z-30 h-16 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E8E8E5] dark:border-zinc-800 px-6 md:px-8 flex items-center justify-between gap-4">
-            {/* Левая группа: Назад + Выпадающий список брендов + Период */}
+          {/* ВЕРХНЯЯ ПАНЕЛЬ: идеальная симметрия, мягкие капсулы rounded-full */}
+          <header className="sticky top-0 z-30 h-16 bg-[#FAF8F5]/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#EAE6DF] dark:border-zinc-800 px-6 md:px-10 flex items-center justify-between gap-4">
+            {/* Левая группа: Назад + Выпадающий список брендов */}
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden h-10 w-10 rounded-xl border border-[#E8E8E5] flex items-center justify-center"
+                className="lg:hidden h-10 w-10 rounded-full bg-white border border-[#EAE6DF] flex items-center justify-center"
               >
                 <Menu className="h-4 w-4" />
               </button>
@@ -499,19 +502,19 @@ export function AppShell() {
                 <button
                   onClick={goBack}
                   title="Назад"
-                  className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] hover:bg-[#111111] hover:text-white transition cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-white border border-[#EAE6DF] text-[13px] font-bold text-[#171717] hover:bg-[#141413] hover:text-white transition cursor-pointer shrink-0"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Назад</span>
                 </button>
               )}
 
-              {/* ВЫПАДАЮЩИЙ СПИСОК БРЕНДОВ (вместо длинной полосы кнопок) */}
+              {/* ВЫПАДАЮЩИЙ СПИСОК БРЕНДОВ */}
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
-                  className="h-10 px-3.5 rounded-xl bg-[#F7F7F5] hover:border-[#171717] border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] inline-flex items-center gap-2.5 cursor-pointer transition min-w-[180px] justify-between"
+                  className="h-10 px-4 rounded-full bg-white hover:border-[#171717] border border-[#EAE6DF] text-[13px] font-semibold text-[#171717] inline-flex items-center gap-3 cursor-pointer transition min-w-[185px] justify-between shadow-2xs"
                 >
                   <span className="inline-flex items-center gap-2">
                     <span
@@ -522,7 +525,7 @@ export function AppShell() {
                             ? '#D97745'
                             : brandFilter === 'NA_TELE'
                             ? '#8B8078'
-                            : '#111111',
+                            : '#141413',
                       }}
                     />
                     <span>
@@ -536,7 +539,7 @@ export function AppShell() {
                       </b>
                     </span>
                   </span>
-                  <ChevronDown className="h-4 w-4 text-[#737373]" />
+                  <ChevronDown className="h-4 w-4 text-[#6E6A64]" />
                 </button>
 
                 {brandDropdownOpen && (
@@ -545,7 +548,7 @@ export function AppShell() {
                       className="fixed inset-0 z-40"
                       onClick={() => setBrandDropdownOpen(false)}
                     />
-                    <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white border border-[#E8E8E5] shadow-xl p-2 z-50 text-[13px] space-y-1">
+                    <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white border border-[#EAE6DF] shadow-xl p-2 z-50 text-[13px] space-y-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -554,8 +557,8 @@ export function AppShell() {
                         }}
                         className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between cursor-pointer ${
                           brandFilter === 'ALL'
-                            ? 'bg-[#111111] text-white font-bold'
-                            : 'text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                            ? 'bg-[#141413] text-white font-bold'
+                            : 'text-[#171717] hover:bg-[#F4F1EC] font-medium'
                         }`}
                       >
                         <span className="inline-flex items-center gap-2">
@@ -579,8 +582,8 @@ export function AppShell() {
                               }}
                               className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between cursor-pointer ${
                                 isSelected
-                                  ? 'bg-[#111111] text-white font-bold'
-                                  : 'text-[#171717] hover:bg-[#F7F7F5] font-medium'
+                                  ? 'bg-[#141413] text-white font-bold'
+                                  : 'text-[#171717] hover:bg-[#F4F1EC] font-medium'
                               }`}
                             >
                               <span className="inline-flex items-center gap-2">
@@ -592,7 +595,7 @@ export function AppShell() {
                               </span>
                               <span
                                 className={`text-[11px] ${
-                                  isSelected ? 'text-neutral-300' : 'text-[#737373]'
+                                  isSelected ? 'text-neutral-300' : 'text-[#6E6A64]'
                                 }`}
                               >
                                 Активен
@@ -601,7 +604,7 @@ export function AppShell() {
                           );
                         })}
 
-                      <div className="pt-2 mt-1 border-t border-[#E8E8E5] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#737373]">
+                      <div className="pt-2 mt-1 border-t border-[#EAE6DF] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#6E6A64]">
                         В проработке стратегии
                       </div>
 
@@ -619,13 +622,13 @@ export function AppShell() {
                                 'Сейчас формируется стратегия и позиционирование бренда'
                               );
                             }}
-                            className="w-full px-3 py-2 rounded-xl text-left flex items-center justify-between text-[#737373] hover:bg-[#F7F7F5] cursor-not-allowed"
+                            className="w-full px-3 py-2 rounded-xl text-left flex items-center justify-between text-[#6E6A64] hover:bg-[#F4F1EC] cursor-not-allowed"
                           >
                             <span className="inline-flex items-center gap-2">
                               <span className="h-2 w-2 rounded-full bg-[#A3A39E]" />
                               <span>{b.name}</span>
                             </span>
-                            <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5]">
+                            <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#F4F1EC] border border-[#EAE6DF]">
                               в разработке
                             </span>
                           </button>
@@ -634,40 +637,27 @@ export function AppShell() {
                   </>
                 )}
               </div>
-
-              {/* Выбор периода (одинаковая высота h-10) */}
-              <select
-                value={periodFilter}
-                onChange={(e) => setPeriodFilter(e.target.value as PeriodFilter)}
-                className="hidden md:block h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5 text-[13px] font-semibold text-[#171717] cursor-pointer outline-none"
-              >
-                <option value="2027">Период: 2027</option>
-                <option value="Q1 2027">Период: Q1 2027</option>
-                <option value="Q2 2027">Период: Q2 2027</option>
-                <option value="2026">Период: 2026</option>
-                <option value="ALL">Период: 2026–2027</option>
-              </select>
             </div>
 
-            {/* Правая группа: идеальная симметрия элементов h-10 */}
+            {/* Правая группа: идеальная симметрия капсул h-10 */}
             <div className="flex items-center gap-2.5 shrink-0">
-              {/* Переключатель: Рабочий режим vs Презентация */}
-              <div className="flex items-center h-10 bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+              {/* Переключатель: Работа vs Презентация */}
+              <div className="flex items-center h-10 bg-white p-1 rounded-full border border-[#EAE6DF] shadow-2xs">
                 <button
                   onClick={() => setPlatformMode('management')}
-                  className={`h-8 px-3 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                  className={`h-8 px-4 rounded-full text-[13px] font-bold transition cursor-pointer ${
                     platformMode === 'management'
-                      ? 'bg-white text-[#171717] shadow-2xs'
-                      : 'text-[#737373] hover:text-[#171717]'
+                      ? 'bg-[#141413] text-white'
+                      : 'text-[#6E6A64] hover:text-[#171717]'
                   }`}
                 >
-                  Работа
+                  Платформа
                 </button>
                 <button
                   onClick={() => setPlatformMode('strategy')}
-                  className={`h-8 px-3 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                  className={`h-8 px-4 rounded-full text-[13px] font-bold transition cursor-pointer ${
                     platformMode === 'strategy'
-                      ? 'bg-[#D97745] text-white shadow-2xs'
+                      ? 'bg-[#D97745] text-white'
                       : 'text-[#171717] hover:text-[#D97745]'
                   }`}
                 >
@@ -678,65 +668,19 @@ export function AppShell() {
               {/* Поиск */}
               <button
                 onClick={() => setSearchModalOpen(true)}
-                className="inline-flex items-center gap-2 h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] hover:border-[#171717] px-3.5 text-[13px] font-semibold text-[#171717] transition cursor-pointer"
+                className="inline-flex items-center gap-2 h-10 rounded-full bg-white border border-[#EAE6DF] hover:border-[#171717] px-4 text-[13px] font-semibold text-[#171717] transition cursor-pointer shadow-2xs"
               >
-                <Search className="h-4 w-4 text-[#737373]" />
+                <Search className="h-4 w-4 text-[#6E6A64]" />
                 <span className="hidden sm:inline">Поиск</span>
               </button>
-
-              {/* Кнопка + Создать */}
-              <div className="relative">
-                <button
-                  onClick={() => setQuickCreateOpen(!quickCreateOpen)}
-                  className="inline-flex items-center gap-1.5 h-10 rounded-xl bg-[#111111] text-white px-4 text-[13px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Создать</span>
-                </button>
-
-                {quickCreateOpen && (
-                  <div className="absolute right-0 mt-2 w-60 bg-white rounded-2xl border border-[#E8E8E5] shadow-xl p-2 z-50 text-[14px]">
-                    <button
-                      onClick={() => {
-                        setQuickCreateOpen(false);
-                        setPlatformMode('management');
-                        navigateTo('product-lab');
-                      }}
-                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] font-medium cursor-pointer"
-                    >
-                      + Идею в R&D
-                    </button>
-                    <button
-                      onClick={() => {
-                        setQuickCreateOpen(false);
-                        setPlatformMode('management');
-                        navigateTo('product-catalog');
-                      }}
-                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] font-medium cursor-pointer"
-                    >
-                      + Модель в каталоге
-                    </button>
-                    <button
-                      onClick={() => {
-                        setQuickCreateOpen(false);
-                        setPlatformMode('management');
-                        navigateTo('launch-calendar');
-                      }}
-                      className="w-full text-left px-3.5 py-2.5 rounded-xl hover:bg-[#F7F7F5] font-medium cursor-pointer"
-                    >
-                      + Запуск коллекции
-                    </button>
-                  </div>
-                )}
-              </div>
 
               {/* Профиль */}
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="inline-flex items-center gap-2 h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3 text-[13px] font-semibold cursor-pointer transition"
+                  className="inline-flex items-center gap-2 h-10 rounded-full bg-white border border-[#EAE6DF] pl-2 pr-3.5 text-[13px] font-semibold cursor-pointer transition shadow-2xs"
                 >
-                  <span className="h-6 w-6 rounded-md bg-[#111111] text-white flex items-center justify-center text-[11px] font-bold">
+                  <span className="h-6 w-6 rounded-full bg-[#141413] text-white flex items-center justify-center text-[11px] font-bold">
                     {currentUser.avatarInitials}
                   </span>
                   <span className="hidden sm:inline text-[#171717]">

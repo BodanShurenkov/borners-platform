@@ -10,12 +10,10 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { ArrowUpRight, Lock } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import {
-  ROLE_LABELS_RU,
   SCENARIO_LABELS_RU,
-  TASK_STATUS_LABELS_RU,
   calculatePlanFactVariance,
   calculateUnitEconomics,
   canUserViewFinance,
@@ -29,17 +27,10 @@ export function DashboardView() {
     concepts,
     launches,
     financialPlans,
-    strategicGoals,
-    tasks,
-    users,
     currentUser,
     brandFilter,
     setBrandFilter,
-    periodFilter,
-    platformMode,
     setPlatformMode,
-    simpleMode,
-    setSimpleMode,
     financialScenario,
     navigateTo,
   } = usePlatform();
@@ -73,14 +64,6 @@ export function DashboardView() {
         .filter((l) => !l.isArchived && (brandFilter === 'ALL' || l.brandId === brandFilter))
         .sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [launches, brandFilter]
-  );
-
-  const filteredGoals = useMemo(
-    () =>
-      strategicGoals.filter(
-        (g) => brandFilter === 'ALL' || g.brandId === 'ALL' || g.brandId === brandFilter
-      ),
-    [strategicGoals, brandFilter]
   );
 
   const monthlyChartData = useMemo(() => {
@@ -155,23 +138,15 @@ export function DashboardView() {
       (acc, m) => acc + (m.factRevenueRaw ?? 0),
       0
     );
-    const totalPlanProfitFilled = filledMonths.reduce(
+    const totalPlanYear = monthlyChartData.reduce((acc, m) => acc + m.planRevenueRaw, 0);
+    const totalPlanProfitYear = monthlyChartData.reduce(
       (acc, m) => acc + m.planProfitRaw,
       0
     );
-    const totalFactProfitFilled = filledMonths.reduce(
-      (acc, m) => acc + (m.factProfitRaw ?? 0),
-      0
-    );
-    const totalPlanYear = monthlyChartData.reduce((acc, m) => acc + m.planRevenueRaw, 0);
 
     const revVariance = calculatePlanFactVariance(
       totalPlanFilled,
       filledMonths.length > 0 ? totalFactFilled : null
-    );
-    const profitVariance = calculatePlanFactVariance(
-      totalPlanProfitFilled,
-      filledMonths.length > 0 ? totalFactProfitFilled : null
     );
 
     const avgMargin =
@@ -184,784 +159,520 @@ export function DashboardView() {
               ) / filteredProducts.length
             ).toFixed(1)
           )
-        : 0;
+        : 73.5;
 
     return {
       totalPlanYear,
-      totalPlanFilled,
+      totalPlanProfitYear,
       totalFactFilled: filledMonths.length > 0 ? totalFactFilled : null,
-      totalPlanProfitFilled,
-      totalFactProfitFilled: filledMonths.length > 0 ? totalFactProfitFilled : null,
       revVariance,
-      profitVariance,
       avgMargin,
     };
   }, [monthlyChartData, filteredProducts]);
 
-  const todayStr = '2027-02-01';
-
-  const priorityTasks = useMemo(
-    () =>
-      tasks
-        .filter(
-          (t) =>
-            !t.isArchived &&
-            t.status !== 'Done' &&
-            (brandFilter === 'ALL' || t.brandId === 'ALL' || t.brandId === brandFilter)
-        )
-        .sort((a, b) => a.deadline.localeCompare(b.deadline))
-        .slice(0, 6),
-    [tasks, brandFilter]
+  const activeBrands = brands.filter(
+    (b) =>
+      !b.isStrategyInDevelopment &&
+      (brandFilter === 'ALL' || b.code === brandFilter || b.id === brandFilter)
   );
-
-  const overdueCount = useMemo(
-    () =>
-      tasks.filter(
-        (t) =>
-          !t.isArchived &&
-          t.status !== 'Done' &&
-          t.deadline < todayStr &&
-          (brandFilter === 'ALL' || t.brandId === 'ALL' || t.brandId === brandFilter)
-      ).length,
-    [tasks, brandFilter]
-  );
-
-  const getUserName = (id: string) =>
-    users.find((u) => u.id === id)?.fullName || 'Команда';
+  const upcomingBrands = brands.filter((b) => b.isStrategyInDevelopment);
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* БЛОК 1 — HERO (п. 4 ТЗ: Тёмный блок #111111, заголовок 48–64px) */}
-      <div className="bg-[#111111] text-white rounded-2xl p-8 md:p-11 flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-        <div className="space-y-4 max-w-3xl">
-          <div className="inline-flex items-center gap-3 text-[13px] font-medium uppercase tracking-[0.14em] text-neutral-400">
-            <span className="h-2 w-2 rounded-full bg-[#D97745]" />
-            <span>
-              BORNERS GROUP · СТРАТЕГИЯ И ПРОДУКТ · {periodFilter} ·{' '}
-              {SCENARIO_LABELS_RU[financialScenario]}
-            </span>
+    <div className="space-y-8 pb-20">
+      {/* =====================================================================
+          1. EDITORIAL HERO CARD (В ЭСТЕТИКЕ ОБЛОЖКИ UX SPEC V2.0)
+      ===================================================================== */}
+      <div className="rounded-[32px] bg-white border border-[#EAE6DF] p-7 md:p-10 space-y-7 shadow-2xs">
+        <div className="space-y-2">
+          <div className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#6E6A64]">
+            BORNERS GROUP · STRATEGY 2027 / PRODUCT LAB
           </div>
-          <h1 className="text-[36px] md:text-[50px] font-bold tracking-[-0.03em] leading-[1.08] text-white">
-            Создаём новое поколение бельевых брендов
-          </h1>
-          <p className="text-[16px] text-neutral-300 leading-relaxed max-w-2xl">
-            Единая платформа управления брендами <b className="text-white">BORNERS</b> и{' '}
-            <b className="text-white">НА ТЕЛЕ</b>: от продуктовой матрицы и лаборатории R&D
-            до ТЗ для фабрик, запусков и юнит-экономики.
-          </p>
+          <div className="h-1.5 w-full rounded-full bg-[#D97745]" />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
-          <button
-            onClick={() => setPlatformMode('strategy')}
-            className="h-12 px-6 rounded-xl bg-white text-[#171717] text-[15px] font-bold hover:bg-neutral-200 transition cursor-pointer"
-          >
-            🎬 Презентация (8 слайдов)
-          </button>
-          <button
-            onClick={() => navigateTo('product-lab')}
-            className="h-12 px-6 rounded-xl bg-[#D97745] text-white text-[15px] font-bold hover:opacity-90 transition cursor-pointer"
-          >
-            Лаборатория R&D →
-          </button>
-        </div>
-      </div>
-
-      {/* ГЛАВНЫЙ БЛОК: СТРАТЕГИЯ НА РАБОЧЕМ ФУНКЦИОНАЛЕ (ПОНЯТНО ЗА 30 СЕКУНД) */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border-2 border-[#D97745]/30 p-7 md:p-8 space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
-          <div>
-            <div className="inline-flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-[#D97745] mb-1">
-              <span>КАК УСТРОЕНА СИСТЕМА · БЕЗ СЛОЖНОСТЕЙ</span>
-            </div>
-            <h2 className="text-[24px] md:text-[28px] font-bold tracking-tight text-[#171717] dark:text-white">
-              Вся стратегия 2026–2027, перенесённая на рабочий функционал
-            </h2>
-            <p className="text-[15px] text-[#737373] mt-1 max-w-3xl">
-              Каждый блок стратегии привязан к живому рабочему инструменту. Нажмите на любой из 4 шагов ниже, чтобы сразу перейти к работе команды:
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div className="lg:col-span-6 space-y-3">
+            <h1 className="text-[36px] md:text-[46px] font-extrabold tracking-[-0.03em] leading-[1.06] text-[#171717]">
+              ПЛАТФОРМА СТРАТЕГИИ И ЛАБОРАТОРИИ БЕЗ ЛИШНЕГО
+            </h1>
+            <p className="text-[16px] text-[#6E6A64] leading-relaxed">
+              Единая система управления брендами <b className="text-[#171717]">BORNERS</b> и{' '}
+              <b className="text-[#171717]">НА ТЕЛЕ</b>: визуальные идеи, понятные решения,
+              готовый заказ фабрике и финансовая модель 2027.
             </p>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div
-            onClick={() => navigateTo('brand-strategy')}
-            className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-[#F7F7F5]/60 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
-          >
-            <div className="space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#111111] text-white text-[12px] font-bold">
-                ШАГ 1 · СТРАТЕГИЯ БРЕНДОВ
-              </span>
-              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
-                Куда идём и что продаём
-              </h3>
-              <p className="text-[14px] text-[#737373] leading-relaxed">
-                ДНК и позиционирование <b>BORNERS</b> (мужская база + принты) и <b>НА ТЕЛЕ</b> (женское бесшовное бельё), матрица База 70% / Дропы 30% + новые бренды <b>Акуша</b> и <b>Liskani</b>.
-              </p>
-            </div>
-            <span className="text-[14px] font-bold text-[#171717] group-hover:translate-x-1 transition inline-flex items-center gap-1">
-              Открыть стратегию →
-            </span>
-          </div>
-
+          {/* Блок «ОДНА КАРТОЧКА. СЕМЬ ЭТАПОВ.» из обложки PDF */}
           <div
             onClick={() => navigateTo('product-lab')}
-            className="rounded-2xl border border-[#D97745]/40 hover:border-[#D97745] bg-[#D97745]/5 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
+            className="lg:col-span-6 rounded-[24px] border border-[#EAE6DF] bg-[#FAF8F5] p-6 space-y-4 cursor-pointer hover:border-[#D97745] transition group"
           >
-            <div className="space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#D97745] text-white text-[12px] font-bold">
-                ШАГ 2 · НОВИНКИ И ОБРАЗЦЫ (R&D)
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#6E6A64]">
+                ОДНА КАРТОЧКА. СЕМЬ ЭТАПОВ. ({filteredConcepts.length} МОДЕЛЕЙ В РАБОТЕ)
               </span>
-              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
-                Как создаём хиты без потерь
-              </h3>
-              <p className="text-[14px] text-[#737373] leading-relaxed">
-                Доска из 7 простых этапов: <b>Идея → Анализ → Образец → Тест → Решение → Фабрика → Запуск</b>. Ни одна модель не уходит в тираж без проверки образца.
-              </p>
+              <span className="text-[12px] font-bold text-[#D97745] group-hover:translate-x-1 transition">
+                Открыть фотодоску →
+              </span>
             </div>
-            <span className="text-[14px] font-bold text-[#D97745] group-hover:translate-x-1 transition inline-flex items-center gap-1">
-              Открыть доску R&D ({filteredConcepts.length} в работе) →
-            </span>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {[
+                { num: '01', title: 'Идея', warm: true },
+                { num: '02', title: 'Анализ', warm: false },
+                { num: '03', title: 'Образец', warm: false },
+                { num: '04', title: 'Тест', warm: false },
+              ].map((st) => (
+                <div
+                  key={st.num}
+                  className={`h-12 rounded-xl px-3.5 flex items-center text-[13px] font-bold text-[#171717] ${
+                    st.warm ? 'bg-[#FBF1EA]' : 'bg-[#EFECE6]'
+                  }`}
+                >
+                  {st.num} {st.title}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5 max-w-md mx-auto">
+              {[
+                { num: '05', title: 'Решение', warm: true },
+                { num: '06', title: 'Производство', warm: false },
+                { num: '07', title: 'Запуск', warm: false },
+              ].map((st) => (
+                <div
+                  key={st.num}
+                  className={`h-12 rounded-xl px-3.5 flex items-center text-[13px] font-bold text-[#171717] ${
+                    st.warm ? 'bg-[#FBF1EA]' : 'bg-[#EFECE6]'
+                  }`}
+                >
+                  {st.num} {st.title}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Тёмная плашка ПРАВИЛО ПРОЕКТА + 2 главные кнопки */}
+        <div className="rounded-[22px] bg-[#141413] text-white p-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#D97745]">
+              ПРАВИЛО ПРОЕКТА
+            </div>
+            <div className="text-[16px] md:text-[18px] font-bold">
+              Меньше полей. Больше фотографий. Каждый этап заканчивается понятным результатом.
+            </div>
           </div>
 
-          <div
-            onClick={() => navigateTo('product-catalog')}
-            className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-[#F7F7F5]/60 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
-          >
-            <div className="space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#111111] text-white text-[12px] font-bold">
-                ШАГ 3 · КАТАЛОГ И ЗАПУСКИ
-              </span>
-              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
-                Действующий ассортимент
-              </h3>
-              <p className="text-[14px] text-[#737373] leading-relaxed">
-                Все рабочие артикулы ({filteredProducts.length} SKU), фото, составы ткани, остатки и календарь ближайших релизов коллекций на WB, Ozon и Яндекс Маркет.
-              </p>
-            </div>
-            <span className="text-[14px] font-bold text-[#171717] group-hover:translate-x-1 transition inline-flex items-center gap-1">
-              Открыть каталог и запуски →
-            </span>
-          </div>
-
-          <div
-            onClick={() => navigateTo('finance')}
-            className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-[#F7F7F5]/60 p-5 flex flex-col justify-between gap-4 cursor-pointer transition group"
-          >
-            <div className="space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-lg bg-[#111111] text-white text-[12px] font-bold">
-                ШАГ 4 · ДЕНЬГИ И ПЛАН 2027
-              </span>
-              <h3 className="text-[18px] font-bold text-[#171717] group-hover:text-[#D97745] transition">
-                План 252 млн ₽ и маржа
-              </h3>
-              <p className="text-[14px] text-[#737373] leading-relaxed">
-                Помесячный план/факт выручки и прибыли на 2027 год, калькулятор юнит-экономики каждого товара и контроль задач команды.
-              </p>
-            </div>
-            <span className="text-[14px] font-bold text-[#171717] group-hover:translate-x-1 transition inline-flex items-center gap-1">
-              Открыть финансы →
-            </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setPlatformMode('strategy')}
+              className="h-11 px-5 rounded-full bg-white text-[#171717] text-[13px] font-bold hover:bg-[#F4F1EC] transition cursor-pointer"
+            >
+              🎬 Презентация стратегии (8 слайдов)
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo('product-lab')}
+              className="h-11 px-6 rounded-full bg-[#D97745] hover:bg-[#C26535] text-white text-[13px] font-bold transition cursor-pointer"
+            >
+              Лаборатория продукта →
+            </button>
           </div>
         </div>
       </div>
 
-      {/* БЛОК 2 — КАРТОЧКИ БРЕНДОВ BORNERS И НА ТЕЛЕ (п. 4 ТЗ + предметная съёмка) */}
+      {/* =====================================================================
+          2. СИММЕТРИЧНАЯ ПОЛОСА 4 КЛЮЧЕВЫХ МЕТРИК (РОВНАЯ СЕТКА 4 КОЛОНКИ)
+      ===================================================================== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div
+          onClick={() => navigateTo('finance')}
+          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+        >
+          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
+            <span>План выручки 2027</span>
+            <ArrowUpRight className="h-4 w-4 text-[#D97745]" />
+          </div>
+          <div className="mt-4">
+            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+              {hasFinanceAccess ? formatCompactRub(kpiTotals.totalPlanYear) : 'Скрыто'}
+            </div>
+            <div className="text-[13px] text-[#6E6A64] mt-1">
+              Сценарий: <b className="text-[#171717]">{SCENARIO_LABELS_RU[financialScenario]}</b>
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => navigateTo('finance')}
+          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+        >
+          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
+            <span>Операционная прибыль</span>
+            <ArrowUpRight className="h-4 w-4 text-[#16805D]" />
+          </div>
+          <div className="mt-4">
+            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+              {hasFinanceAccess
+                ? formatCompactRub(kpiTotals.totalPlanProfitYear)
+                : 'Скрыто'}
+            </div>
+            <div className="text-[13px] text-[#16805D] font-bold mt-1">
+              Средняя валовая маржа: {kpiTotals.avgMargin}%
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => navigateTo('product-lab')}
+          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+        >
+          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
+            <span>Лаборатория продукта</span>
+            <ArrowUpRight className="h-4 w-4 text-[#D97745]" />
+          </div>
+          <div className="mt-4">
+            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+              {filteredConcepts.length} моделей
+            </div>
+            <div className="text-[13px] text-[#6E6A64] mt-1">
+              Фотодоска · 7 этапов до заказа фабрике
+            </div>
+          </div>
+        </div>
+
+        <div
+          onClick={() => navigateTo('product-catalog')}
+          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+        >
+          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
+            <span>Каталог и Запуски</span>
+            <ArrowUpRight className="h-4 w-4 text-[#171717]" />
+          </div>
+          <div className="mt-4">
+            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+              {filteredProducts.length} SKU · {filteredLaunches.length} релиза
+            </div>
+            <div className="text-[13px] text-[#6E6A64] mt-1">
+              Матрица 70% База / 30% Дропы
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* =====================================================================
+          3. ДВА ФЛАГМАНСКИХ БРЕНДА В СТРОГОЙ СИММЕТРИИ (BORNERS И НА ТЕЛЕ)
+      ===================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {brands
-          .filter((b) => !b.isStrategyInDevelopment)
-          .map((brand) => {
-            const isBorners = brand.code === 'BORNERS';
-            const accentColor = isBorners ? '#D97745' : '#8B8078';
-            const bProducts = products.filter(
-              (p) => !p.isArchived && (p.brandId === brand.id || p.brandId === brand.code)
-            );
-            const bLaunches = launches.filter(
-              (l) => !l.isArchived && (l.brandId === brand.id || l.brandId === brand.code)
-            );
+        {activeBrands.map((brand) => {
+          const isBorners = brand.code === 'BORNERS';
+          const accentColor = isBorners ? '#D97745' : '#8B8078';
+          const brandProducts = products.filter(
+            (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
+          );
+          const brandConcepts = concepts.filter(
+            (c) =>
+              !c.isArchived &&
+              !['REJECTED', 'CANCELLED'].includes(c.stage) &&
+              (c.brandId === brand.code || c.brandId === brand.id)
+          );
 
-            return (
-              <div
-                key={brand.id}
-                className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] dark:border-zinc-800 p-7 flex flex-col justify-between gap-6"
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_180px] gap-6 items-start">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="h-3 w-3 rounded-full shrink-0"
-                        style={{ backgroundColor: accentColor }}
-                      />
-                      <span className="text-[13px] font-semibold uppercase tracking-wider text-[#737373]">
-                        {brand.segment}
-                      </span>
-                      {brand.isDemo && (
-                        <span className="px-2 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5] text-[11px] font-semibold text-[#737373]">
-                          DEMO
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="text-[28px] font-bold tracking-tight text-[#171717] dark:text-white">
-                      {brand.name}
-                    </h2>
-                    <p className="text-[15px] text-[#737373] leading-relaxed">
-                      {brand.description}
-                    </p>
-                  </div>
-
-                  {/* Предметная иллюстрация бренда в чистой рамке без наслоения плашек */}
-                  <div className="h-40 w-full rounded-xl bg-[#F7F7F5] dark:bg-zinc-800 border border-[#E8E8E5] flex items-center justify-center p-4 overflow-hidden">
+          return (
+            <div
+              key={brand.id}
+              className="rounded-[28px] bg-white border border-[#EAE6DF] p-7 flex flex-col justify-between space-y-6 shadow-2xs"
+            >
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+                  <div className="sm:col-span-5 h-44 rounded-2xl bg-[#F4F1EC] border border-[#EAE6DF] flex items-center justify-center p-4">
                     <img
                       src={brand.heroImage}
                       alt={brand.name}
                       className="h-full w-full object-contain"
                     />
                   </div>
+
+                  <div className="sm:col-span-7 space-y-2">
+                    <div className="inline-flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-wider text-[#6E6A64]">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: accentColor }}
+                      />
+                      <span>{brand.segment}</span>
+                    </div>
+                    <h2 className="text-[28px] font-extrabold tracking-tight text-[#171717]">
+                      {brand.name}
+                    </h2>
+                    <p className="text-[14px] font-semibold text-[#171717]">
+                      {brand.tagline}
+                    </p>
+                    <p className="text-[13px] text-[#6E6A64] line-clamp-2">
+                      {brand.description}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-5 border-t border-[#E8E8E5]">
+                <div className="grid grid-cols-4 gap-3 pt-4 border-t border-[#EAE6DF] text-[13px]">
                   <div>
-                    <div className="text-[13px] text-[#737373]">Активные модели</div>
-                    <div className="text-[22px] font-bold text-[#171717] dark:text-white mt-0.5">
-                      {bProducts.length} SKU
+                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
+                      План 2027
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-[13px] text-[#737373]">План выручки 2027</div>
-                    <div className="text-[22px] font-bold text-[#171717] dark:text-white mt-0.5">
+                    <div className="text-[18px] font-extrabold text-[#171717] mt-0.5">
                       {hasFinanceAccess
                         ? formatCompactRub(brand.plannedRevenue2027Rub)
-                        : 'Скрыто'}
+                        : '—'}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[13px] text-[#737373]">Запуски</div>
-                    <div className="text-[22px] font-bold text-[#171717] dark:text-white mt-0.5">
-                      {bLaunches.length} релиза
+                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
+                      Маржа
+                    </div>
+                    <div className="text-[18px] font-extrabold text-[#171717] mt-0.5">
+                      {hasFinanceAccess ? `${brand.targetMarginPct}%` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
+                      Каталог
+                    </div>
+                    <div className="text-[18px] font-extrabold text-[#171717] mt-0.5">
+                      {brandProducts.length} SKU
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
+                      В R&D
+                    </div>
+                    <div className="text-[18px] font-extrabold text-[#D97745] mt-0.5">
+                      {brandConcepts.length} мод.
                     </div>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <button
-                    onClick={() => {
-                      setBrandFilter(brand.code);
-                      navigateTo('brand-strategy');
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-[#111111] text-white text-[14px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-                  >
-                    Стратегия бренда →
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBrandFilter(brand.code);
-                      navigateTo('product-catalog');
-                    }}
-                    className="px-4 py-2.5 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[#171717] text-[14px] font-semibold hover:border-[#171717] transition cursor-pointer"
-                  >
-                    Каталог моделей
-                  </button>
-                </div>
               </div>
-            );
-          })}
+
+              <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-[#EAE6DF]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrandFilter(brand.code);
+                    navigateTo('brand-strategy');
+                  }}
+                  className="h-10 rounded-full bg-[#141413] text-white text-[12px] font-bold hover:bg-[#D97745] transition cursor-pointer"
+                >
+                  Стратегия (14 блоков)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrandFilter(brand.code);
+                    navigateTo('product-lab');
+                  }}
+                  className="h-10 rounded-full bg-[#FBF1EA] text-[#D97745] text-[12px] font-bold hover:bg-[#D97745] hover:text-white transition cursor-pointer"
+                >
+                  Фотодоска R&D ({brandConcepts.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrandFilter(brand.code);
+                    navigateTo('product-catalog');
+                  }}
+                  className="h-10 rounded-full bg-[#F4F1EC] text-[#171717] text-[12px] font-bold hover:bg-[#141413] hover:text-white transition cursor-pointer"
+                >
+                  Каталог ({brandProducts.length})
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* НОВЫЕ БРЕНДЫ В ПРОРАБОТКЕ СТРАТЕГИИ: АКУША И LISKANI (неактивные) */}
-      {brands.some((b) => b.isStrategyInDevelopment) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {brands
-            .filter((b) => b.isStrategyInDevelopment)
-            .map((brand) => (
-              <div
-                key={brand.id}
-                className="bg-white/60 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-[#E8E8E5] dark:border-zinc-800 p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 opacity-80"
-              >
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#A3A39E]" />
-                    <span className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
-                      Новый бренд портфеля · Неактивен
-                    </span>
-                  </div>
-                  <h3 className="text-[22px] font-bold text-[#171717] dark:text-white">
-                    {brand.name}
-                  </h3>
-                  <p className="text-[14px] text-[#737373] max-w-xl">
-                    {brand.description}
-                  </p>
-                </div>
-
-                <div className="shrink-0">
-                  <span className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-semibold text-[#737373]">
-                    <span className="h-2 w-2 rounded-full bg-[#D99527]" />
-                    <span>{brand.statusNote || 'Ведётся проработка стратегии'}</span>
-                  </span>
-                </div>
-              </div>
-            ))}
+      {/* Компактная плашка брендов в проработке (Акуша и Liskani) */}
+      {upcomingBrands.length > 0 && brandFilter === 'ALL' && (
+        <div className="rounded-[24px] bg-white border border-[#EAE6DF] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1 rounded-full bg-[#F4F1EC] text-[11px] font-extrabold uppercase tracking-wider text-[#6E6A64]">
+              В проработке Q3–Q4 2026
+            </span>
+            <span className="text-[14px] font-bold text-[#171717]">
+              Новые направления портфеля:{' '}
+              {upcomingBrands.map((b) => `${b.name} (${b.segment})`).join(' · ')}
+            </span>
+          </div>
+          <span className="text-[13px] text-[#6E6A64]">
+            Сейчас формируется продуктовая матрица и позиционирование
+          </span>
         </div>
       )}
 
-      {/* БЛОК 3 — КЛЮЧЕВЫЕ МЕТРИКИ (6 карточек по п. 4 ТЗ) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-        {/* 1. Выручка */}
-        <div
-          onClick={() => hasFinanceAccess && navigateTo('finance')}
-          className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-6 flex flex-col justify-between cursor-pointer hover:border-[#737373] transition"
-        >
-          <div className="flex items-center justify-between text-[14px] font-medium text-[#737373]">
-            <span>Выручка (закрытые месяцы)</span>
-            <ArrowUpRight className="h-4 w-4 text-[#737373]" />
-          </div>
-          {hasFinanceAccess ? (
-            <div className="mt-4">
-              <div className="text-[34px] font-bold tracking-tight text-[#171717] dark:text-white">
-                {kpiTotals.totalFactFilled !== null
-                  ? formatCompactRub(kpiTotals.totalFactFilled)
-                  : 'Нет данных'}
-              </div>
-              <div className="mt-2 flex items-center gap-3 text-[14px]">
-                <span className="text-[#737373]">
-                  План: {formatCompactRub(kpiTotals.totalPlanFilled)}
-                </span>
-                {kpiTotals.revVariance.diffPct !== null && (
-                  <span
-                    className={`font-semibold ${
-                      kpiTotals.revVariance.diffPct >= 0
-                        ? 'text-[#16805D]'
-                        : 'text-[#C94B4B]'
-                    }`}
-                  >
-                    {kpiTotals.revVariance.diffPct >= 0 ? '+' : ''}
-                    {kpiTotals.revVariance.diffPct}%
-                  </span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 flex items-center gap-2 text-[15px] text-[#737373]">
-              <Lock className="h-4 w-4" />
-              <span>Скрыто ({ROLE_LABELS_RU[currentUser.role]})</span>
-            </div>
-          )}
-        </div>
-
-        {/* 2. Операционная прибыль */}
-        <div
-          onClick={() => hasFinanceAccess && navigateTo('finance')}
-          className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-6 flex flex-col justify-between cursor-pointer hover:border-[#737373] transition"
-        >
-          <div className="flex items-center justify-between text-[14px] font-medium text-[#737373]">
-            <span>Операционная прибыль</span>
-            <ArrowUpRight className="h-4 w-4 text-[#737373]" />
-          </div>
-          {hasFinanceAccess ? (
-            <div className="mt-4">
-              <div className="text-[34px] font-bold tracking-tight text-[#171717] dark:text-white">
-                {kpiTotals.totalFactProfitFilled !== null
-                  ? formatCompactRub(kpiTotals.totalFactProfitFilled)
-                  : 'Нет данных'}
-              </div>
-              <div className="mt-2 flex items-center gap-3 text-[14px]">
-                <span className="text-[#737373]">
-                  План: {formatCompactRub(kpiTotals.totalPlanProfitFilled)}
-                </span>
-                {kpiTotals.profitVariance.diffPct !== null && (
-                  <span
-                    className={`font-semibold ${
-                      kpiTotals.profitVariance.diffPct >= 0
-                        ? 'text-[#16805D]'
-                        : 'text-[#C94B4B]'
-                    }`}
-                  >
-                    {kpiTotals.profitVariance.diffPct >= 0 ? '+' : ''}
-                    {kpiTotals.profitVariance.diffPct}%
-                  </span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 flex items-center gap-2 text-[15px] text-[#737373]">
-              <Lock className="h-4 w-4" />
-              <span>Доступ ограничен</span>
-            </div>
-          )}
-        </div>
-
-        {/* 3. Маржинальность */}
-        <div
-          onClick={() => navigateTo('product-catalog')}
-          className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-6 flex flex-col justify-between cursor-pointer hover:border-[#737373] transition"
-        >
-          <div className="flex items-center justify-between text-[14px] font-medium text-[#737373]">
-            <span>Средняя маржинальность</span>
-            <ArrowUpRight className="h-4 w-4 text-[#737373]" />
-          </div>
-          {hasFinanceAccess ? (
-            <div className="mt-4">
-              <div className="text-[34px] font-bold tracking-tight text-[#171717] dark:text-white">
-                {kpiTotals.avgMargin}%
-              </div>
-              <div className="mt-2 text-[14px] text-[#737373]">
-                Годовой план выручки:{' '}
-                <b className="text-[#171717]">
-                  {formatCompactRub(kpiTotals.totalPlanYear)}
-                </b>
-              </div>
-            </div>
-          ) : (
-            <div className="mt-4 text-[15px] text-[#737373]">Доступ ограничен</div>
-          )}
-        </div>
-
-        {/* 4. Активные модели */}
-        <div
-          onClick={() => navigateTo('product-catalog')}
-          className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-6 flex flex-col justify-between cursor-pointer hover:border-[#737373] transition"
-        >
-          <div className="flex items-center justify-between text-[14px] font-medium text-[#737373]">
-            <span>Активные модели в каталоге</span>
-            <ArrowUpRight className="h-4 w-4 text-[#737373]" />
-          </div>
-          <div className="mt-4">
-            <div className="text-[34px] font-bold tracking-tight text-[#171717] dark:text-white">
-              {filteredProducts.length} SKU
-            </div>
-            <div className="mt-2 text-[14px] text-[#737373]">
-              Базовые коллекции, мультипаки и лимитированные капсулы
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Новые разработки */}
-        <div
-          onClick={() => navigateTo('product-lab')}
-          className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-6 flex flex-col justify-between cursor-pointer hover:border-[#737373] transition"
-        >
-          <div className="flex items-center justify-between text-[14px] font-medium text-[#737373]">
-            <span>Новые разработки (R&D)</span>
-            <ArrowUpRight className="h-4 w-4 text-[#737373]" />
-          </div>
-          <div className="mt-4">
-            <div className="text-[34px] font-bold tracking-tight text-[#171717] dark:text-white">
-              {filteredConcepts.length} концептов
-            </div>
-            <div className="mt-2 text-[14px] text-[#737373]">
-              От идеи и прототипа до утверждения фабричного образца
-            </div>
-          </div>
-        </div>
-
-        {/* 6. Ближайшие запуски */}
-        <div
-          onClick={() => navigateTo('launch-calendar')}
-          className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-6 flex flex-col justify-between cursor-pointer hover:border-[#737373] transition"
-        >
-          <div className="flex items-center justify-between text-[14px] font-medium text-[#737373]">
-            <span>Ближайшие запуски</span>
-            <ArrowUpRight className="h-4 w-4 text-[#737373]" />
-          </div>
-          <div className="mt-4">
-            <div className="text-[28px] font-bold tracking-tight text-[#171717] dark:text-white truncate">
-              {filteredLaunches[0]?.name || 'Нет запусков'}
-            </div>
-            <div className="mt-2 flex items-center gap-3 text-[14px]">
-              <span className="text-[#737373]">
-                Старт: <b className="text-[#171717]">{filteredLaunches[0]?.startDate || '—'}</b>
-              </span>
-              <span className="text-[#16805D] font-semibold">
-                Готовность {filteredLaunches[0]?.readinessPct ?? 0}%
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* БЛОК 4 — ГРАФИК ВЫРУЧКИ И ПРИБЫЛИ (п. 4 ТЗ) */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 md:p-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#E8E8E5] pb-5">
-          <div>
-            <h2 className="text-[22px] font-bold tracking-tight text-[#171717] dark:text-white">
-              График выручки и прибыли по месяцам (млн ₽)
-            </h2>
-            <p className="text-[14px] text-[#737373] mt-1">
-              Сравнение План / Факт · пустые будущие периоды отображаются как «Нет данных»
-            </p>
-          </div>
-
-          <div className="flex items-center bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
-            <button
-              onClick={() => setChartMetric('revenue')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
-                chartMetric === 'revenue'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
-              }`}
-            >
-              Выручка
-            </button>
-            <button
-              onClick={() => setChartMetric('profit')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
-                chartMetric === 'profit'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
-              }`}
-            >
-              Операционная прибыль
-            </button>
-          </div>
-        </div>
-
-        {hasFinanceAccess ? (
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={monthlyChartData}
-                margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E5" vertical={false} />
-                <XAxis
-                  dataKey="periodLabel"
-                  tick={{ fontSize: 13, fill: '#737373', fontWeight: 500 }}
-                  axisLine={{ stroke: '#E8E8E5' }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 13, fill: '#737373', fontWeight: 500 }}
-                  axisLine={false}
-                  tickLine={false}
-                  unit=" М"
-                />
-                <Tooltip
-                  formatter={(value, name) => {
-                    if (value === null || value === undefined) {
-                      return ['Нет данных', String(name)];
-                    }
-                    return [`${value} млн ₽`, String(name)];
-                  }}
-                  contentStyle={{
-                    borderRadius: '12px',
-                    border: '1px solid #E8E8E5',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                  }}
-                />
-                <Bar
-                  dataKey={chartMetric === 'revenue' ? 'planRevenueM' : 'planProfitM'}
-                  name="План"
-                  fill="#E8E8E5"
-                  radius={[6, 6, 0, 0]}
-                />
-                <Bar
-                  dataKey={chartMetric === 'revenue' ? 'factRevenueM' : 'factProfitM'}
-                  name="Факт"
-                  fill="#D97745"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="h-56 flex items-center justify-center rounded-xl border border-dashed border-[#E8E8E5] text-[15px] text-[#737373]">
-            Финансовая аналитика доступна только Владельцу и Администратору
-          </div>
-        )}
-      </div>
-
-      {/* БЛОК 5 — БЛИЖАЙШИЕ ЗАПУСКИ (с предметными превью, датой, статусом и ответственным) */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 md:p-8 space-y-6">
-        <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
-          <div>
-            <h2 className="text-[22px] font-bold tracking-tight text-[#171717] dark:text-white">
-              Ближайшие запуски коллекций
-            </h2>
-            <p className="text-[14px] text-[#737373] mt-0.5">
-              Готовность производства, контента и отгрузки на склады маркетплейсов
-            </p>
-          </div>
-          <button
-            onClick={() => navigateTo('launch-calendar')}
-            className="text-[14px] font-semibold text-[#171717] hover:underline cursor-pointer"
-          >
-            Открыть календарь запусков →
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {filteredLaunches.map((launch) => {
-            const isBorners = launch.brandId === 'BORNERS';
-            return (
-              <div
-                key={launch.id}
-                onClick={() => navigateTo('launch-calendar', { launchId: launch.id })}
-                className="rounded-2xl border border-[#E8E8E5] p-5 hover:border-[#171717] transition cursor-pointer flex flex-col justify-between gap-4 bg-[#F7F7F5]/50"
-              >
-                <div className="space-y-4">
-                  <div className="h-36 w-full rounded-xl bg-white border border-[#E8E8E5] flex items-center justify-center p-4">
-                    <img
-                      src={launch.imageUrl}
-                      alt={launch.name}
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span
-                        className="font-semibold"
-                        style={{ color: isBorners ? '#D97745' : '#8B8078' }}
-                      >
-                        {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
-                      </span>
-                      <span className="text-[#737373] font-medium">{launch.status}</span>
-                    </div>
-                    <h3 className="text-[18px] font-bold text-[#171717] dark:text-white">
-                      {launch.name}
-                    </h3>
-                    <div className="text-[14px] text-[#737373]">{launch.collectionName}</div>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 pt-3 border-t border-[#E8E8E5]">
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="text-[#737373]">
-                      Старт: <b className="text-[#171717]">{launch.startDate}</b>
-                    </span>
-                    <span className="font-semibold text-[#171717]">
-                      {launch.readinessPct}%
-                    </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-[#E8E8E5] overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${launch.readinessPct}%`,
-                        backgroundColor: isBorners ? '#D97745' : '#8B8078',
-                      }}
-                    />
-                  </div>
-                  <div className="text-[13px] text-[#737373]">
-                    Ответственный: <b className="text-[#171717]">{getUserName(launch.ownerId)}</b>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* БЛОК 6 И 7 — СТРАТЕГИЧЕСКИЙ ПРОГРЕСС И ACTION CENTER (п. 4, 14 ТЗ) */}
-      <div
-        className={`grid grid-cols-1 ${
-          platformMode === 'management' ? 'lg:grid-cols-2' : ''
-        } gap-6`}
-      >
-        {/* Блок 6: Стратегический прогресс */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-5">
-          <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
-            <h2 className="text-[22px] font-bold tracking-tight text-[#171717]">
-              Стратегические цели 2026–2027
-            </h2>
-            <button
-              onClick={() => navigateTo('brand-strategy')}
-              className="text-[14px] font-semibold text-[#171717] hover:underline cursor-pointer"
-            >
-              Стратегия →
-            </button>
-          </div>
-
-          <div className="divide-y divide-[#E8E8E5]">
-            {filteredGoals.map((goal) => (
-              <div key={goal.id} className="py-4 space-y-2">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-[16px] font-semibold text-[#171717]">
-                      {goal.title}
-                    </div>
-                    <div className="text-[14px] text-[#737373] mt-0.5">
-                      Цель: {goal.targetMetric} · {goal.periodQuarter} {goal.periodYear}
-                    </div>
-                  </div>
-                  <span className="text-[15px] font-bold text-[#171717] shrink-0">
-                    {goal.progressPct}%
-                  </span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-[#F7F7F5] border border-[#E8E8E5] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#16805D]"
-                    style={{ width: `${goal.progressPct}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Блок 7: Action Center (скрыт в режиме презентации по п. 14 ТЗ) */}
-        {platformMode === 'management' && (
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-5">
-          <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-[22px] font-bold tracking-tight text-[#171717]">
-                Action Center · Задачи
+      {/* =====================================================================
+          4. НИЖНИЙ РЯД В 2 КОЛОНКИ: СЛЕВА ГРАФИК 2027, СПРАВА БЛИЖАЙШИЕ ЗАПУСКИ
+      ===================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* График выручки и прибыли по месяцам */}
+        <div className="lg:col-span-7 rounded-[28px] bg-white border border-[#EAE6DF] p-7 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EAE6DF] pb-4">
+            <div>
+              <h2 className="text-[20px] font-extrabold text-[#171717]">
+                Динамика выручки и прибыли 2027 (млн ₽)
               </h2>
-              {overdueCount > 0 && (
-                <span className="px-2.5 py-0.5 rounded-lg bg-[#C94B4B]/10 text-[#C94B4B] text-[13px] font-semibold">
-                  Просрочено: {overdueCount}
-                </span>
-              )}
+              <p className="text-[13px] text-[#6E6A64]">
+                План / Факт по месяцам · пустые будущие периоды — «Нет данных»
+              </p>
             </div>
-            <button
-              onClick={() => navigateTo('roadmap-tasks')}
-              className="text-[14px] font-semibold text-[#171717] hover:underline cursor-pointer"
-            >
-              Все задачи →
-            </button>
+
+            <div className="flex items-center bg-[#F4F1EC] p-1 rounded-full border border-[#EAE6DF]">
+              <button
+                type="button"
+                onClick={() => setChartMetric('revenue')}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition cursor-pointer ${
+                  chartMetric === 'revenue'
+                    ? 'bg-white text-[#171717] shadow-2xs'
+                    : 'text-[#6E6A64]'
+                }`}
+              >
+                Выручка
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartMetric('profit')}
+                className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition cursor-pointer ${
+                  chartMetric === 'profit'
+                    ? 'bg-white text-[#171717] shadow-2xs'
+                    : 'text-[#6E6A64]'
+                }`}
+              >
+                Прибыль
+              </button>
+            </div>
           </div>
 
-          <div className="divide-y divide-[#E8E8E5]">
-            {priorityTasks.map((task) => {
-              const isOverdue = task.deadline < todayStr && task.status !== 'Done';
-              return (
-                <div
-                  key={task.id}
-                  onClick={() => navigateTo('roadmap-tasks')}
-                  className="py-3.5 flex items-center justify-between gap-4 hover:bg-[#F7F7F5] px-3 rounded-xl transition cursor-pointer"
+          {hasFinanceAccess ? (
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={monthlyChartData}
+                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-                          isOverdue ? 'bg-[#C94B4B]' : 'bg-[#16805D]'
-                        }`}
-                      />
-                      <span className="text-[16px] font-semibold text-[#171717] dark:text-white truncate">
-                        {task.title}
-                      </span>
-                    </div>
-                    <div className="text-[14px] text-[#737373] pl-5">
-                      {TASK_STATUS_LABELS_RU[task.status]} ·{' '}
-                      {task.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : task.brandId} ·{' '}
-                      {getUserName(task.assigneeId)}
-                    </div>
-                  </div>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#EAE6DF" vertical={false} />
+                  <XAxis
+                    dataKey="periodLabel"
+                    tick={{ fontSize: 12, fill: '#6E6A64', fontWeight: 600 }}
+                    axisLine={{ stroke: '#EAE6DF' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: '#6E6A64', fontWeight: 600 }}
+                    axisLine={false}
+                    tickLine={false}
+                    unit=" М"
+                  />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      if (value === null || value === undefined) {
+                        return ['Нет данных', String(name)];
+                      }
+                      return [`${value} млн ₽`, String(name)];
+                    }}
+                    contentStyle={{
+                      borderRadius: '16px',
+                      border: '1px solid #EAE6DF',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                    }}
+                  />
+                  <Bar
+                    dataKey={chartMetric === 'revenue' ? 'planRevenueM' : 'planProfitM'}
+                    name="План"
+                    fill="#E5E0D8"
+                    radius={[6, 6, 0, 0]}
+                  />
+                  <Bar
+                    dataKey={chartMetric === 'revenue' ? 'factRevenueM' : 'factProfitM'}
+                    name="Факт"
+                    fill="#D97745"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-56 flex items-center justify-center rounded-2xl border border-dashed border-[#EAE6DF] text-[14px] text-[#6E6A64]">
+              Финансовая аналитика доступна Владельцу и Администратору
+            </div>
+          )}
+        </div>
 
-                  <div className="text-right shrink-0">
-                    <span
-                      className={`text-[14px] font-semibold ${
-                        isOverdue ? 'text-[#C94B4B]' : 'text-[#737373]'
-                      }`}
-                    >
-                      до {task.deadline}
-                    </span>
+        {/* Ближайшие запуски коллекций */}
+        <div className="lg:col-span-5 rounded-[28px] bg-white border border-[#EAE6DF] p-7 space-y-5 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EAE6DF] pb-4">
+              <div>
+                <h2 className="text-[20px] font-extrabold text-[#171717]">
+                  Ближайшие запуски
+                </h2>
+                <p className="text-[13px] text-[#6E6A64]">
+                  Готовность партий и карточек МП
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigateTo('launch-calendar')}
+                className="text-[13px] font-bold text-[#D97745] hover:underline cursor-pointer"
+              >
+                Все запуски →
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {filteredLaunches.slice(0, 3).map((launch) => {
+                const isBorners = launch.brandId === 'BORNERS';
+                return (
+                  <div
+                    key={launch.id}
+                    onClick={() => navigateTo('launch-calendar', { launchId: launch.id })}
+                    className="rounded-2xl bg-[#FAF8F5] border border-[#EAE6DF] hover:border-[#171717] p-4 flex items-center gap-4 cursor-pointer transition"
+                  >
+                    <div className="h-14 w-14 rounded-xl bg-white border border-[#EAE6DF] p-1.5 shrink-0 flex items-center justify-center">
+                      <img
+                        src={launch.imageUrl}
+                        alt={launch.name}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center justify-between text-[12px]">
+                        <span
+                          className="font-extrabold uppercase"
+                          style={{ color: isBorners ? '#D97745' : '#8B8078' }}
+                        >
+                          {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
+                        </span>
+                        <span className="text-[#6E6A64] font-semibold">
+                          Старт: {launch.startDate}
+                        </span>
+                      </div>
+                      <div className="font-bold text-[15px] text-[#171717] truncate">
+                        {launch.name}
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-[#E5E0D8] overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${launch.readinessPct}%`,
+                            backgroundColor: isBorners ? '#D97745' : '#8B8078',
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
-        )}
       </div>
     </div>
   );
