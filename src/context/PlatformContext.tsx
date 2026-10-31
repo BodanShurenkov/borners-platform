@@ -53,8 +53,8 @@ import {
   shiftDateString,
 } from '@/lib/finance';
 
-const STORAGE_KEY = 'borners_group_platform_state_ru_v4_rnd';
-const AUTH_STORAGE_KEY = 'borners_group_auth_session_ru_v3';
+const STORAGE_KEY = 'borners_group_platform_state_ru_v6_ux_spec_v2';
+const AUTH_STORAGE_KEY = 'borners_group_auth_session_ru_v4';
 
 interface PersistedState {
   users: AppUser[];
