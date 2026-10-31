@@ -14,10 +14,13 @@ import { ArrowUpRight } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import {
   SCENARIO_LABELS_RU,
+  SEVEN_KANBAN_STAGES,
+  CONCEPT_STAGE_LABELS_RU,
   calculatePlanFactVariance,
   calculateUnitEconomics,
   canUserViewFinance,
   formatCompactRub,
+  normalizeConceptStageToSeven,
 } from '@/lib/finance';
 
 export function DashboardView() {
@@ -52,7 +55,7 @@ export function DashboardView() {
       concepts.filter(
         (c) =>
           !c.isArchived &&
-          !['REJECTED', 'CANCELLED'].includes(c.stage) &&
+          !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
           (brandFilter === 'ALL' || c.brandId === brandFilter)
       ),
     [concepts, brandFilter]
@@ -180,286 +183,269 @@ export function DashboardView() {
   return (
     <div className="space-y-8 pb-20">
       {/* =====================================================================
-          1. EDITORIAL HERO CARD (В ЭСТЕТИКЕ ОБЛОЖКИ UX SPEC V2.0)
+          1. РЕДАКЦИОННАЯ ШАПКА ГРУППЫ (БЕЗ ДЕКОРАТИВНЫХ ОРАНЖЕВЫХ ПОЛОСОК)
       ===================================================================== */}
-      <div className="rounded-[32px] bg-white border border-[#EAE6DF] p-7 md:p-10 space-y-7 shadow-2xs">
-        <div className="space-y-2">
-          <div className="text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#6E6A64]">
-            BORNERS GROUP · STRATEGY 2027 / PRODUCT LAB
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-[#D97745]" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-6 space-y-3">
-            <h1 className="text-[36px] md:text-[46px] font-extrabold tracking-[-0.03em] leading-[1.06] text-[#171717]">
-              ПЛАТФОРМА СТРАТЕГИИ И ЛАБОРАТОРИИ БЕЗ ЛИШНЕГО
+      <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden">
+        <div className="p-7 md:p-9 grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
+          <div className="lg:col-span-7 space-y-3">
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#7A756D]">
+              BORNERS GROUP · ОПЕРАЦИОННАЯ СИСТЕМА 2026–2027
+            </div>
+            <h1 className="font-serif-editorial text-[34px] md:text-[44px] font-medium tracking-[-0.01em] leading-[1.08] text-[#161615]">
+              Стратегия брендов, лаборатория продукта и экономика тиражей
             </h1>
-            <p className="text-[16px] text-[#6E6A64] leading-relaxed">
-              Единая система управления брендами <b className="text-[#171717]">BORNERS</b> и{' '}
-              <b className="text-[#171717]">НА ТЕЛЕ</b>: визуальные идеи, понятные решения,
-              готовый заказ фабрике и финансовая модель 2027.
+            <p className="text-[14.5px] text-[#5C5852] leading-relaxed max-w-2xl">
+              Единый рабочий контур портфеля <span className="font-medium text-[#161615]">BORNERS</span> и{' '}
+              <span className="font-medium text-[#161615]">НА ТЕЛЕ</span>: от фотореференса и расчёта
+              себестоимости за пару до протокола стирки, производственного заказа фабрике и годового P&amp;L.
             </p>
           </div>
 
-          {/* Блок «ОДНА КАРТОЧКА. СЕМЬ ЭТАПОВ.» из обложки PDF */}
-          <div
-            onClick={() => navigateTo('product-lab')}
-            className="lg:col-span-6 rounded-[24px] border border-[#EAE6DF] bg-[#FAF8F5] p-6 space-y-4 cursor-pointer hover:border-[#D97745] transition group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#6E6A64]">
-                ОДНА КАРТОЧКА. СЕМЬ ЭТАПОВ. ({filteredConcepts.length} МОДЕЛЕЙ В РАБОТЕ)
-              </span>
-              <span className="text-[12px] font-bold text-[#D97745] group-hover:translate-x-1 transition">
-                Открыть фотодоску →
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {[
-                { num: '01', title: 'Идея', warm: true },
-                { num: '02', title: 'Анализ', warm: false },
-                { num: '03', title: 'Образец', warm: false },
-                { num: '04', title: 'Тест', warm: false },
-              ].map((st) => (
-                <div
-                  key={st.num}
-                  className={`h-12 rounded-xl px-3.5 flex items-center text-[13px] font-bold text-[#171717] ${
-                    st.warm ? 'bg-[#FBF1EA]' : 'bg-[#EFECE6]'
-                  }`}
-                >
-                  {st.num} {st.title}
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2.5 max-w-md mx-auto">
-              {[
-                { num: '05', title: 'Решение', warm: true },
-                { num: '06', title: 'Производство', warm: false },
-                { num: '07', title: 'Запуск', warm: false },
-              ].map((st) => (
-                <div
-                  key={st.num}
-                  className={`h-12 rounded-xl px-3.5 flex items-center text-[13px] font-bold text-[#171717] ${
-                    st.warm ? 'bg-[#FBF1EA]' : 'bg-[#EFECE6]'
-                  }`}
-                >
-                  {st.num} {st.title}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Тёмная плашка ПРАВИЛО ПРОЕКТА + 2 главные кнопки */}
-        <div className="rounded-[22px] bg-[#141413] text-white p-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#D97745]">
-              ПРАВИЛО ПРОЕКТА
-            </div>
-            <div className="text-[16px] md:text-[18px] font-bold">
-              Меньше полей. Больше фотографий. Каждый этап заканчивается понятным результатом.
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="lg:col-span-5 flex flex-wrap lg:justify-end items-center gap-2.5">
             <button
               type="button"
               onClick={() => setPlatformMode('strategy')}
-              className="h-11 px-5 rounded-full bg-white text-[#171717] text-[13px] font-bold hover:bg-[#F4F1EC] transition cursor-pointer"
+              className="h-10 px-4 rounded-[6px] border border-[#161615] bg-white hover:bg-[#F2EFE9] text-[#161615] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
             >
-              🎬 Презентация стратегии (8 слайдов)
+              <span>Презентация стратегии (08 слайдов)</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
               onClick={() => navigateTo('product-lab')}
-              className="h-11 px-6 rounded-full bg-[#D97745] hover:bg-[#C26535] text-white text-[13px] font-bold transition cursor-pointer"
+              className="h-10 px-5 rounded-[6px] bg-[#161615] hover:bg-[#2C2B29] text-[#F8F6F2] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
             >
-              Лаборатория продукта →
+              <span>Открыть Product Lab</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
             </button>
+          </div>
+        </div>
+
+        {/* Конвейер R&D: 7 этапов в одной архитектурной строке */}
+        <div className="border-t border-[#E5E0D8] bg-[#F8F6F2] px-7 py-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#7A756D]">
+              PRODUCT LAB · КОНВЕЙЕР РАЗРАБОТКИ (1 КАРТОЧКА = 7 ЭТАПОВ)
+            </span>
+            <button
+              type="button"
+              onClick={() => navigateTo('product-lab')}
+              className="text-[12.5px] font-medium text-[#161615] hover:underline cursor-pointer inline-flex items-center gap-1"
+            >
+              <span>Перейти к фотодоске ({filteredConcepts.length} в работе)</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            {SEVEN_KANBAN_STAGES.map((stageCode, idx) => {
+              const count = filteredConcepts.filter(
+                (c) => normalizeConceptStageToSeven(c.stage) === stageCode
+              ).length;
+              return (
+                <button
+                  key={stageCode}
+                  type="button"
+                  onClick={() => navigateTo('product-lab')}
+                  className="rounded-[6px] bg-white border border-[#E5E0D8] hover:border-[#161615] px-3 py-2.5 text-left transition cursor-pointer flex items-center justify-between"
+                >
+                  <div>
+                    <span className="font-mono text-[10px] text-[#8C867E] block">
+                      0{idx + 1}
+                    </span>
+                    <span className="text-[13px] font-medium text-[#161615]">
+                      {CONCEPT_STAGE_LABELS_RU[stageCode]}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[14px] font-medium text-[#161615]">
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* =====================================================================
-          2. СИММЕТРИЧНАЯ ПОЛОСА 4 КЛЮЧЕВЫХ МЕТРИК (РОВНАЯ СЕТКА 4 КОЛОНКИ)
+          2. СТРОГАЯ СЕТКА 4 КЛЮЧЕВЫХ ПОКАЗАТЕЛЕЙ (АРХИТЕКТУРНЫЕ КАРТОЧКИ)
       ===================================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div
           onClick={() => navigateTo('finance')}
-          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
         >
-          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
-            <span>План выручки 2027</span>
-            <ArrowUpRight className="h-4 w-4 text-[#D97745]" />
+          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+            <span>01 / План выручки 2027</span>
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
           </div>
           <div className="mt-4">
-            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
               {hasFinanceAccess ? formatCompactRub(kpiTotals.totalPlanYear) : 'Скрыто'}
             </div>
-            <div className="text-[13px] text-[#6E6A64] mt-1">
-              Сценарий: <b className="text-[#171717]">{SCENARIO_LABELS_RU[financialScenario]}</b>
+            <div className="text-[12.5px] text-[#6E6A63] mt-2">
+              Сценарий: <span className="font-medium text-[#161615]">{SCENARIO_LABELS_RU[financialScenario]}</span>
             </div>
           </div>
         </div>
 
         <div
           onClick={() => navigateTo('finance')}
-          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
         >
-          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
-            <span>Операционная прибыль</span>
-            <ArrowUpRight className="h-4 w-4 text-[#16805D]" />
+          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+            <span>02 / Операционная прибыль</span>
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
           </div>
           <div className="mt-4">
-            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
               {hasFinanceAccess
                 ? formatCompactRub(kpiTotals.totalPlanProfitYear)
                 : 'Скрыто'}
             </div>
-            <div className="text-[13px] text-[#16805D] font-bold mt-1">
-              Средняя валовая маржа: {kpiTotals.avgMargin}%
+            <div className="text-[12.5px] text-[#1F6E50] font-medium mt-2">
+              Расчётная валовая маржа: {kpiTotals.avgMargin}%
             </div>
           </div>
         </div>
 
         <div
           onClick={() => navigateTo('product-lab')}
-          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
         >
-          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
-            <span>Лаборатория продукта</span>
-            <ArrowUpRight className="h-4 w-4 text-[#D97745]" />
+          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+            <span>03 / Лаборатория R&amp;D</span>
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
           </div>
           <div className="mt-4">
-            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
               {filteredConcepts.length} моделей
             </div>
-            <div className="text-[13px] text-[#6E6A64] mt-1">
-              Фотодоска · 7 этапов до заказа фабрике
+            <div className="text-[12.5px] text-[#6E6A63] mt-2">
+              В проработке на 7 этапах доски
             </div>
           </div>
         </div>
 
         <div
           onClick={() => navigateTo('product-catalog')}
-          className="rounded-[24px] bg-white border border-[#EAE6DF] hover:border-[#171717] p-6 flex flex-col justify-between cursor-pointer transition"
+          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
         >
-          <div className="flex items-center justify-between text-[13px] font-bold uppercase tracking-wider text-[#6E6A64]">
-            <span>Каталог и Запуски</span>
-            <ArrowUpRight className="h-4 w-4 text-[#171717]" />
+          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+            <span>04 / Матрица и Релизы</span>
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
           </div>
           <div className="mt-4">
-            <div className="text-[32px] font-extrabold tracking-tight text-[#171717]">
+            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
               {filteredProducts.length} SKU · {filteredLaunches.length} релиза
             </div>
-            <div className="text-[13px] text-[#6E6A64] mt-1">
-              Матрица 70% База / 30% Дропы
+            <div className="text-[12.5px] text-[#6E6A63] mt-2">
+              Пропорция 70% База / 30% Капсулы
             </div>
           </div>
         </div>
       </div>
 
       {/* =====================================================================
-          3. ДВА ФЛАГМАНСКИХ БРЕНДА В СТРОГОЙ СИММЕТРИИ (BORNERS И НА ТЕЛЕ)
+          3. ДВА ФЛАГМАНСКИХ БРЕНДА С РЕАЛЬНЫМИ СТУДИЙНЫМИ ФОТОГРАФИЯМИ
       ===================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {activeBrands.map((brand) => {
           const isBorners = brand.code === 'BORNERS';
-          const accentColor = isBorners ? '#D97745' : '#8B8078';
+          const accentColor = isBorners ? '#B85D35' : '#7D7268';
           const brandProducts = products.filter(
             (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
           );
           const brandConcepts = concepts.filter(
             (c) =>
               !c.isArchived &&
-              !['REJECTED', 'CANCELLED'].includes(c.stage) &&
+              !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
               (c.brandId === brand.code || c.brandId === brand.id)
           );
 
           return (
             <div
               key={brand.id}
-              className="rounded-[28px] bg-white border border-[#EAE6DF] p-7 flex flex-col justify-between space-y-6 shadow-2xs"
+              className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between"
             >
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
-                  <div className="sm:col-span-5 h-44 rounded-2xl bg-[#F4F1EC] border border-[#EAE6DF] flex items-center justify-center p-4">
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-[#E5E0D8]">
+                  <div className="sm:col-span-5 h-56 sm:h-auto bg-[#F2EFE9] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] overflow-hidden">
                     <img
                       src={brand.heroImage}
                       alt={brand.name}
-                      className="h-full w-full object-contain"
+                      className="h-full w-full object-cover"
                     />
                   </div>
 
-                  <div className="sm:col-span-7 space-y-2">
-                    <div className="inline-flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-wider text-[#6E6A64]">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: accentColor }}
-                      />
-                      <span>{brand.segment}</span>
+                  <div className="sm:col-span-7 p-6 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: accentColor }}
+                        />
+                        <span>{brand.segment}</span>
+                      </div>
+                      <h2 className="font-serif-editorial text-[30px] font-semibold tracking-tight text-[#161615] leading-none">
+                        {brand.name}
+                      </h2>
+                      <p className="text-[13.5px] font-medium text-[#161615]">
+                        {brand.tagline}
+                      </p>
+                      <p className="text-[13px] text-[#6E6A63] leading-relaxed line-clamp-3">
+                        {brand.description}
+                      </p>
                     </div>
-                    <h2 className="text-[28px] font-extrabold tracking-tight text-[#171717]">
-                      {brand.name}
-                    </h2>
-                    <p className="text-[14px] font-semibold text-[#171717]">
-                      {brand.tagline}
-                    </p>
-                    <p className="text-[13px] text-[#6E6A64] line-clamp-2">
-                      {brand.description}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-4 gap-3 pt-4 border-t border-[#EAE6DF] text-[13px]">
-                  <div>
-                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
-                      План 2027
-                    </div>
-                    <div className="text-[18px] font-extrabold text-[#171717] mt-0.5">
-                      {hasFinanceAccess
-                        ? formatCompactRub(brand.plannedRevenue2027Rub)
-                        : '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
-                      Маржа
-                    </div>
-                    <div className="text-[18px] font-extrabold text-[#171717] mt-0.5">
-                      {hasFinanceAccess ? `${brand.targetMarginPct}%` : '—'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
-                      Каталог
-                    </div>
-                    <div className="text-[18px] font-extrabold text-[#171717] mt-0.5">
-                      {brandProducts.length} SKU
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] uppercase font-bold text-[#6E6A64]">
-                      В R&D
-                    </div>
-                    <div className="text-[18px] font-extrabold text-[#D97745] mt-0.5">
-                      {brandConcepts.length} мод.
+                    <div className="grid grid-cols-4 gap-3 pt-4 border-t border-[#E5E0D8]">
+                      <div>
+                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                          План 2027
+                        </div>
+                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                          {hasFinanceAccess
+                            ? formatCompactRub(brand.plannedRevenue2027Rub)
+                            : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                          Маржа
+                        </div>
+                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                          {hasFinanceAccess ? `${brand.targetMarginPct}%` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                          Матрица
+                        </div>
+                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                          {brandProducts.length} SKU
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                          R&amp;D
+                        </div>
+                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                          {brandConcepts.length} мод.
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2.5 pt-3 border-t border-[#EAE6DF]">
+              <div className="grid grid-cols-3 divide-x divide-[#E5E0D8] bg-[#F8F6F2]">
                 <button
                   type="button"
                   onClick={() => {
                     setBrandFilter(brand.code);
                     navigateTo('brand-strategy');
                   }}
-                  className="h-10 rounded-full bg-[#141413] text-white text-[12px] font-bold hover:bg-[#D97745] transition cursor-pointer"
+                  className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
                 >
                   Стратегия (14 блоков)
                 </button>
@@ -469,9 +455,9 @@ export function DashboardView() {
                     setBrandFilter(brand.code);
                     navigateTo('product-lab');
                   }}
-                  className="h-10 rounded-full bg-[#FBF1EA] text-[#D97745] text-[12px] font-bold hover:bg-[#D97745] hover:text-white transition cursor-pointer"
+                  className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
                 >
-                  Фотодоска R&D ({brandConcepts.length})
+                  Product Lab ({brandConcepts.length})
                 </button>
                 <button
                   type="button"
@@ -479,9 +465,9 @@ export function DashboardView() {
                     setBrandFilter(brand.code);
                     navigateTo('product-catalog');
                   }}
-                  className="h-10 rounded-full bg-[#F4F1EC] text-[#171717] text-[12px] font-bold hover:bg-[#141413] hover:text-white transition cursor-pointer"
+                  className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
                 >
-                  Каталог ({brandProducts.length})
+                  Каталог SKU ({brandProducts.length})
                 </button>
               </div>
             </div>
@@ -491,46 +477,46 @@ export function DashboardView() {
 
       {/* Компактная плашка брендов в проработке (Акуша и Liskani) */}
       {upcomingBrands.length > 0 && brandFilter === 'ALL' && (
-        <div className="rounded-[24px] bg-white border border-[#EAE6DF] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1 rounded-full bg-[#F4F1EC] text-[11px] font-extrabold uppercase tracking-wider text-[#6E6A64]">
-              В проработке Q3–Q4 2026
+            <span className="px-2.5 py-0.5 rounded-[4px] bg-[#F2EFE9] border border-[#E5E0D8] font-mono text-[10px] uppercase tracking-[0.12em] text-[#6E6A63]">
+              В разработке 2026–2027
             </span>
-            <span className="text-[14px] font-bold text-[#171717]">
-              Новые направления портфеля:{' '}
+            <span className="text-[13.5px] font-medium text-[#161615]">
+              Перспективные бренды портфеля:{' '}
               {upcomingBrands.map((b) => `${b.name} (${b.segment})`).join(' · ')}
             </span>
           </div>
-          <span className="text-[13px] text-[#6E6A64]">
-            Сейчас формируется продуктовая матрица и позиционирование
+          <span className="text-[12.5px] text-[#6E6A63]">
+            Формирование бренд-платформы и расчёт юнит-экономики
           </span>
         </div>
       )}
 
       {/* =====================================================================
-          4. НИЖНИЙ РЯД В 2 КОЛОНКИ: СЛЕВА ГРАФИК 2027, СПРАВА БЛИЖАЙШИЕ ЗАПУСКИ
+          4. НИЖНИЙ РЯД: СЛЕВА ГРАФИК 2027, СПРАВА БЛИЖАЙШИЕ ЗАПУСКИ
       ===================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* График выручки и прибыли по месяцам */}
-        <div className="lg:col-span-7 rounded-[28px] bg-white border border-[#EAE6DF] p-7 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EAE6DF] pb-4">
+        <div className="lg:col-span-7 rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E0D8] pb-4">
             <div>
-              <h2 className="text-[20px] font-extrabold text-[#171717]">
-                Динамика выручки и прибыли 2027 (млн ₽)
+              <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
+                ФИНАНСОВАЯ ДИНАМИКА · 2027
+              </div>
+              <h2 className="text-[18px] font-semibold text-[#161615] mt-0.5">
+                Помесячный план и факт (млн ₽)
               </h2>
-              <p className="text-[13px] text-[#6E6A64]">
-                План / Факт по месяцам · пустые будущие периоды — «Нет данных»
-              </p>
             </div>
 
-            <div className="flex items-center bg-[#F4F1EC] p-1 rounded-full border border-[#EAE6DF]">
+            <div className="flex items-center bg-[#F2EFE9] p-0.5 rounded-[6px] border border-[#E5E0D8]">
               <button
                 type="button"
                 onClick={() => setChartMetric('revenue')}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition cursor-pointer ${
+                className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition cursor-pointer ${
                   chartMetric === 'revenue'
-                    ? 'bg-white text-[#171717] shadow-2xs'
-                    : 'text-[#6E6A64]'
+                    ? 'bg-white text-[#161615] shadow-2xs'
+                    : 'text-[#6E6A63]'
                 }`}
               >
                 Выручка
@@ -538,10 +524,10 @@ export function DashboardView() {
               <button
                 type="button"
                 onClick={() => setChartMetric('profit')}
-                className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold transition cursor-pointer ${
+                className={`px-3 py-1 rounded-[4px] text-[12px] font-medium transition cursor-pointer ${
                   chartMetric === 'profit'
-                    ? 'bg-white text-[#171717] shadow-2xs'
-                    : 'text-[#6E6A64]'
+                    ? 'bg-white text-[#161615] shadow-2xs'
+                    : 'text-[#6E6A63]'
                 }`}
               >
                 Прибыль
@@ -556,15 +542,15 @@ export function DashboardView() {
                   data={monthlyChartData}
                   margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#EAE6DF" vertical={false} />
+                  <CartesianGrid strokeDasharray="2 2" stroke="#E5E0D8" vertical={false} />
                   <XAxis
                     dataKey="periodLabel"
-                    tick={{ fontSize: 12, fill: '#6E6A64', fontWeight: 600 }}
-                    axisLine={{ stroke: '#EAE6DF' }}
+                    tick={{ fontSize: 11, fill: '#6E6A63' }}
+                    axisLine={{ stroke: '#E5E0D8' }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 12, fill: '#6E6A64', fontWeight: 600 }}
+                    tick={{ fontSize: 11, fill: '#6E6A63' }}
                     axisLine={false}
                     tickLine={false}
                     unit=" М"
@@ -577,52 +563,51 @@ export function DashboardView() {
                       return [`${value} млн ₽`, String(name)];
                     }}
                     contentStyle={{
-                      borderRadius: '16px',
-                      border: '1px solid #EAE6DF',
-                      fontSize: '13px',
-                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: '1px solid #E5E0D8',
+                      fontSize: '12.5px',
                     }}
                   />
                   <Bar
                     dataKey={chartMetric === 'revenue' ? 'planRevenueM' : 'planProfitM'}
                     name="План"
-                    fill="#E5E0D8"
-                    radius={[6, 6, 0, 0]}
+                    fill="#D8D2C7"
+                    radius={[3, 3, 0, 0]}
                   />
                   <Bar
                     dataKey={chartMetric === 'revenue' ? 'factRevenueM' : 'factProfitM'}
                     name="Факт"
-                    fill="#D97745"
-                    radius={[6, 6, 0, 0]}
+                    fill="#161615"
+                    radius={[3, 3, 0, 0]}
                   />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-56 flex items-center justify-center rounded-2xl border border-dashed border-[#EAE6DF] text-[14px] text-[#6E6A64]">
+            <div className="h-56 flex items-center justify-center rounded-[6px] border border-dashed border-[#E5E0D8] text-[13.5px] text-[#6E6A63]">
               Финансовая аналитика доступна Владельцу и Администратору
             </div>
           )}
         </div>
 
         {/* Ближайшие запуски коллекций */}
-        <div className="lg:col-span-5 rounded-[28px] bg-white border border-[#EAE6DF] p-7 space-y-5 flex flex-col justify-between">
+        <div className="lg:col-span-5 rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-5 flex flex-col justify-between">
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#EAE6DF] pb-4">
+            <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-4">
               <div>
-                <h2 className="text-[20px] font-extrabold text-[#171717]">
+                <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
+                  КАЛЕНДАРЬ РЕЛИЗОВ
+                </div>
+                <h2 className="text-[18px] font-semibold text-[#161615] mt-0.5">
                   Ближайшие запуски
                 </h2>
-                <p className="text-[13px] text-[#6E6A64]">
-                  Готовность партий и карточек МП
-                </p>
               </div>
               <button
                 type="button"
                 onClick={() => navigateTo('launch-calendar')}
-                className="text-[13px] font-bold text-[#D97745] hover:underline cursor-pointer"
+                className="text-[12.5px] font-medium text-[#161615] hover:underline cursor-pointer"
               >
-                Все запуски →
+                Все релизы →
               </button>
             </div>
 
@@ -633,36 +618,32 @@ export function DashboardView() {
                   <div
                     key={launch.id}
                     onClick={() => navigateTo('launch-calendar', { launchId: launch.id })}
-                    className="rounded-2xl bg-[#FAF8F5] border border-[#EAE6DF] hover:border-[#171717] p-4 flex items-center gap-4 cursor-pointer transition"
+                    className="rounded-[6px] bg-[#F8F6F2] border border-[#E5E0D8] hover:border-[#161615] p-3.5 flex items-center gap-3.5 cursor-pointer transition"
                   >
-                    <div className="h-14 w-14 rounded-xl bg-white border border-[#EAE6DF] p-1.5 shrink-0 flex items-center justify-center">
+                    <div className="h-14 w-14 rounded-[4px] bg-[#EAE5DC] border border-[#E5E0D8] overflow-hidden shrink-0">
                       <img
                         src={launch.imageUrl}
                         alt={launch.name}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full object-cover"
                       />
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between text-[12px]">
-                        <span
-                          className="font-extrabold uppercase"
-                          style={{ color: isBorners ? '#D97745' : '#8B8078' }}
-                        >
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center justify-between font-mono text-[10.5px]">
+                        <span className="uppercase text-[#161615] font-medium">
                           {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
                         </span>
-                        <span className="text-[#6E6A64] font-semibold">
+                        <span className="text-[#6E6A63]">
                           Старт: {launch.startDate}
                         </span>
                       </div>
-                      <div className="font-bold text-[15px] text-[#171717] truncate">
+                      <div className="font-medium text-[14px] text-[#161615] truncate">
                         {launch.name}
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-[#E5E0D8] overflow-hidden">
+                      <div className="h-1 w-full rounded-full bg-[#E5E0D8] overflow-hidden">
                         <div
-                          className="h-full rounded-full"
+                          className="h-full bg-[#161615]"
                           style={{
                             width: `${launch.readinessPct}%`,
-                            backgroundColor: isBorners ? '#D97745' : '#8B8078',
                           }}
                         />
                       </div>

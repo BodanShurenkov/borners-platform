@@ -1,11 +1,19 @@
 import type { Metadata } from 'next';
-import { Inter, Geist_Mono } from 'next/font/google';
+import { Inter, Geist_Mono, Cormorant_Garamond } from 'next/font/google';
 import './globals.css';
 
 const inter = Inter({
   subsets: ['cyrillic', 'latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-sans',
+  display: 'swap',
+});
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['cyrillic', 'latin'],
+  weight: ['500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
   display: 'swap',
 });
 
@@ -30,9 +38,9 @@ export default function RootLayout({
   return (
     <html
       lang="ru"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${cormorant.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#F7F7F5] text-[#171717] font-sans selection:bg-[#111111] selection:text-white">
+      <body className="min-h-full bg-[#F8F6F2] text-[#161615] font-sans selection:bg-[#161615] selection:text-[#F8F6F2]">
         {children}
       </body>
     </html>

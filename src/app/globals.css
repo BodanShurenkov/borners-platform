@@ -2,21 +2,21 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Токены в эстетике Editorial Warm Minimalism (UX Spec v2.0) */
+/* Архитектурный редакционный минимализм (Atelier / Swiss Editorial) */
 :root {
-  --bg-page: #FAF8F5;
+  --bg-page: #F8F6F2;
   --bg-card: #FFFFFF;
-  --bg-subtle: #F4F1EC;
-  --bg-warm-tint: #FDF4EE;
-  --text-primary: #171717;
-  --text-secondary: #6E6A64;
-  --border-color: #EAE6DF;
-  --bg-dark-block: #141413;
-  --brand-borners: #D97745;
-  --brand-natele: #8B8078;
-  --status-success: #16805D;
-  --status-warning: #D99527;
-  --status-error: #C94B4B;
+  --bg-subtle: #F2EFE9;
+  --bg-warm-tint: #FBF6F1;
+  --text-primary: #161615;
+  --text-secondary: #6E6A63;
+  --border-color: #E5E0D8;
+  --bg-dark-block: #161615;
+  --brand-borners: #B85D35;
+  --brand-natele: #7D7268;
+  --status-success: #1F6E50;
+  --status-warning: #B87D24;
+  --status-error: #B83E3E;
 }
 
 html {
@@ -30,18 +30,22 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.014em;
+  letter-spacing: -0.012em;
   line-height: 1.5;
+}
+
+.font-serif-editorial {
+  font-family: var(--font-serif), Georgia, "Times New Roman", serif;
 }
 
 .font-mono {
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* Деликатные минималистичные скроллбары */
+/* Тонкие минималистичные скроллбары */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -49,10 +53,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #DCD7CE;
-  border-radius: 9999px;
+  background: #D8D2C7;
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B8B1A6;
+  background: #AFA79B;
 }

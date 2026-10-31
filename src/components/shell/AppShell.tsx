@@ -350,7 +350,7 @@ export function AppShell() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-[#FAF8F5] dark:bg-zinc-950 text-[#171717] dark:text-zinc-100 flex border-l-[6px] border-l-[#D97745]">
+      <div className="min-h-screen bg-[#F8F6F2] dark:bg-zinc-950 text-[#161615] dark:text-zinc-100 flex">
         {/* МОБИЛЬНЫЙ ОВЕРЛЕЙ */}
         {mobileMenuOpen && (
           <div
@@ -359,44 +359,41 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР: строгая симметрия, чистая навигация в 1 строку без обрезаний */}
+        {/* ЛЕВЫЙ САЙДБАР: швейцарская архитектурная сетка без декоративных полосок и ИИ-плашек */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[260px] bg-white dark:bg-zinc-900 border-r border-[#EAE6DF] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[248px] bg-[#FDFCFA] dark:bg-zinc-900 border-r border-[#E5E0D8] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="p-6 space-y-6 overflow-y-auto">
-            {/* Логотип группы (с фирменной терракотовой линией из PDF) */}
-            <div className="space-y-3 pb-4 border-b border-[#EAE6DF] dark:border-zinc-800">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => {
-                    setPlatformMode('management');
-                    navigateTo('dashboard');
-                  }}
-                  className="text-left cursor-pointer block"
-                >
-                  <span className="font-extrabold tracking-[-0.03em] text-[19px] text-[#171717] dark:text-white block leading-none">
-                    BORNERS GROUP
-                  </span>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#6E6A64] mt-1.5 block">
-                    STRATEGY 2027 / PRODUCT LAB
-                  </span>
-                </button>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="lg:hidden p-1 text-[#737373] hover:text-[#171717]"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="h-1 w-16 rounded-full bg-[#D97745]" />
+          <div className=" overflow-y-auto">
+            {/* Архитектурный логотип группы (ровно в высоту верхнего хедера h-14 для идеального совпадения линий) */}
+            <div className="h-14 px-5 border-b border-[#E5E0D8] dark:border-zinc-800 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setPlatformMode('management');
+                  navigateTo('dashboard');
+                }}
+                className="text-left cursor-pointer flex items-baseline gap-2.5 group"
+              >
+                <span className="font-serif-editorial text-[21px] font-semibold tracking-[0.03em] text-[#161615] dark:text-white leading-none">
+                  BORNERS
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#7A756D]">
+                  GROUP · 27
+                </span>
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="lg:hidden p-1 text-[#7A756D] hover:text-[#161615]"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            {/* Меню разделов: идеальная симметрия, одинаковая высота кнопок h-11 */}
-            <nav className="space-y-1.5">
-              <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6E6A64]">
-                Навигация платформы
+            {/* Меню разделов: чистая типографика, моноширинные индексы без цветных квадратиков */}
+            <nav className="p-4 space-y-1">
+              <div className="px-2.5 pb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
+                Разделы системы
               </div>
 
               {SIMPLE_NAV_ITEMS.filter((item) =>
@@ -411,31 +408,31 @@ export function AppShell() {
                       navigateTo(item.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full h-11 rounded-2xl px-3.5 flex items-center gap-3 text-left transition-all cursor-pointer ${
+                    className={`w-full h-9 rounded-[6px] px-2.5 flex items-center justify-between text-left transition-colors cursor-pointer ${
                       isActive
-                        ? 'bg-[#141413] text-white font-semibold shadow-xs'
-                        : 'text-[#171717] hover:bg-[#F4F1EC] font-medium'
+                        ? 'bg-[#161615] text-[#F8F6F2] font-medium'
+                        : 'text-[#3D3B38] hover:bg-[#F2EFE9] hover:text-[#161615] font-normal'
                     }`}
                   >
+                    <span className="text-[13.5px] tracking-[-0.01em] truncate">
+                      {item.label}
+                    </span>
                     <span
-                      className={`w-6 h-6 rounded-lg text-[11px] font-bold flex items-center justify-center shrink-0 ${
-                        isActive
-                          ? 'bg-[#D97745] text-white'
-                          : 'bg-[#FBF1EA] text-[#D97745]'
+                      className={`font-mono text-[11px] shrink-0 ${
+                        isActive ? 'text-[#A39E93]' : 'text-[#9E988E]'
                       }`}
                     >
                       {item.step}
                     </span>
-                    <span className="text-[14px] whitespace-nowrap">{item.label}</span>
                   </button>
                 );
               })}
 
-              {/* Дополнительные разделы (раскрываются аккуратно) */}
+              {/* Дополнительные разделы */}
               {!simpleMode && (
-                <div className="pt-4 mt-4 border-t border-[#EAE6DF] space-y-1">
-                  <div className="px-3 pb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#6E6A64]">
-                    Дополнительные разделы
+                <div className="pt-4 mt-4 border-t border-[#E5E0D8] space-y-1">
+                  <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
+                    Операционный контур
                   </div>
                   {[
                     { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
@@ -458,10 +455,10 @@ export function AppShell() {
                             navigateTo(item.id);
                             setMobileMenuOpen(false);
                           }}
-                          className={`w-full h-10 rounded-xl px-3.5 flex items-center text-left text-[14px] transition-colors cursor-pointer ${
+                          className={`w-full h-9 rounded-[6px] px-2.5 flex items-center text-left text-[13px] transition-colors cursor-pointer ${
                             isActive
-                              ? 'bg-[#141413] text-white font-semibold'
-                              : 'text-[#6E6A64] hover:text-[#171717] hover:bg-[#F4F1EC] font-medium'
+                              ? 'bg-[#161615] text-[#F8F6F2] font-medium'
+                              : 'text-[#6E6A63] hover:text-[#161615] hover:bg-[#F2EFE9]'
                           }`}
                         >
                           <span className="truncate">{item.label}</span>
@@ -473,27 +470,30 @@ export function AppShell() {
             </nav>
           </div>
 
-          {/* Нижняя кнопка сайдбара: переключение 6 основных / все 13 разделов */}
-          <div className="p-5 border-t border-[#EAE6DF] dark:border-zinc-800">
+          {/* Нижняя панель сайдбара */}
+          <div className="p-4 border-t border-[#E5E0D8] dark:border-zinc-800 space-y-2">
             <button
               type="button"
               onClick={() => setSimpleMode(!simpleMode)}
-              className="w-full h-10 px-3.5 rounded-full bg-[#F4F1EC] hover:bg-[#141413] hover:text-white text-[12px] font-bold text-[#171717] transition cursor-pointer flex items-center justify-center"
+              className="w-full h-8 px-3 rounded-[6px] border border-[#E5E0D8] bg-white hover:border-[#161615] text-[12px] font-medium text-[#3D3B38] transition cursor-pointer flex items-center justify-between"
             >
-              {simpleMode ? '+ Показать все разделы (13)' : '← Оставить 6 главных разделов'}
+              <span>{simpleMode ? 'Все разделы системы' : 'Только основные разделы'}</span>
+              <span className="font-mono text-[11px] text-[#8C867E]">
+                {simpleMode ? '13' : '06'}
+              </span>
             </button>
           </div>
         </aside>
 
         {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* ВЕРХНЯЯ ПАНЕЛЬ: идеальная симметрия, мягкие капсулы rounded-full */}
-          <header className="sticky top-0 z-30 h-16 bg-[#FAF8F5]/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#EAE6DF] dark:border-zinc-800 px-6 md:px-10 flex items-center justify-between gap-4">
+          {/* ВЕРХНЯЯ ПАНЕЛЬ: единая высота h-14, строгая геометрия rounded-[6px] */}
+          <header className="sticky top-0 z-30 h-14 bg-[#FDFCFA]/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E5E0D8] dark:border-zinc-800 px-6 md:px-8 flex items-center justify-between gap-4">
             {/* Левая группа: Назад + Выпадающий список брендов */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden h-10 w-10 rounded-full bg-white border border-[#EAE6DF] flex items-center justify-center"
+                className="lg:hidden h-9 w-9 rounded-[6px] bg-white border border-[#E5E0D8] flex items-center justify-center"
               >
                 <Menu className="h-4 w-4" />
               </button>
@@ -502,7 +502,7 @@ export function AppShell() {
                 <button
                   onClick={goBack}
                   title="Назад"
-                  className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-white border border-[#EAE6DF] text-[13px] font-bold text-[#171717] hover:bg-[#141413] hover:text-white transition cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] bg-white border border-[#E5E0D8] text-[12.5px] font-medium text-[#161615] hover:border-[#161615] transition cursor-pointer shrink-0"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Назад</span>
@@ -514,32 +514,32 @@ export function AppShell() {
                 <button
                   type="button"
                   onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
-                  className="h-10 px-4 rounded-full bg-white hover:border-[#171717] border border-[#EAE6DF] text-[13px] font-semibold text-[#171717] inline-flex items-center gap-3 cursor-pointer transition min-w-[185px] justify-between shadow-2xs"
+                  className="h-9 px-3.5 rounded-[6px] bg-white hover:border-[#161615] border border-[#E5E0D8] text-[13px] text-[#161615] inline-flex items-center gap-3 cursor-pointer transition min-w-[180px] justify-between"
                 >
                   <span className="inline-flex items-center gap-2">
                     <span
-                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      className="h-2 w-2 rounded-full shrink-0"
                       style={{
                         backgroundColor:
                           brandFilter === 'BORNERS'
-                            ? '#D97745'
+                            ? '#B85D35'
                             : brandFilter === 'NA_TELE'
-                            ? '#8B8078'
-                            : '#141413',
+                            ? '#7D7268'
+                            : '#161615',
                       }}
                     />
-                    <span>
+                    <span className="text-[#6E6A63]">
                       Бренд:{' '}
-                      <b>
+                      <span className="font-medium text-[#161615]">
                         {brandFilter === 'ALL'
                           ? 'Все бренды'
                           : brandFilter === 'NA_TELE'
                           ? 'НА ТЕЛЕ'
                           : 'BORNERS'}
-                      </b>
+                      </span>
                     </span>
                   </span>
-                  <ChevronDown className="h-4 w-4 text-[#6E6A64]" />
+                  <ChevronDown className="h-3.5 w-3.5 text-[#8C867E]" />
                 </button>
 
                 {brandDropdownOpen && (
@@ -548,21 +548,21 @@ export function AppShell() {
                       className="fixed inset-0 z-40"
                       onClick={() => setBrandDropdownOpen(false)}
                     />
-                    <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white border border-[#EAE6DF] shadow-xl p-2 z-50 text-[13px] space-y-1">
+                    <div className="absolute left-0 mt-1.5 w-64 rounded-[8px] bg-white border border-[#E5E0D8] shadow-lg p-1.5 z-50 text-[13px] space-y-0.5">
                       <button
                         type="button"
                         onClick={() => {
                           setBrandFilter('ALL');
                           setBrandDropdownOpen(false);
                         }}
-                        className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between cursor-pointer ${
+                        className={`w-full px-3 py-2 rounded-[5px] text-left flex items-center justify-between cursor-pointer ${
                           brandFilter === 'ALL'
-                            ? 'bg-[#141413] text-white font-bold'
-                            : 'text-[#171717] hover:bg-[#F4F1EC] font-medium'
+                            ? 'bg-[#161615] text-white font-medium'
+                            : 'text-[#161615] hover:bg-[#F2EFE9]'
                         }`}
                       >
                         <span className="inline-flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 rounded-full bg-current" />
+                          <span className="h-2 w-2 rounded-full bg-current" />
                           <span>Все бренды группы</span>
                         </span>
                       </button>
@@ -571,7 +571,7 @@ export function AppShell() {
                         .filter((b) => !b.isStrategyInDevelopment)
                         .map((b) => {
                           const isSelected = brandFilter === b.code || brandFilter === b.id;
-                          const dotColor = b.code === 'BORNERS' ? '#D97745' : '#8B8078';
+                          const dotColor = b.code === 'BORNERS' ? '#B85D35' : '#7D7268';
                           return (
                             <button
                               key={b.id}
@@ -580,22 +580,22 @@ export function AppShell() {
                                 setBrandFilter(b.code);
                                 setBrandDropdownOpen(false);
                               }}
-                              className={`w-full px-3 py-2.5 rounded-xl text-left flex items-center justify-between cursor-pointer ${
+                              className={`w-full px-3 py-2 rounded-[5px] text-left flex items-center justify-between cursor-pointer ${
                                 isSelected
-                                  ? 'bg-[#141413] text-white font-bold'
-                                  : 'text-[#171717] hover:bg-[#F4F1EC] font-medium'
+                                  ? 'bg-[#161615] text-white font-medium'
+                                  : 'text-[#161615] hover:bg-[#F2EFE9]'
                               }`}
                             >
                               <span className="inline-flex items-center gap-2">
                                 <span
-                                  className="h-2.5 w-2.5 rounded-full"
+                                  className="h-2 w-2 rounded-full"
                                   style={{ backgroundColor: dotColor }}
                                 />
                                 <span>{b.name}</span>
                               </span>
                               <span
-                                className={`text-[11px] ${
-                                  isSelected ? 'text-neutral-300' : 'text-[#6E6A64]'
+                                className={`font-mono text-[10px] uppercase ${
+                                  isSelected ? 'text-neutral-300' : 'text-[#8C867E]'
                                 }`}
                               >
                                 Активен
@@ -604,7 +604,7 @@ export function AppShell() {
                           );
                         })}
 
-                      <div className="pt-2 mt-1 border-t border-[#EAE6DF] px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#6E6A64]">
+                      <div className="pt-2 mt-1 border-t border-[#E5E0D8] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[#8C867E]">
                         В проработке стратегии
                       </div>
 
@@ -622,14 +622,14 @@ export function AppShell() {
                                 'Сейчас формируется стратегия и позиционирование бренда'
                               );
                             }}
-                            className="w-full px-3 py-2 rounded-xl text-left flex items-center justify-between text-[#6E6A64] hover:bg-[#F4F1EC] cursor-not-allowed"
+                            className="w-full px-3 py-2 rounded-[5px] text-left flex items-center justify-between text-[#8C867E] hover:bg-[#F2EFE9] cursor-not-allowed"
                           >
                             <span className="inline-flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-[#A3A39E]" />
+                              <span className="h-1.5 w-1.5 rounded-full bg-[#B8B2A8]" />
                               <span>{b.name}</span>
                             </span>
-                            <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#F4F1EC] border border-[#EAE6DF]">
-                              в разработке
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#F2EFE9] border border-[#E5E0D8]">
+                              2027
                             </span>
                           </button>
                         ))}
@@ -639,51 +639,54 @@ export function AppShell() {
               </div>
             </div>
 
-            {/* Правая группа: идеальная симметрия капсул h-10 */}
-            <div className="flex items-center gap-2.5 shrink-0">
-              {/* Переключатель: Работа vs Презентация */}
-              <div className="flex items-center h-10 bg-white p-1 rounded-full border border-[#EAE6DF] shadow-2xs">
+            {/* Правая группа: строгая симметрия h-9 без эмодзи */}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Переключатель: Платформа vs Презентация */}
+              <div className="flex items-center h-9 bg-[#F2EFE9] p-0.5 rounded-[6px] border border-[#E5E0D8]">
                 <button
                   onClick={() => setPlatformMode('management')}
-                  className={`h-8 px-4 rounded-full text-[13px] font-bold transition cursor-pointer ${
+                  className={`h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
                     platformMode === 'management'
-                      ? 'bg-[#141413] text-white'
-                      : 'text-[#6E6A64] hover:text-[#171717]'
+                      ? 'bg-white text-[#161615] shadow-2xs'
+                      : 'text-[#6E6A63] hover:text-[#161615]'
                   }`}
                 >
-                  Платформа
+                  Рабочая система
                 </button>
                 <button
                   onClick={() => setPlatformMode('strategy')}
-                  className={`h-8 px-4 rounded-full text-[13px] font-bold transition cursor-pointer ${
+                  className={`h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
                     platformMode === 'strategy'
-                      ? 'bg-[#D97745] text-white'
-                      : 'text-[#171717] hover:text-[#D97745]'
+                      ? 'bg-[#161615] text-white'
+                      : 'text-[#6E6A63] hover:text-[#161615]'
                   }`}
                 >
-                  🎬 Презентация
+                  Презентация стратегии
                 </button>
               </div>
 
               {/* Поиск */}
               <button
                 onClick={() => setSearchModalOpen(true)}
-                className="inline-flex items-center gap-2 h-10 rounded-full bg-white border border-[#EAE6DF] hover:border-[#171717] px-4 text-[13px] font-semibold text-[#171717] transition cursor-pointer shadow-2xs"
+                className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-white border border-[#E5E0D8] hover:border-[#161615] px-3 text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
               >
-                <Search className="h-4 w-4 text-[#6E6A64]" />
+                <Search className="h-3.5 w-3.5 text-[#6E6A63]" />
                 <span className="hidden sm:inline">Поиск</span>
+                <span className="hidden md:inline font-mono text-[10px] text-[#8C867E] border border-[#E5E0D8] rounded-[3px] px-1">
+                  ⌘K
+                </span>
               </button>
 
               {/* Профиль */}
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="inline-flex items-center gap-2 h-10 rounded-full bg-white border border-[#EAE6DF] pl-2 pr-3.5 text-[13px] font-semibold cursor-pointer transition shadow-2xs"
+                  className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-white border border-[#E5E0D8] hover:border-[#161615] pl-2 pr-3 text-[12.5px] font-medium cursor-pointer transition"
                 >
-                  <span className="h-6 w-6 rounded-full bg-[#141413] text-white flex items-center justify-center text-[11px] font-bold">
+                  <span className="h-5 w-5 rounded-[4px] bg-[#161615] text-white flex items-center justify-center font-mono text-[10px]">
                     {currentUser.avatarInitials}
                   </span>
-                  <span className="hidden sm:inline text-[#171717]">
+                  <span className="hidden sm:inline text-[#161615]">
                     {ROLE_LABELS_RU[currentUser.role]}
                   </span>
                 </button>
