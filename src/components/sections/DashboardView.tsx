@@ -268,211 +268,274 @@ export function DashboardView() {
       </div>
 
       {/* =====================================================================
-          2. СТРОГАЯ СЕТКА 4 КЛЮЧЕВЫХ ПОКАЗАТЕЛЕЙ (АРХИТЕКТУРНЫЕ КАРТОЧКИ)
+          2. § 01 · КЛЮЧЕВЫЕ ПОКАЗАТЕЛИ ПОРТФЕЛЯ С ИНДИКАТОРАМИ СТРУКТУРЫ
       ===================================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div
-          onClick={() => navigateTo('finance')}
-          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
-        >
-          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
-            <span>01 / План выручки 2027</span>
-            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
-          </div>
-          <div className="mt-4">
-            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
-              {hasFinanceAccess ? formatCompactRub(kpiTotals.totalPlanYear) : 'Скрыто'}
-            </div>
-            <div className="text-[12.5px] text-[#6E6A63] mt-2">
-              Сценарий: <span className="font-medium text-[#161615]">{SCENARIO_LABELS_RU[financialScenario]}</span>
-            </div>
-          </div>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-2">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[#7A756D]">
+            § 01 · ФИНАНСОВАЯ И ПРОДУКТОВАЯ ТЕЛЕМЕТРИЯ ХОЛДИНГА (2027)
+          </span>
+          <span className="font-mono text-[10.5px] text-[#8C867E]">
+            СЦЕНАРИЙ: {SCENARIO_LABELS_RU[financialScenario].toUpperCase()}
+          </span>
         </div>
 
-        <div
-          onClick={() => navigateTo('finance')}
-          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
-        >
-          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
-            <span>02 / Операционная прибыль</span>
-            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
-          </div>
-          <div className="mt-4">
-            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
-              {hasFinanceAccess
-                ? formatCompactRub(kpiTotals.totalPlanProfitYear)
-                : 'Скрыто'}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            onClick={() => navigateTo('finance')}
+            className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
+          >
+            <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+              <span>01 / План выручки 2027</span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
             </div>
-            <div className="text-[12.5px] text-[#1F6E50] font-medium mt-2">
-              Расчётная валовая маржа: {kpiTotals.avgMargin}%
+            <div className="mt-4 space-y-2.5">
+              <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
+                {hasFinanceAccess ? formatCompactRub(kpiTotals.totalPlanYear) : 'Скрыто'}
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-[#EFECE5] overflow-hidden flex">
+                <div className="h-full bg-[#161615]" style={{ width: '66%' }} />
+                <div className="h-full bg-[#9E9589]" style={{ width: '34%' }} />
+              </div>
+              <div className="flex items-center justify-between text-[11.5px] text-[#6E6A63]">
+                <span>BORNERS 66% · НА ТЕЛЕ 34%</span>
+                <span className="font-mono text-[#161615]">{SCENARIO_LABELS_RU[financialScenario]}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div
-          onClick={() => navigateTo('product-lab')}
-          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
-        >
-          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
-            <span>03 / Лаборатория R&amp;D</span>
-            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
-          </div>
-          <div className="mt-4">
-            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
-              {filteredConcepts.length} моделей
+          <div
+            onClick={() => navigateTo('finance')}
+            className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
+          >
+            <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+              <span>02 / Операционная прибыль</span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
             </div>
-            <div className="text-[12.5px] text-[#6E6A63] mt-2">
-              В проработке на 7 этапах доски
+            <div className="mt-4 space-y-2.5">
+              <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
+                {hasFinanceAccess
+                  ? formatCompactRub(kpiTotals.totalPlanProfitYear)
+                  : 'Скрыто'}
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-[#EFECE5] overflow-hidden">
+                <div
+                  className="h-full bg-[#1F6E50]"
+                  style={{ width: `${Math.min(100, Math.max(25, kpiTotals.avgMargin))}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11.5px] text-[#1F6E50] font-medium">
+                <span>Расчётная маржа SKU: {kpiTotals.avgMargin}%</span>
+                <span className="font-mono text-[#6E6A63]">Цель ≥ 68%</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div
-          onClick={() => navigateTo('product-catalog')}
-          className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
-        >
-          <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
-            <span>04 / Матрица и Релизы</span>
-            <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
-          </div>
-          <div className="mt-4">
-            <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
-              {filteredProducts.length} SKU · {filteredLaunches.length} релиза
+          <div
+            onClick={() => navigateTo('product-lab')}
+            className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
+          >
+            <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+              <span>03 / Лаборатория R&amp;D</span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
             </div>
-            <div className="text-[12.5px] text-[#6E6A63] mt-2">
-              Пропорция 70% База / 30% Капсулы
+            <div className="mt-4 space-y-2.5">
+              <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
+                {filteredConcepts.length} моделей
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-[#EFECE5] overflow-hidden flex">
+                <div className="h-full bg-[#161615]" style={{ width: '55%' }} />
+                <div className="h-full bg-[#B85D35]" style={{ width: '27%' }} />
+              </div>
+              <div className="flex items-center justify-between text-[11.5px] text-[#6E6A63]">
+                <span>На 7 этапах отбора</span>
+                <span className="font-mono text-[#161615]">4 проверки ОТК</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            onClick={() => navigateTo('product-catalog')}
+            className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] hover:border-[#161615] p-5 flex flex-col justify-between cursor-pointer transition"
+          >
+            <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+              <span>04 / Матрица и Релизы</span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-[#8C867E]" />
+            </div>
+            <div className="mt-4 space-y-2.5">
+              <div className="font-serif-editorial text-[34px] font-semibold tracking-tight text-[#161615] leading-none">
+                {filteredProducts.length} SKU · {filteredLaunches.length} релиза
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-[#EFECE5] overflow-hidden flex">
+                <div className="h-full bg-[#161615]" style={{ width: '70%' }} />
+                <div className="h-full bg-[#B85D35]" style={{ width: '30%' }} />
+              </div>
+              <div className="flex items-center justify-between text-[11.5px] text-[#6E6A63]">
+                <span>Формула 70% Core / 30% Drop</span>
+                <span className="font-mono text-[#161615]">2–3 pack</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* =====================================================================
-          3. ДВА ФЛАГМАНСКИХ БРЕНДА С РЕАЛЬНЫМИ СТУДИЙНЫМИ ФОТОГРАФИЯМИ
+          3. § 02 · ДВА ФЛАГМАНСКИХ БРЕНДА В ПАСПОРТНОЙ РАМКЕ ОБРАЗЦА (TECH-PACK)
       ===================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {activeBrands.map((brand) => {
-          const isBorners = brand.code === 'BORNERS';
-          const accentColor = isBorners ? '#B85D35' : '#7D7268';
-          const brandProducts = products.filter(
-            (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
-          );
-          const brandConcepts = concepts.filter(
-            (c) =>
-              !c.isArchived &&
-              !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
-              (c.brandId === brand.code || c.brandId === brand.id)
-          );
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-2">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[#7A756D]">
+            § 02 · ФЛАГМАНСКИЕ БРЕНДЫ ПОРТФЕЛЯ И РЕФЕРЕНСЫ ОБРАЗЦОВ
+          </span>
+          <button
+            type="button"
+            onClick={() => navigateTo('brand-strategy')}
+            className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#161615] hover:underline cursor-pointer"
+          >
+            ОТКРЫТЬ ПАСПОРТА 14 БЛОКОВ ↗
+          </button>
+        </div>
 
-          return (
-            <div
-              key={brand.id}
-              className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between"
-            >
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-[#E5E0D8]">
-                  <div className="sm:col-span-5 h-56 sm:h-auto bg-[#F2EFE9] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] overflow-hidden">
-                    <img
-                      src={brand.heroImage}
-                      alt={brand.name}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {activeBrands.map((brand) => {
+            const isBorners = brand.code === 'BORNERS';
+            const accentColor = isBorners ? '#B85D35' : '#7D7268';
+            const brandProducts = products.filter(
+              (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
+            );
+            const brandConcepts = concepts.filter(
+              (c) =>
+                !c.isArchived &&
+                !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
+                (c.brandId === brand.code || c.brandId === brand.id)
+            );
 
-                  <div className="sm:col-span-7 p-6 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
-                        <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: accentColor }}
-                        />
-                        <span>{brand.segment}</span>
+            return (
+              <div
+                key={brand.id}
+                className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between"
+              >
+                <div>
+                  <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-[#E5E0D8]">
+                    {/* Паспортная студийная рамка образца (Tech-Pack Specimen Frame), чтобы фото с фабрики смотрелось как лабораторный паспорт */}
+                    <div className="sm:col-span-5 p-4 bg-[#F3EFE8] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] flex flex-col justify-between gap-2.5">
+                      <div className="flex items-center justify-between font-mono text-[9.5px] uppercase tracking-[0.14em] text-[#7A756D]">
+                        <span>{isBorners ? 'SPECIMEN #BRN-01' : 'SPECIMEN #NTL-01'}</span>
+                        <span>LAB ARCHIVE</span>
                       </div>
-                      <h2 className="font-serif-editorial text-[30px] font-semibold tracking-tight text-[#161615] leading-none">
-                        {brand.name}
-                      </h2>
-                      <p className="text-[13.5px] font-medium text-[#161615]">
-                        {brand.tagline}
-                      </p>
-                      <p className="text-[13px] text-[#6E6A63] leading-relaxed line-clamp-3">
-                        {brand.description}
-                      </p>
+                      <div className="h-44 w-full rounded-[4px] bg-white border border-[#E5E0D8] overflow-hidden p-1.5">
+                        <img
+                          src={brand.heroImage}
+                          alt={brand.name}
+                          className="h-full w-full object-cover rounded-[2px]"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between font-mono text-[9.5px] text-[#6E6A63] pt-0.5">
+                        <span>
+                          {isBorners ? 'Modal 92% · 190 г/м²' : 'Polyamide 78% · Free-Cut'}
+                        </span>
+                        <span className="text-[#161615] font-medium">
+                          {isBorners ? 'Core + Print' : '6 Skin Tones'}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-3 pt-4 border-t border-[#E5E0D8]">
-                      <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                          План 2027
+                    <div className="sm:col-span-7 p-6 flex flex-col justify-between space-y-4">
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[0.12em] text-[#7A756D]">
+                          <span
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: accentColor }}
+                          />
+                          <span>{brand.segment}</span>
                         </div>
-                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
-                          {hasFinanceAccess
-                            ? formatCompactRub(brand.plannedRevenue2027Rub)
-                            : '—'}
-                        </div>
+                        <h2 className="font-serif-editorial text-[30px] font-semibold tracking-tight text-[#161615] leading-none">
+                          {brand.name}
+                        </h2>
+                        <p className="text-[13.5px] font-medium text-[#161615]">
+                          {brand.tagline}
+                        </p>
+                        <p className="text-[13px] text-[#6E6A63] leading-relaxed line-clamp-3">
+                          {brand.description}
+                        </p>
                       </div>
-                      <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                          Маржа
+
+                      <div className="grid grid-cols-4 gap-3 pt-4 border-t border-[#E5E0D8]">
+                        <div>
+                          <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                            План 2027
+                          </div>
+                          <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                            {hasFinanceAccess
+                              ? formatCompactRub(brand.plannedRevenue2027Rub)
+                              : '—'}
+                          </div>
                         </div>
-                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
-                          {hasFinanceAccess ? `${brand.targetMarginPct}%` : '—'}
+                        <div>
+                          <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                            Маржа
+                          </div>
+                          <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                            {hasFinanceAccess ? `${brand.targetMarginPct}%` : '—'}
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                          Матрица
+                        <div>
+                          <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                            Матрица
+                          </div>
+                          <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                            {brandProducts.length} SKU
+                          </div>
                         </div>
-                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
-                          {brandProducts.length} SKU
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                          R&amp;D
-                        </div>
-                        <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
-                          {brandConcepts.length} мод.
+                        <div>
+                          <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                            R&amp;D
+                          </div>
+                          <div className="text-[15px] font-semibold text-[#161615] mt-0.5">
+                            {brandConcepts.length} мод.
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-3 divide-x divide-[#E5E0D8] bg-[#F8F6F2]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBrandFilter(brand.code);
-                    navigateTo('brand-strategy');
-                  }}
-                  className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
-                >
-                  Стратегия (14 блоков)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBrandFilter(brand.code);
-                    navigateTo('product-lab');
-                  }}
-                  className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
-                >
-                  Product Lab ({brandConcepts.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBrandFilter(brand.code);
-                    navigateTo('product-catalog');
-                  }}
-                  className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
-                >
-                  Каталог SKU ({brandProducts.length})
-                </button>
+                <div className="grid grid-cols-3 divide-x divide-[#E5E0D8] bg-[#F8F6F2]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandFilter(brand.code);
+                      navigateTo('brand-strategy');
+                    }}
+                    className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
+                  >
+                    Стратегия (14 блоков)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandFilter(brand.code);
+                      navigateTo('product-lab');
+                    }}
+                    className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
+                  >
+                    Product Lab ({brandConcepts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandFilter(brand.code);
+                      navigateTo('product-catalog');
+                    }}
+                    className="h-10 px-3 text-[12.5px] font-medium text-[#161615] hover:bg-[#161615] hover:text-white transition cursor-pointer"
+                  >
+                    Каталог SKU ({brandProducts.length})
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Компактная плашка брендов в проработке (Акуша и Liskani) */}
@@ -494,11 +557,25 @@ export function DashboardView() {
       )}
 
       {/* =====================================================================
-          4. НИЖНИЙ РЯД: СЛЕВА ГРАФИК 2027, СПРАВА БЛИЖАЙШИЕ ЗАПУСКИ
+          4. § 03 · НИЖНИЙ РЯД: СЛЕВА ГРАФИК 2027, СПРАВА БЛИЖАЙШИЕ ЗАПУСКИ
       ===================================================================== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* График выручки и прибыли по месяцам */}
-        <div className="lg:col-span-7 rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-5">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-2">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[#7A756D]">
+            § 03 · ОПЕРАЦИОННЫЙ РАДАР: ПОМЕСЯЧНЫЙ P&amp;L И КАЛЕНДАРЬ РЕЛИЗОВ
+          </span>
+          <button
+            type="button"
+            onClick={() => navigateTo('launch-calendar')}
+            className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#161615] hover:underline cursor-pointer"
+          >
+            ВСЕ РЕЛИЗЫ И ЧЕК-ЛИСТЫ ↗
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* График выручки и прибыли по месяцам */}
+          <div className="lg:col-span-7 rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E0D8] pb-4">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
@@ -654,6 +731,7 @@ export function DashboardView() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -47,37 +47,58 @@ const SIMPLE_NAV_ITEMS: {
   id: NavSectionId;
   step: string;
   label: string;
+  subtitle: string;
 }[] = [
   {
     id: 'dashboard',
     step: '01',
     label: 'Дашборд и Сводка',
+    subtitle: 'Сводка KPI и пульс холдинга',
   },
   {
     id: 'product-lab',
     step: '02',
     label: 'Лаборатория R&D',
+    subtitle: '7 этапов отбора и образцы',
   },
   {
     id: 'brand-strategy',
     step: '03',
     label: 'Стратегия брендов',
+    subtitle: 'Паспорта 14 блоков ДНК',
   },
   {
     id: 'product-catalog',
     step: '04',
     label: 'Каталог моделей',
+    subtitle: 'Матрица 70/30 и юнит-маржа',
   },
   {
     id: 'launch-calendar',
     step: '05',
     label: 'Календарь запусков',
+    subtitle: 'Релизы коллекций и чек-листы',
   },
   {
     id: 'finance',
     step: '06',
     label: 'Финансы 2027',
+    subtitle: '3 сценария P&L и План/Факт',
   },
+];
+
+const OPERATIONAL_NAV_ITEMS: {
+  id: NavSectionId;
+  step: string;
+  label: string;
+}[] = [
+  { id: 'brand-portfolio', step: '07', label: 'Портфель брендов' },
+  { id: 'marketing-growth', step: '08', label: 'Маркетинг и рост' },
+  { id: 'market-intelligence', step: '09', label: 'Рынок и конкуренты' },
+  { id: 'roadmap-tasks', step: '10', label: 'Задачи и проекты' },
+  { id: 'documents', step: '11', label: 'Документы и ТЗ' },
+  { id: 'team', step: '12', label: 'Команда и роли' },
+  { id: 'settings', step: '13', label: 'Настройки системы' },
 ];
 
 const NAV_GROUPS: NavGroup[] = [
@@ -359,13 +380,13 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР: швейцарская архитектурная сетка без декоративных полосок и ИИ-плашек */}
+        {/* ЛЕВЫЙ САЙДБАР: швейцарская архитектурная колонка с живой телеметрией разделов и пульсом портфеля */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[248px] bg-[#FDFCFA] dark:bg-zinc-900 border-r border-[#E5E0D8] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[276px] bg-[#FDFCFA] dark:bg-zinc-900 border-r border-[#E5E0D8] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className=" overflow-y-auto">
+          <div className="overflow-y-auto flex-1">
             {/* Архитектурный логотип группы (ровно в высоту верхнего хедера h-14 для идеального совпадения линий) */}
             <div className="h-14 px-5 border-b border-[#E5E0D8] dark:border-zinc-800 flex items-center justify-between">
               <button
@@ -375,10 +396,10 @@ export function AppShell() {
                 }}
                 className="text-left cursor-pointer flex items-baseline gap-2.5 group"
               >
-                <span className="font-serif-editorial text-[21px] font-semibold tracking-[0.03em] text-[#161615] dark:text-white leading-none">
+                <span className="font-serif-editorial text-[22px] font-semibold tracking-[0.03em] text-[#161615] dark:text-white leading-none">
                   BORNERS
                 </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#7A756D]">
+                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#7A756D]">
                   GROUP · 27
                 </span>
               </button>
@@ -390,97 +411,214 @@ export function AppShell() {
               </button>
             </div>
 
-            {/* Меню разделов: чистая типографика, моноширинные индексы без цветных квадратиков */}
-            <nav className="p-4 space-y-1">
-              <div className="px-2.5 pb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
-                Разделы системы
-              </div>
+            {/* КОНТУР I: Ключевые разделы с живыми счётчиками и описанием роли */}
+            <nav className="p-3.5 space-y-4">
+              <div className="space-y-1.5">
+                <div className="px-2 pb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-[#8C867E]">
+                  <span>I · Ядро системы</span>
+                  <span>01—06</span>
+                </div>
 
-              {SIMPLE_NAV_ITEMS.filter((item) =>
-                canUserAccessSection(currentUser, item.id)
-              ).map((item) => {
-                const isActive = platformMode === 'management' && activeSection === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setPlatformMode('management');
-                      navigateTo(item.id);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full h-9 rounded-[6px] px-2.5 flex items-center justify-between text-left transition-colors cursor-pointer ${
-                      isActive
-                        ? 'bg-[#161615] text-[#F8F6F2] font-medium'
-                        : 'text-[#3D3B38] hover:bg-[#F2EFE9] hover:text-[#161615] font-normal'
-                    }`}
-                  >
-                    <span className="text-[13.5px] tracking-[-0.01em] truncate">
-                      {item.label}
-                    </span>
-                    <span
-                      className={`font-mono text-[11px] shrink-0 ${
-                        isActive ? 'text-[#A39E93]' : 'text-[#9E988E]'
+                {SIMPLE_NAV_ITEMS.filter((item) =>
+                  canUserAccessSection(currentUser, item.id)
+                ).map((item) => {
+                  const isActive = platformMode === 'management' && activeSection === item.id;
+
+                  const activeConceptsCount = concepts.filter((c) => !c.isArchived).length;
+                  const activeProductsCount = products.filter((p) => !p.isArchived).length;
+                  const activeLaunchesCount = launches.filter((l) => !l.isArchived).length;
+
+                  const badgeText =
+                    item.id === 'dashboard'
+                      ? 'Сводка'
+                      : item.id === 'product-lab'
+                      ? `${activeConceptsCount} мод.`
+                      : item.id === 'brand-strategy'
+                      ? '28 бл.'
+                      : item.id === 'product-catalog'
+                      ? `${activeProductsCount} SKU`
+                      : item.id === 'launch-calendar'
+                      ? `${activeLaunchesCount} рел.`
+                      : '3 сцен.';
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setPlatformMode('management');
+                        navigateTo(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full rounded-[6px] px-3 py-2.5 text-left transition-all cursor-pointer border ${
+                        isActive
+                          ? 'bg-[#161615] text-[#F8F6F2] border-[#161615]'
+                          : 'bg-[#FDFCFA] text-[#161615] border-transparent hover:bg-[#F3EFE8] hover:border-[#E5E0D8]'
                       }`}
                     >
-                      {item.step}
-                    </span>
-                  </button>
-                );
-              })}
-
-              {/* Дополнительные разделы */}
-              {!simpleMode && (
-                <div className="pt-4 mt-4 border-t border-[#E5E0D8] space-y-1">
-                  <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
-                    Операционный контур
-                  </div>
-                  {[
-                    { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
-                    { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' },
-                    { id: 'marketing-growth' as NavSectionId, label: 'Маркетинг и рост' },
-                    { id: 'roadmap-tasks' as NavSectionId, label: 'Задачи и проекты' },
-                    { id: 'documents' as NavSectionId, label: 'Документы и файлы' },
-                    { id: 'team' as NavSectionId, label: 'Команда и роли' },
-                    { id: 'settings' as NavSectionId, label: 'Настройки' },
-                  ]
-                    .filter((item) => canUserAccessSection(currentUser, item.id))
-                    .map((item) => {
-                      const isActive =
-                        platformMode === 'management' && activeSection === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => {
-                            setPlatformMode('management');
-                            navigateTo(item.id);
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full h-9 rounded-[6px] px-2.5 flex items-center text-left text-[13px] transition-colors cursor-pointer ${
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`font-mono text-[10px] uppercase tracking-[0.12em] shrink-0 ${
+                              isActive ? 'text-[#A39E93]' : 'text-[#8C867E]'
+                            }`}
+                          >
+                            {item.step}
+                          </span>
+                          <span className="text-[13px] font-medium tracking-[-0.01em] truncate">
+                            {item.label}
+                          </span>
+                        </div>
+                        <span
+                          className={`px-1.5 py-0.5 rounded-[4px] font-mono text-[10px] shrink-0 ${
                             isActive
-                              ? 'bg-[#161615] text-[#F8F6F2] font-medium'
-                              : 'text-[#6E6A63] hover:text-[#161615] hover:bg-[#F2EFE9]'
+                              ? 'bg-white/12 text-[#E5E0D8]'
+                              : 'bg-[#F2EFE9] text-[#6E6A63] border border-[#E5E0D8]'
                           }`}
                         >
-                          <span className="truncate">{item.label}</span>
-                        </button>
-                      );
-                    })}
+                          {badgeText}
+                        </span>
+                      </div>
+                      <div
+                        className={`text-[11px] mt-0.5 pl-[22px] truncate ${
+                          isActive ? 'text-[#B8B2A8]' : 'text-[#7A756D]'
+                        }`}
+                      >
+                        {item.subtitle}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* КОНТУР II: Операционное управление и аналитика (всегда на виду, чтобы не было пустоты) */}
+              <div className="pt-3 border-t border-[#E5E0D8] space-y-1">
+                <div className="px-2 pb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-[#8C867E]">
+                  <span>II · Операции и штаб</span>
+                  <span>07—13</span>
                 </div>
-              )}
+
+                {OPERATIONAL_NAV_ITEMS.filter((item) =>
+                  canUserAccessSection(currentUser, item.id)
+                ).map((item) => {
+                  const isActive =
+                    platformMode === 'management' && activeSection === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setPlatformMode('management');
+                        navigateTo(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full h-8 rounded-[6px] px-2.5 flex items-center justify-between text-left text-[12.5px] transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-[#161615] text-[#F8F6F2] font-medium'
+                          : 'text-[#5C5852] hover:text-[#161615] hover:bg-[#F3EFE8]'
+                      }`}
+                    >
+                      <span className="truncate">{item.label}</span>
+                      <span
+                        className={`font-mono text-[10px] shrink-0 ${
+                          isActive ? 'text-[#A39E93]' : 'text-[#9E988E]'
+                        }`}
+                      >
+                        {item.step}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* КОНТУР III: Пульс брендов в сайдбаре (быстрый фильтр + сводка портфеля) */}
+              <div className="pt-3 border-t border-[#E5E0D8] space-y-2">
+                <div className="px-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-[#8C867E]">
+                  <span>III · Фокус портфеля</span>
+                  <span>{brandFilter === 'ALL' ? 'ГРУППА' : brandFilter}</span>
+                </div>
+
+                <div className="rounded-[6px] border border-[#E5E0D8] bg-[#F8F6F2] p-2.5 space-y-2">
+                  {[
+                    {
+                      code: 'ALL' as const,
+                      title: 'Все бренды группы',
+                      meta: `${products.filter((p) => !p.isArchived).length} SKU · ${
+                        concepts.filter((c) => !c.isArchived).length
+                      } R&D`,
+                      dot: '#161615',
+                    },
+                    {
+                      code: 'BORNERS' as const,
+                      title: 'BORNERS',
+                      meta: `${
+                        products.filter((p) => !p.isArchived && p.brandId === 'BORNERS').length
+                      } SKU · ${
+                        concepts.filter((c) => !c.isArchived && c.brandId === 'BORNERS').length
+                      } R&D`,
+                      dot: '#B85D35',
+                    },
+                    {
+                      code: 'NA_TELE' as const,
+                      title: 'НА ТЕЛЕ',
+                      meta: `${
+                        products.filter((p) => !p.isArchived && p.brandId === 'NA_TELE').length
+                      } SKU · ${
+                        concepts.filter((c) => !c.isArchived && c.brandId === 'NA_TELE').length
+                      } R&D`,
+                      dot: '#7D7268',
+                    },
+                  ].map((b) => {
+                    const selected = brandFilter === b.code;
+                    return (
+                      <button
+                        key={b.code}
+                        type="button"
+                        onClick={() => setBrandFilter(b.code)}
+                        className={`w-full px-2.5 py-1.5 rounded-[4px] flex items-center justify-between text-left transition cursor-pointer ${
+                          selected
+                            ? 'bg-[#FDFCFA] border border-[#161615] text-[#161615] font-medium'
+                            : 'hover:bg-[#FDFCFA] text-[#5C5852] border border-transparent'
+                        }`}
+                      >
+                        <span className="inline-flex items-center gap-2 text-[12px] truncate">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: b.dot }}
+                          />
+                          <span className="truncate">{b.title}</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-[#7A756D] shrink-0">
+                          {b.meta}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </nav>
           </div>
 
-          {/* Нижняя панель сайдбара */}
-          <div className="p-4 border-t border-[#E5E0D8] dark:border-zinc-800 space-y-2">
+          {/* Нижняя карточка сайдбара: Быстрый вход в Презентацию совета директоров */}
+          <div className="p-3.5 border-t border-[#E5E0D8] dark:border-zinc-800 bg-[#F8F6F2]/70">
             <button
               type="button"
-              onClick={() => setSimpleMode(!simpleMode)}
-              className="w-full h-8 px-3 rounded-[6px] border border-[#E5E0D8] bg-white hover:border-[#161615] text-[12px] font-medium text-[#3D3B38] transition cursor-pointer flex items-center justify-between"
+              onClick={() =>
+                setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy')
+              }
+              className={`w-full rounded-[6px] p-3 text-left transition cursor-pointer border ${
+                platformMode === 'strategy'
+                  ? 'bg-[#161615] text-[#F8F6F2] border-[#161615]'
+                  : 'bg-[#FDFCFA] hover:bg-[#161615] text-[#161615] hover:text-[#F8F6F2] border-[#E5E0D8] group'
+              }`}
             >
-              <span>{simpleMode ? 'Все разделы системы' : 'Только основные разделы'}</span>
-              <span className="font-mono text-[11px] text-[#8C867E]">
-                {simpleMode ? '13' : '06'}
-              </span>
+              <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] opacity-75">
+                <span>BOARDROOM DECK</span>
+                <span>08 СЛАЙДОВ ↗</span>
+              </div>
+              <div className="font-serif-editorial text-[17px] font-medium mt-0.5 leading-snug">
+                {platformMode === 'strategy'
+                  ? 'Вернуться в рабочую систему'
+                  : 'Презентация стратегии 2027'}
+              </div>
             </button>
           </div>
         </aside>
