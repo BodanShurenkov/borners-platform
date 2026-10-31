@@ -482,9 +482,10 @@ export function StrategyPresentationDeck({
             </div>
           </div>
 
-          {/* Карточки брендов портфеля */}
+          {/* Карточки брендов портфеля в паспортной рамке Tech-Pack */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {activeBrands.map((b) => {
+              const isBorners = b.code === 'BORNERS';
               const bProducts = products.filter(
                 (p) => !p.isArchived && (p.brandId === b.code || p.brandId === b.id)
               );
@@ -500,12 +501,26 @@ export function StrategyPresentationDeck({
                   key={b.id}
                   className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden grid grid-cols-1 sm:grid-cols-12"
                 >
-                  <div className="sm:col-span-5 h-56 sm:h-auto bg-[#F2EFE9] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] overflow-hidden">
-                    <img
-                      src={b.heroImage}
-                      alt={b.name}
-                      className="h-full w-full object-cover"
-                    />
+                  <div className="sm:col-span-5 p-4 bg-[#F3EFE8] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] flex flex-col justify-between gap-2.5">
+                    <div className="flex items-center justify-between font-mono text-[9.5px] uppercase tracking-[0.14em] text-[#7A756D]">
+                      <span>{isBorners ? 'SPECIMEN #BRN-01' : 'SPECIMEN #NTL-01'}</span>
+                      <span>LAB ARCHIVE</span>
+                    </div>
+                    <div className="h-44 w-full rounded-[4px] bg-white border border-[#E5E0D8] overflow-hidden p-1.5">
+                      <img
+                        src={b.heroImage}
+                        alt={b.name}
+                        className="h-full w-full object-cover rounded-[2px]"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between font-mono text-[9.5px] text-[#6E6A63] pt-0.5">
+                      <span>
+                        {isBorners ? 'Modal 92% · 190 г/м²' : 'Polyamide 78% · Free-Cut'}
+                      </span>
+                      <span className="text-[#161615] font-medium">
+                        {isBorners ? 'Core + Print' : '6 Skin Tones'}
+                      </span>
+                    </div>
                   </div>
                   <div className="sm:col-span-7 p-6 flex flex-col justify-between space-y-4">
                     <div className="space-y-2">
@@ -553,12 +568,12 @@ export function StrategyPresentationDeck({
             })}
           </div>
 
-          {/* Новые направления в проработке */}
+          {/* Бренды портфеля в разработке (без пометки «Новое направление») */}
           {upcomingBrands.length > 0 && (
             <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E0D8] pb-3">
                 <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#7A756D]">
-                  НОВЫЕ НАПРАВЛЕНИЯ BORNERS GROUP В ПРОРАБОТКЕ СТРАТЕГИИ (2026–2027)
+                  БРЕНДЫ BORNERS GROUP В РАЗРАБОТКЕ (2026–2027)
                 </div>
                 <span className="font-mono text-[10.5px] text-[#6E6A63]">
                   Этап: исследование ниши, подбор фабрик и расчёт экономики
@@ -572,7 +587,7 @@ export function StrategyPresentationDeck({
                   >
                     <div className="space-y-1">
                       <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                        {ub.segment}
+                        В ПРОРАБОТКЕ СТРАТЕГИИ
                       </div>
                       <div className="font-serif-editorial text-[24px] font-semibold text-[#161615] leading-none">
                         {ub.name}
@@ -1607,8 +1622,12 @@ export function StrategyPresentationDeck({
           : 'space-y-6 pb-20'
       }
     >
-      {/* ВЕРХНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ ПРЕЗЕНТАЦИЕЙ (АРХИТЕКТУРНЫЙ ДЕК) */}
-      <div className="sticky top-2 z-30 rounded-[8px] bg-[#FDFCFA]/95 backdrop-blur-md border border-[#E5E0D8] overflow-hidden shadow-xs">
+      {/* ВЕРХНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ ПРЕЗЕНТАЦИЕЙ (АРХИТЕКТУРНЫЙ ДЕК, z-20 чтобы не перекрывать выпадающие меню шапки z-50) */}
+      <div
+        className={`${
+          isFullscreen ? 'sticky top-2 z-20' : 'sticky top-[64px] z-20'
+        } rounded-[8px] bg-[#FDFCFA]/95 backdrop-blur-md border border-[#E5E0D8] overflow-hidden shadow-xs`}
+      >
         <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           {/* Левая часть: индекс слайда и фильтр бренда */}
           <div className="flex flex-wrap items-center gap-3">

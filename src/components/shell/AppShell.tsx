@@ -625,8 +625,8 @@ export function AppShell() {
 
         {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* ВЕРХНЯЯ ПАНЕЛЬ: единая высота h-14, строгая геометрия rounded-[6px] */}
-          <header className="sticky top-0 z-30 h-14 bg-[#FDFCFA]/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E5E0D8] dark:border-zinc-800 px-6 md:px-8 flex items-center justify-between gap-4">
+          {/* ВЕРХНЯЯ ПАНЕЛЬ: единая высота h-14, строгая геометрия rounded-[6px], z-50 чтобы выпадающие списки всегда были поверх контента */}
+          <header className="sticky top-0 z-50 h-14 bg-[#FDFCFA]/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E5E0D8] dark:border-zinc-800 px-6 md:px-8 flex items-center justify-between gap-4">
             {/* Левая группа: Назад + Выпадающий список брендов */}
             <div className="flex items-center gap-2">
               <button

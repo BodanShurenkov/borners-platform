@@ -224,15 +224,15 @@ export function BrandPortfolioView() {
         })}
       </div>
 
-      {/* НОВЫЕ БРЕНДЫ В ПРОРАБОТКЕ СТРАТЕГИИ: АКУША И LISKANI */}
+      {/* БРЕНДЫ В РАЗРАБОТКЕ: АКУША И LISKANI */}
       {upcomingBrands.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[22px] font-bold text-[#171717] dark:text-white">
-              Новые бренды в проработке стратегии
+          <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-2">
+            <h3 className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-[#7A756D]">
+              БРЕНДЫ ПОРТФЕЛЯ В РАЗРАБОТКЕ (2026–2027)
             </h3>
-            <span className="text-[13px] font-medium text-[#737373]">
-              Статус: формирование позиционирования и ассортиментной матрицы
+            <span className="text-[12px] text-[#7A756D]">
+              Формирование позиционирования и ассортиментной матрицы
             </span>
           </div>
 
@@ -240,36 +240,35 @@ export function BrandPortfolioView() {
             {upcomingBrands.map((brand) => (
               <div
                 key={brand.id}
-                className="bg-white/65 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-[#E8E8E5] p-7 flex flex-col justify-between space-y-5 opacity-85"
+                className="bg-[#FDFCFA] rounded-[8px] border border-[#E5E0D8] p-6 flex flex-col justify-between space-y-4"
               >
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-[#737373]">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#A3A39E]" />
-                      <span>{brand.segment}</span>
+                    <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.14em] text-[#7A756D]">
+                      <span className="h-2 w-2 rounded-full bg-[#A3A39E]" />
+                      <span>В ПРОРАБОТКЕ СТРАТЕГИИ</span>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
-                      <span className="h-2 w-2 rounded-full bg-[#D99527]" />
-                      <span>{brand.statusNote || 'Ведётся проработка стратегии'}</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-[#F8F6F2] border border-[#E5E0D8] font-mono text-[10px] uppercase text-[#6E6A63]">
+                      <span>В разработке</span>
                     </span>
                   </div>
 
                   <div>
-                    <h2 className="text-[26px] font-bold text-[#171717] dark:text-white">
+                    <h2 className="font-serif-editorial text-[28px] font-semibold text-[#161615] leading-none">
                       {brand.name}
                     </h2>
-                    <p className="text-[15px] font-medium text-[#171717] mt-1">
+                    <p className="text-[14px] font-medium text-[#161615] mt-1.5">
                       {brand.tagline}
                     </p>
-                    <p className="text-[14px] text-[#737373] mt-2 leading-relaxed">
+                    <p className="text-[13px] text-[#6E6A63] mt-2 leading-relaxed">
                       {brand.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-dashed border-[#E8E8E5] flex items-center justify-between text-[13px] text-[#737373]">
+                <div className="pt-3.5 border-t border-[#E5E0D8] flex items-center justify-between text-[12px] text-[#7A756D]">
                   <span>Каталог SKU и финплан: в разработке</span>
-                  <span className="font-semibold">Старт проработки: 2026–2027</span>
+                  <span className="font-mono">2026–2027</span>
                 </div>
               </div>
             ))}
