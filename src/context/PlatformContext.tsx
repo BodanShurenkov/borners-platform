@@ -53,7 +53,7 @@ import {
   shiftDateString,
 } from '@/lib/finance';
 
-const STORAGE_KEY = 'borners_group_platform_state_ru_v3';
+const STORAGE_KEY = 'borners_group_platform_state_ru_v4_rnd';
 const AUTH_STORAGE_KEY = 'borners_group_auth_session_ru_v3';
 
 interface PersistedState {
@@ -131,7 +131,7 @@ interface PlatformContextValue extends PersistedState {
   // Мутации данных
   createConcept: (input: Partial<ProductConcept> & { name: string; brandId: string }) => ProductConcept;
   updateConcept: (id: string, patch: Partial<ProductConcept>) => void;
-  updateConceptStage: (id: string, stage: ConceptStage) => void;
+  updateConceptStage: (id: string, stage: ConceptStage, reason?: string) => void;
   createProductFromConcept: (conceptId: string) => Product | null;
   createProduct: (input: Partial<Product> & { name: string; sku: string; brandId: string }) => Product;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -208,8 +208,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string>('user-owner');
 
-  const [activeSection, setActiveSection] = useState<NavSectionId>('dashboard');
-  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['dashboard']);
+  const [activeSection, setActiveSection] = useState<NavSectionId>('product-lab');
+  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['product-lab']);
   const [brandFilter, setBrandFilter] = useState<BrandFilter>('ALL');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('2027');
   const [platformMode, setPlatformMode] = useState<PlatformMode>('management');
@@ -374,95 +374,123 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // 1. Создание концепции в Product Lab (п. 7, 25 ТЗ)
+  // 1. Создание концепции в Product Lab (п. 4, 6, 21 ТЗ Product Lab R&D)
   const createConcept = useCallback(
     (input: Partial<ProductConcept> & { name: string; brandId: string }): ProductConcept => {
       const id = `concept-${Date.now()}`;
-      const code = `${input.brandId === 'NA_TELE' ? 'NTL' : 'BRN'}-LAB-${Math.floor(1000 + Math.random() * 9000)}`;
+      const nextNum = state.concepts.length + 21;
+      const code = input.code || `RD-0${nextNum}`;
       const now = new Date().toISOString().slice(0, 10);
+      const nowTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
       const defaultImage =
         input.imageUrl ||
         (input.brandId === 'NA_TELE'
           ? 'images/products/natele-skin-tone.svg'
-          : 'images/products/borners-big-love.svg');
+          : 'images/products/borners-core-modal.svg');
 
       const newConcept: ProductConcept = {
         id,
         code,
         name: input.name,
         brandId: input.brandId,
-        collectionName: input.collectionName || 'Новая коллекция 2027',
+        collectionName: input.collectionName || 'Разработка R&D',
         stage: input.stage || 'IDEA',
+        developmentType: input.developmentType || 'new_construction',
+        priority: input.priority || 'Medium',
+        tags: input.tags || [],
+        nextStep: input.nextStep || 'Назначить ответственного и сформулировать суть идеи для анализа',
+        isBlocked: Boolean(input.isBlocked),
+        blockReason: input.blockReason || '',
+        whatAttracted: input.whatAttracted || input.ideaDescription || '',
+        similarInAssortment: input.similarInAssortment || '',
+        expectedOutcome: input.expectedOutcome || '',
+        referenceLinks: input.referenceLinks || [],
         ideaDescription: input.ideaDescription || '',
         customerProblem: input.customerProblem || '',
         targetAudience: input.targetAudience || '',
         keyDifferentiators: input.keyDifferentiators || '',
         referencesNotes: input.referencesNotes || '',
         imageUrl: defaultImage,
-        colorCombinations: input.colorCombinations?.length
-          ? input.colorCombinations
-          : ['чёрный + тёмно-синий'],
-        plannedRetailPrice: Number(input.plannedRetailPrice ?? 1690),
-        plannedUnitCost: Number(input.plannedUnitCost ?? 350),
+        colorCombinations: input.colorCombinations?.length ? input.colorCombinations : [],
+        // На этапе Идеи запрещено подставлять вымышленные коммерческие показатели (п. 4.1, 6, 21 ТЗ)
+        plannedRetailPrice: Number(input.plannedRetailPrice ?? 0),
+        plannedUnitCost: Number(input.plannedUnitCost ?? 0),
         currency: 'RUB',
-        targetLaunchDate: input.targetLaunchDate || '2027-03-15',
+        targetLaunchDate: input.targetLaunchDate || '',
         ownerId: input.ownerId || currentUser.id,
-        supplierName: input.supplierName || 'Guangdong Apex Intimate Apparel Co., Ltd.',
-        sampleStatus: input.sampleStatus || 'Концепция создана',
+        authorId: currentUser.id,
+        supplierName: input.supplierName || '',
+        sampleStatus: input.sampleStatus || 'Нет данных (этап Идеи)',
         testResults: input.testResults || 'Нет данных',
-        developmentBudgetRub: Number(input.developmentBudgetRub ?? 450_000),
+        developmentBudgetRub: Number(input.developmentBudgetRub ?? 0),
         selectedDesignVersion: 1,
         designVersions: [
           {
             version: 1,
-            title: 'Первичный концепт и референс v1',
+            title: 'Первичный референс v1',
             imageUrl: defaultImage,
             authorName: currentUser.fullName,
             createdAt: now,
             status: 'draft',
-            notes: input.ideaDescription || 'Стартовая версия концепции',
+            notes: input.ideaDescription || 'Сохранённая идея',
+          },
+        ],
+        samples: input.samples || [],
+        testProtocols: input.testProtocols || [],
+        approvalDecisions: input.approvalDecisions || [],
+        productionOrders: input.productionOrders || [],
+        attachments: input.attachments || [],
+        stageHistory: [
+          {
+            id: `sh-${Date.now()}`,
+            timestamp: nowTime,
+            authorName: currentUser.fullName,
+            authorRole: currentUser.role,
+            actionType: 'created',
+            toStage: input.stage || 'IDEA',
+            reason: 'Быстрое создание продуктовой идеи в Лаборатории R&D',
           },
         ],
         comments: [],
         techPack: input.techPack || {
           zh: {
             modelName: `${input.name} (${code})`,
-            construction: input.keyDifferentiators || '人体工学立体剪裁 (Анатомический крой)',
-            material: '兰精莫代尔 (Микромодал Lenzing)',
-            compositionAndDensity: '92% модал / 8% эластан, 180 г/м²',
-            colorAndPantone: (input.colorCombinations || ['чёрный + тёмно-синий']).join(' / '),
+            construction: input.keyDifferentiators || '待定 (Определяется)',
+            material: '待定 (Определяется)',
+            compositionAndDensity: '待定',
+            colorAndPantone: (input.colorCombinations || []).join(' / ') || '待定',
             sizeGrading: 'S, M, L, XL, XXL',
-            waistbandSpec: '38mm 高弹提花腰带 (Жаккардовая резинка 38 мм)',
-            seamsSpec: '四针六线无骨平缝 (Плоский шов 4 иглы 6 нитей)',
-            packagingSpec: '定制品牌包装盒 + Честный ЗНАК',
-            qualityRequirements: '色牢度 ≥ 4级，水洗缩水率 ≤ 2%，AQL 1.5',
-            referencesNote: input.referencesNotes || 'Базовое техническое задание',
+            waistbandSpec: '待定',
+            seamsSpec: '待定',
+            packagingSpec: '待定',
+            qualityRequirements: 'AQL 1.5',
+            referencesNote: input.referencesNotes || '',
           },
           en: {
             modelName: `${input.name} (${code})`,
-            construction: input.keyDifferentiators || 'Анатомический 3D-крой передней панели',
-            material: 'Кулирная гладь Lenzing MicroModal',
-            compositionAndDensity: '92% модал / 8% эластан, 180 г/м²',
-            colorAndPantone: (input.colorCombinations || ['чёрный + тёмно-синий']).join(' / '),
+            construction: input.keyDifferentiators || 'TBD',
+            material: 'TBD',
+            compositionAndDensity: 'TBD',
+            colorAndPantone: (input.colorCombinations || []).join(' / ') || 'TBD',
             sizeGrading: 'S, M, L, XL, XXL',
-            waistbandSpec: 'Жаккардовая резинка 38 мм с мягкой изнанкой',
-            seamsSpec: 'Плоские швы (4 иглы, 6 нитей)',
-            packagingSpec: 'Фирменный пенал + маркировка ЕАС / Честный ЗНАК',
-            qualityRequirements: 'Устойчивость окраски ≥ 4, усадка ≤ 2%, AQL 1.5',
-            referencesNote: input.referencesNotes || 'Базовое ТЗ',
+            waistbandSpec: 'TBD',
+            seamsSpec: 'TBD',
+            packagingSpec: 'TBD',
+            qualityRequirements: 'AQL 1.5',
+            referencesNote: input.referencesNotes || '',
           },
           ru: {
             modelName: `${input.name} (${code})`,
-            construction: input.keyDifferentiators || 'Анатомический 3D-крой передней панели',
-            material: 'Кулирная гладь Lenzing MicroModal',
-            compositionAndDensity: '92% микромодал / 8% эластан, 180 г/м²',
-            colorAndPantone: (input.colorCombinations || ['чёрный + тёмно-синий']).join(' / '),
+            construction: input.keyDifferentiators || 'Уточняется после анализа',
+            material: 'Уточняется на этапе образца',
+            compositionAndDensity: 'Нет данных',
+            colorAndPantone: (input.colorCombinations || []).join(' / ') || 'Нет данных',
             sizeGrading: 'S, M, L, XL, XXL',
-            waistbandSpec: 'Жаккардовая резинка 38 мм с мягкой изнанкой',
-            seamsSpec: 'Плоские швы (4 иглы, 6 нитей)',
-            packagingSpec: 'Фирменный пенал + маркировка Честный ЗНАК',
-            qualityRequirements: 'Устойчивость окраски ≥ 4, усадка ≤ 2%, AQL 1.5',
-            referencesNote: input.referencesNotes || 'Базовое ТЗ',
+            waistbandSpec: 'Уточняется',
+            seamsSpec: 'Плоские швы',
+            packagingSpec: 'Уточняется',
+            qualityRequirements: 'AQL 1.5',
+            referencesNote: input.referencesNotes || '',
           },
         },
         isDemo: false,
@@ -475,15 +503,15 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         concepts: [newConcept, ...prev.concepts],
         auditLog: [
-          appendAudit('concept', id, 'created', `Создана концепция «${newConcept.name}» в Лаборатории продукта`),
+          appendAudit('concept', id, 'created', `Создана разработка «${newConcept.code} · ${newConcept.name}» в Product Lab R&D`),
           ...prev.auditLog,
         ],
       }));
       setSelectedConceptId(id);
-      notify('success', 'Концепция создана в Лаборатории продукта', `${newConcept.code} · ${newConcept.name}`);
+      notify('success', 'Идея сохранена в Лаборатории R&D', `${newConcept.code} · ${newConcept.name}`);
       return newConcept;
     },
-    [appendAudit, currentUser, notify]
+    [appendAudit, currentUser, notify, state.concepts.length]
   );
 
   const updateConcept = useCallback(
@@ -494,7 +522,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         if (!target) return prev;
         const updatedConcept = { ...target, ...patch, updatedAt: now };
 
-        // Синхронизация со связанным Product, если он уже создан (п. 18, 25 ТЗ: один объект синхронен во всех разделах!)
+        // Синхронизация со связанным Product, если он уже создан (п. 13 ТЗ: один объект синхронен во всех разделах!)
         const updatedProducts = prev.products.map((p) => {
           if (p.conceptId === id || p.id === updatedConcept.linkedProductId) {
             return {
@@ -518,22 +546,37 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           concepts: prev.concepts.map((c) => (c.id === id ? updatedConcept : c)),
           products: updatedProducts,
           auditLog: [
-            appendAudit('concept', id, 'updated', `Обновлена концепция «${updatedConcept.name}»`),
+            appendAudit('concept', id, 'updated', `Обновлена разработка «${updatedConcept.code} · ${updatedConcept.name}»`),
             ...prev.auditLog,
           ],
         };
       });
-      notify('success', 'Концепция сохранена', 'Изменения синхронизированы со связанными разделами');
+      notify('success', 'Карточка разработки сохранена');
     },
     [appendAudit, notify]
   );
 
   const updateConceptStage = useCallback(
-    (id: string, stage: ConceptStage) => {
-      updateConcept(id, { stage });
-      notify('success', `Этап концепции изменён на «${CONCEPT_STAGE_LABELS_RU[stage]}»`);
+    (id: string, stage: ConceptStage, reason?: string) => {
+      const nowTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const target = state.concepts.find((c) => c.id === id);
+      const historyEntry = {
+        id: `sh-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        timestamp: nowTime,
+        authorName: currentUser.fullName,
+        authorRole: currentUser.role,
+        actionType: 'stage_change' as const,
+        fromStage: target?.stage,
+        toStage: stage,
+        reason: reason || `Переход на этап «${CONCEPT_STAGE_LABELS_RU[stage]}»`,
+      };
+      updateConcept(id, {
+        stage,
+        stageHistory: [historyEntry, ...(target?.stageHistory || [])],
+      });
+      notify('success', `Этап изменён на «${CONCEPT_STAGE_LABELS_RU[stage]}»`);
     },
-    [updateConcept, notify]
+    [currentUser.fullName, currentUser.role, notify, state.concepts, updateConcept]
   );
 
   // 2. Создание Product в каталоге напрямую из Concept (п. 18, 25 ТЗ: без дублирования независимых копий!)

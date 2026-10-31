@@ -30,16 +30,244 @@ export type ApprovalStatus = 'draft' | 'in_review' | 'approved';
 
 export type ConceptStage =
   | 'IDEA'
+  | 'ANALYSIS'
+  | 'SAMPLE'
+  | 'TEST'
+  | 'DECISION'
+  | 'PRODUCTION'
+  | 'LAUNCH'
+  | 'POSTPONED'
   | 'RESEARCH'
   | 'DESIGN'
   | 'PROTOTYPE'
   | 'TESTING'
   | 'APPROVED'
-  | 'PRODUCTION'
   | 'READY TO LAUNCH'
   | 'ON HOLD'
   | 'REJECTED'
   | 'CANCELLED';
+
+export type RnDDevelopmentType =
+  | 'new_construction'
+  | 'model_improvement'
+  | 'new_variant'
+  | 'seasonal_capsule'
+  | 'other';
+
+export interface RnDMarketEvidence {
+  id: string;
+  competitorBrand: string;
+  articleSku: string;
+  productTitle: string;
+  url?: string;
+  priceRub: number;
+  packQty: string;
+  estimatedRevenueRub: number;
+  observationPeriod: string;
+  sourceName: string;
+  confidenceStatus: 'estimated' | 'verified';
+  screenshotUrl?: string;
+  comparisonNote: string;
+}
+
+export interface RnDAnalysisReport {
+  // 7.1 Продуктовая гипотеза
+  whatWeCreate: string;
+  targetBuyer: string;
+  concreteAdvantage: string;
+  whyChooseUs: string;
+  demandType: 'incremental' | 'cannibalization_risk';
+  // 7.2 Анализ рынка
+  marketEvidences: RnDMarketEvidence[];
+  nicheConclusion: string;
+  // 7.3 Покупательский спрос и отзывы
+  buyerMotives: string;
+  competitorProsAndComplaints: string;
+  priceBenchmarksAndObjections: string;
+  // 7.4 Производственная возможность
+  potentialFactories: string;
+  materialsAndMoq: string;
+  estimatedProductionCostNote: string;
+  estimatedLogisticsNote: string;
+  estimatedLandedCostNote: string;
+  productionRisks: string;
+  // 7.5 Заключение анализа
+  summaryAndPros: string;
+  openQuestionsAndRisks: string;
+  confidenceLevel: 'low' | 'medium' | 'high';
+  whatToVerifyOnSample: string;
+  recommendation: 'continue' | 'supplement' | 'postpone' | 'reject';
+}
+
+export interface RnDSampleItem {
+  id: string;
+  versionCode: string; // напр. "Образец №1", "Образец №2"
+  factoryName: string; // напр. "Узбекистан, фабрика C — №1"
+  country: string;
+  orderedAt: string;
+  receivedAt: string;
+  status: 'ordered' | 'in_transit' | 'received' | 'testing' | 'approved' | 'rework' | 'rejected';
+  photos: string[];
+  materialAndComposition: string;
+  densityGsm: number;
+  sizeTested: string;
+  color: string;
+  measurementsNote: string;
+  sampleCostRub: number;
+  estimatedUnitProductionPrice: number;
+  currency: 'RUB' | 'USD' | 'CNY';
+  preliminaryScore: number; // 1–5
+  comments: string;
+  isSelectedForProduction: boolean;
+}
+
+export interface RnDTestCriterionScore {
+  criterionKey:
+    | 'fit_movement'
+    | 'support_anatomy'
+    | 'waistband_rideup'
+    | 'seams_tactile'
+    | 'breathability'
+    | 'wash_shape_retention'
+    | 'sewing_sizing'
+    | 'visual_appeal';
+  label: string;
+  isRequired: boolean;
+  score: number; // 1–5
+  result: 'passed' | 'rework' | 'failed';
+  comment: string;
+}
+
+export interface RnDSampleTestProtocol {
+  id: string;
+  sampleId: string;
+  sampleVersionLabel: string;
+  testerName: string;
+  testDate: string;
+  washCyclesCount: number;
+  washTempAndMode: string;
+  measurementsBeforeAfter: string;
+  criteria: RnDTestCriterionScore[];
+  verdict: 'passed' | 'passed_with_remarks' | 'rework_required' | 'failed';
+  summaryComment: string;
+  evidencePhotos?: string[];
+}
+
+export type RnDDecisionOutcome = 'approve' | 'rework' | 'postpone' | 'reject';
+
+export interface RnDApprovalDecision {
+  id: string;
+  decision: RnDDecisionOutcome;
+  authorName: string;
+  authorRole: UserRole;
+  decidedAt: string;
+  approvedSampleId?: string;
+  approvedSampleLabel?: string;
+  justification: string;
+  conditions: string;
+}
+
+export type RnDProductionInternalStatus =
+  | 'order_prep'
+  | 'order_placed'
+  | 'in_production'
+  | 'qc_inspection'
+  | 'ready'
+  | 'in_delivery'
+  | 'received';
+
+export interface RnDProductionOrder {
+  id: string;
+  orderNumber: string;
+  factoryName: string;
+  contactPerson: string;
+  approvedSampleVersion: string;
+  internalStatus: RnDProductionInternalStatus;
+  materialAndColors: string;
+  sizeBreakdown: Record<'S' | 'M' | 'L' | 'XL' | 'XXL', number>;
+  totalUnits: number;
+  packConfiguration: string;
+  packagingDetails: string;
+  unitPrice: number;
+  currency: 'RUB' | 'USD' | 'CNY';
+  plannedReadyDate: string;
+  actualReadyDate?: string;
+  qcNotes: string;
+  logisticsTracking: string;
+  hasDelayRisk?: boolean;
+}
+
+export interface RnDLaunchChecklist {
+  catalogCreated: boolean;
+  photosApproved: boolean;
+  descriptionsReady: boolean;
+  bundlesAndPricesConfirmed: boolean;
+  marketplaceCardsReady: boolean;
+  warehouseDistributed: boolean;
+  adsPrepared: boolean;
+  salesDateAndOwnerAssigned: boolean;
+}
+
+export interface RnDPostLaunchCheckpoint {
+  day: 7 | 14 | 28;
+  ordersRub: number | null;
+  ordersUnits: number | null;
+  buyoutsRub: number | null;
+  buyoutsUnits: number | null;
+  avgActualPriceRub: number | null;
+  adSpendRub: number | null;
+  stockLeftUnits: number | null;
+  reviewsSummary: string;
+  comparisonWithExpectations: string;
+  dataSource: string;
+}
+
+export type RnDLaunchOutcome =
+  | 'scale'
+  | 'optimize'
+  | 'repeat_test'
+  | 'stop_purchases'
+  | 'pending';
+
+export type RnDAttachmentCategory =
+  | 'reference'
+  | 'sample_media'
+  | 'analytics_reviews'
+  | 'tech_spec'
+  | 'production_docs'
+  | 'launch_materials';
+
+export interface RnDAttachmentItem {
+  id: string;
+  title: string;
+  category: RnDAttachmentCategory;
+  stage: ConceptStage;
+  fileType: string;
+  fileSizeLabel: string;
+  url: string;
+  authorName: string;
+  uploadedAt: string;
+  isDecisionEvidence?: boolean;
+}
+
+export interface RnDStageHistoryEntry {
+  id: string;
+  timestamp: string;
+  authorName: string;
+  authorRole: UserRole;
+  actionType:
+    | 'created'
+    | 'stage_change'
+    | 'rollback'
+    | 'sample_added'
+    | 'test_completed'
+    | 'decision'
+    | 'production_order'
+    | 'exception_override';
+  fromStage?: string;
+  toStage?: string;
+  reason: string;
+}
 
 export type ProductStatus =
   | 'in_development'
@@ -238,6 +466,16 @@ export interface ProductConcept {
   brandId: string;
   collectionName: string;
   stage: ConceptStage;
+  developmentType?: RnDDevelopmentType;
+  priority?: TaskPriority;
+  tags?: string[];
+  nextStep?: string;
+  isBlocked?: boolean;
+  blockReason?: string;
+  whatAttracted?: string;
+  similarInAssortment?: string;
+  expectedOutcome?: string;
+  referenceLinks?: string[];
   ideaDescription: string;
   customerProblem: string;
   targetAudience: string;
@@ -250,6 +488,7 @@ export interface ProductConcept {
   currency: 'RUB' | 'USD' | 'CNY';
   targetLaunchDate: string;
   ownerId: string;
+  authorId?: string;
   supplierName: string;
   sampleStatus: string;
   testResults: string;
@@ -263,8 +502,21 @@ export interface ProductConcept {
     en: TechPackTranslation;
     ru: TechPackTranslation;
   };
+  // Новые блоки единой карточки разработки Product Lab R&D v1.0 (п. 5–18 ТЗ)
+  analysisReport?: RnDAnalysisReport;
+  samples?: RnDSampleItem[];
+  testProtocols?: RnDSampleTestProtocol[];
+  approvalDecisions?: RnDApprovalDecision[];
+  productionOrders?: RnDProductionOrder[];
+  launchChecklist?: RnDLaunchChecklist;
+  postLaunchMetrics?: RnDPostLaunchCheckpoint[];
+  launchOutcome?: RnDLaunchOutcome;
+  attachments?: RnDAttachmentItem[];
+  stageHistory?: RnDStageHistoryEntry[];
   linkedProductId?: string;
   linkedLaunchId?: string;
+  linkedCompetitorIds?: string[];
+  linkedTaskIds?: string[];
   isDemo: boolean;
   isArchived: boolean;
   createdAt: string;

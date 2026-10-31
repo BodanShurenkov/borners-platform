@@ -5,12 +5,16 @@ import {
   calculateRevenueFromBuyouts,
   calculatePlanFactVariance,
   canUserAccessSection,
+  canUserApproveProduction,
   canUserEditApprovedStrategy,
+  canUserViewBrandConcept,
   canUserViewFinance,
   canUserViewCostPrice,
   detectLaunchDateConflicts,
+  normalizeConceptStageToSeven,
   parseCsvContent,
   validateAndCheckDuplicates,
+  validateRnDStageTransition,
 } from '../src/lib/finance.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
@@ -189,4 +193,96 @@ test('5. Импорт CSV/XLSX (п. 19 ТЗ): проверка форматов 
   // 3-я строка — дубликат внутри файла + ошибка числового формата поля cost
   assert.equal(validated[2].isDuplicate, true);
   assert.equal(validated[2].errors.length, 1);
+});
+
+test('6. Product Lab R&D (Критерии 05 и 08 ТЗ): изоляция брендов BORNERS / НА ТЕЛЕ и запрет утверждения производства сотрудником', () => {
+  const owner = {
+    id: 'u-owner',
+    email: 'owner@borners.ru',
+    fullName: 'Алексей Морозов',
+    jobTitle: 'CEO',
+    role: 'Owner' as const,
+    canViewFinance: true,
+    canViewCostPrice: true,
+    assignedBrandIds: ['BORNERS', 'NA_TELE'],
+    avatarInitials: 'АМ',
+    isActive: true,
+  };
+
+  const bornersOnlyUser = {
+    id: 'u-brn',
+    email: 'brn@borners.ru',
+    fullName: 'Менеджер BORNERS',
+    jobTitle: 'Brand Manager',
+    role: 'Manager' as const,
+    canViewFinance: true,
+    canViewCostPrice: true,
+    assignedBrandIds: ['BORNERS'],
+    avatarInitials: 'МБ',
+    isActive: true,
+  };
+
+  const regularEmployee = {
+    id: 'u-emp',
+    email: 'emp@borners.ru',
+    fullName: 'Сотрудник R&D',
+    jobTitle: 'R&D Specialist',
+    role: 'Viewer' as const,
+    canViewFinance: false,
+    canViewCostPrice: false,
+    assignedBrandIds: ['BORNERS'],
+    avatarInitials: 'СР',
+    isActive: true,
+  };
+
+  // Критерий 08: пользователь BORNERS видит BORNERS, но не видит закрытые проекты НА ТЕЛЕ; Владелец видит оба
+  assert.equal(canUserViewBrandConcept(bornersOnlyUser, 'BORNERS'), true);
+  assert.equal(canUserViewBrandConcept(bornersOnlyUser, 'NA_TELE'), false);
+  assert.equal(canUserViewBrandConcept(owner, 'BORNERS'), true);
+  assert.equal(canUserViewBrandConcept(owner, 'NA_TELE'), true);
+
+  // Критерий 05: обычный сотрудник не может утвердить производство; Владелец может
+  assert.equal(canUserApproveProduction(regularEmployee, 'BORNERS'), false);
+  assert.equal(canUserApproveProduction(owner, 'BORNERS'), true);
+});
+
+test('7. Product Lab R&D (п. 15 ТЗ): контроль условий при переходе между 7 этапами', () => {
+  assert.equal(normalizeConceptStageToSeven('IDEA'), 'IDEA');
+  assert.equal(normalizeConceptStageToSeven('ANALYSIS'), 'ANALYSIS');
+  assert.equal(normalizeConceptStageToSeven('SAMPLE'), 'SAMPLE');
+  assert.equal(normalizeConceptStageToSeven('TEST'), 'TEST');
+  assert.equal(normalizeConceptStageToSeven('DECISION'), 'DECISION');
+  assert.equal(normalizeConceptStageToSeven('PRODUCTION'), 'PRODUCTION');
+  assert.equal(normalizeConceptStageToSeven('LAUNCH'), 'LAUNCH');
+
+  const regularEmployee = {
+    id: 'u-emp',
+    email: 'emp@borners.ru',
+    fullName: 'Сотрудник',
+    jobTitle: 'R&D',
+    role: 'Viewer' as const,
+    canViewFinance: false,
+    canViewCostPrice: false,
+    assignedBrandIds: ['BORNERS'],
+    avatarInitials: 'СР',
+    isActive: true,
+  };
+
+  const mockConcept: any = {
+    id: 'c-1',
+    code: 'RD-024',
+    name: 'Семейные трусы BORNERS',
+    brandId: 'BORNERS',
+    stage: 'DECISION',
+    ownerId: 'u-emp',
+    ideaDescription: 'Свободные трусы Old Money',
+    supplierName: '',
+    approvalDecisions: [],
+  };
+
+  // Попытка обычного сотрудника перетащить карточку в ПРОИЗВОДСТВО без утверждения руководителем блокируется
+  const gateCheck = validateRnDStageTransition(mockConcept, 'PRODUCTION', regularEmployee);
+  assert.equal(gateCheck.allowed, false);
+  assert.equal(gateCheck.requiresManagerApproval, true);
+  assert.equal(gateCheck.missingFields.length >= 2, true);
 });

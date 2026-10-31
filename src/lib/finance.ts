@@ -11,7 +11,9 @@ import type {
   FinancialScenario,
   Launch,
   NavSectionId,
+  ProductConcept,
   ProductEconomics,
+  RnDDevelopmentType,
   TaskItem,
   TaskPriority,
   TaskStatus,
@@ -21,21 +23,35 @@ import type {
 export const ROLE_LABELS_RU: Record<UserRole, string> = {
   Owner: 'Владелец',
   Admin: 'Администратор',
-  Manager: 'Менеджер',
-  Viewer: 'Наблюдатель',
-  Partner: 'Партнёр',
+  Manager: 'Руководитель / Менеджер',
+  Viewer: 'Сотрудник / Наблюдатель',
+  Partner: 'Поставщик / Фабрика',
+};
+
+export const RND_DEVELOPMENT_TYPE_LABELS_RU: Record<RnDDevelopmentType, string> = {
+  new_construction: 'Новая конструкция',
+  model_improvement: 'Улучшение существующей модели',
+  new_variant: 'Новый вариант товара',
+  seasonal_capsule: 'Сезонная / лимитированная коллекция',
+  other: 'Другое',
 };
 
 export const CONCEPT_STAGE_LABELS_RU: Record<ConceptStage, string> = {
-  IDEA: 'Идея',
-  RESEARCH: 'Исследование',
-  DESIGN: 'Дизайн',
-  PROTOTYPE: 'Прототип',
-  TESTING: 'Тестирование',
-  APPROVED: 'Утверждено',
-  PRODUCTION: 'Производство',
-  'READY TO LAUNCH': 'Готово к запуску',
-  'ON HOLD': 'На паузе',
+  IDEA: '01 · Идея',
+  ANALYSIS: '02 · Анализ',
+  SAMPLE: '03 · Образец',
+  TEST: '04 · Тест',
+  DECISION: '05 · Решение',
+  PRODUCTION: '06 · Производство',
+  LAUNCH: '07 · Запуск',
+  POSTPONED: 'Отложено',
+  RESEARCH: '02 · Анализ',
+  DESIGN: '03 · Образец',
+  PROTOTYPE: '03 · Образец',
+  TESTING: '04 · Тест',
+  APPROVED: '05 · Решение',
+  'READY TO LAUNCH': '07 · Запуск',
+  'ON HOLD': 'Отложено',
   REJECTED: 'Отклонено',
   CANCELLED: 'Отменено',
 };
@@ -295,6 +311,154 @@ export function canUserViewFinance(user: AppUser): boolean {
 export function canUserViewCostPrice(user: AppUser): boolean {
   // П. 15 ТЗ: отдельное ограничение на себестоимость / закупочную цену
   return user.role === 'Owner' || user.role === 'Admin' || user.canViewCostPrice;
+}
+
+/**
+ * П. 2, 14, 23 (Критерий 08) ТЗ Product Lab:
+ * «Пользователь BORNERS не видит закрытые проекты НА ТЕЛЕ; владелец видит оба.»
+ */
+export function canUserViewBrandConcept(user: AppUser, brandId: string): boolean {
+  if (user.role === 'Owner' || user.role === 'Admin') return true;
+  if (!user.assignedBrandIds || user.assignedBrandIds.length === 0) return true;
+  return user.assignedBrandIds.includes(brandId);
+}
+
+/**
+ * П. 10, 14, 23 (Критерий 05) ТЗ Product Lab:
+ * «Только владелец или уполномоченный руководитель может утверждать производство.
+ * Обычный сотрудник не может утвердить производство.»
+ */
+export function canUserApproveProduction(user: AppUser, brandId: string): boolean {
+  if (user.role === 'Owner' || user.role === 'Admin') return true;
+  if (user.role === 'Manager' && user.canViewFinance && canUserViewBrandConcept(user, brandId)) {
+    return true;
+  }
+  return false;
+}
+
+export type SevenKanbanStage =
+  | 'IDEA'
+  | 'ANALYSIS'
+  | 'SAMPLE'
+  | 'TEST'
+  | 'DECISION'
+  | 'PRODUCTION'
+  | 'LAUNCH';
+
+export const SEVEN_KANBAN_STAGES: SevenKanbanStage[] = [
+  'IDEA',
+  'ANALYSIS',
+  'SAMPLE',
+  'TEST',
+  'DECISION',
+  'PRODUCTION',
+  'LAUNCH',
+];
+
+export function normalizeConceptStageToSeven(stage: ConceptStage): SevenKanbanStage {
+  switch (stage) {
+    case 'IDEA':
+      return 'IDEA';
+    case 'ANALYSIS':
+    case 'RESEARCH':
+      return 'ANALYSIS';
+    case 'SAMPLE':
+    case 'DESIGN':
+    case 'PROTOTYPE':
+      return 'SAMPLE';
+    case 'TEST':
+    case 'TESTING':
+      return 'TEST';
+    case 'DECISION':
+    case 'APPROVED':
+      return 'DECISION';
+    case 'PRODUCTION':
+      return 'PRODUCTION';
+    case 'LAUNCH':
+    case 'READY TO LAUNCH':
+      return 'LAUNCH';
+    default:
+      return 'IDEA';
+  }
+}
+
+/**
+ * П. 6–12, 15 ТЗ Product Lab:
+ * Проверка обязательных условий при переходе между 7 этапами.
+ * Простым перетаскиванием запрещено обходить утверждение производства.
+ */
+export function validateRnDStageTransition(
+  concept: ProductConcept,
+  targetStage: ConceptStage,
+  user: AppUser
+): {
+  allowed: boolean;
+  missingFields: string[];
+  requiresManagerApproval: boolean;
+} {
+  const normalizedTarget = normalizeConceptStageToSeven(targetStage);
+  const missingFields: string[] = [];
+  let requiresManagerApproval = false;
+
+  if (normalizedTarget === 'ANALYSIS') {
+    if (!concept.ownerId) {
+      missingFields.push('Назначить ответственного за разработку');
+    }
+    if (!concept.ideaDescription?.trim() && !concept.whatAttracted?.trim()) {
+      missingFields.push('Сформулировать суть идеи / что привлекло внимание');
+    }
+  } else if (normalizedTarget === 'SAMPLE') {
+    const hypothesis =
+      concept.analysisReport?.whatWeCreate?.trim() || concept.ideaDescription?.trim();
+    const risks =
+      concept.analysisReport?.openQuestionsAndRisks?.trim() ||
+      concept.analysisReport?.productionRisks?.trim();
+    if (!hypothesis) {
+      missingFields.push('Сформулировать продуктовую гипотезу в блоке Анализа');
+    }
+    if (!risks) {
+      missingFields.push('Указать ключевые риски в блоке Анализа');
+    }
+  } else if (normalizedTarget === 'TEST') {
+    const hasSamples = (concept.samples && concept.samples.length > 0) || Boolean(concept.sampleStatus?.trim());
+    if (!hasSamples) {
+      missingFields.push('Добавить физический образец (Паспорт образца) для проверки');
+    }
+  } else if (normalizedTarget === 'DECISION') {
+    const hasTests =
+      (concept.testProtocols && concept.testProtocols.length > 0) ||
+      Boolean(concept.testResults?.trim());
+    if (!hasTests) {
+      missingFields.push('Завершить протокол тестирования образца (оценка посадки и стирки)');
+    }
+  } else if (normalizedTarget === 'PRODUCTION') {
+    const hasApprovedDecision = concept.approvalDecisions?.some((d) => d.decision === 'approve');
+    if (!canUserApproveProduction(user, concept.brandId)) {
+      requiresManagerApproval = true;
+      missingFields.push(
+        'Только Владелец или уполномоченный руководитель бренда может утвердить передачу в производство'
+      );
+    }
+    if (!hasApprovedDecision) {
+      missingFields.push(
+        'Оформить официальное управленческое решение «УТВЕРДИТЬ» с выбором версии образца и обоснованием'
+      );
+    }
+    if (!concept.supplierName?.trim()) {
+      missingFields.push('Указать утверждённую фабрику-производителя');
+    }
+  } else if (normalizedTarget === 'LAUNCH') {
+    const hasOrders = concept.productionOrders && concept.productionOrders.length > 0;
+    if (!hasOrders) {
+      missingFields.push('Создать производственный заказ и подтвердить готовность партии к продаже');
+    }
+  }
+
+  return {
+    allowed: missingFields.length === 0 && !requiresManagerApproval,
+    missingFields,
+    requiresManagerApproval,
+  };
 }
 
 // -----------------------------------------------------------------------------

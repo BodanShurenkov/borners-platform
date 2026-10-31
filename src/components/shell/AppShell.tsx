@@ -43,43 +43,33 @@ interface NavGroup {
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    groupTitle: 'Обзор',
+    groupTitle: 'R&D и Продукт (Ключевой контур)',
     items: [
-      { id: 'dashboard', label: 'Дашборд' },
-      { id: 'brand-portfolio', label: 'Портфель брендов' },
+      { id: 'product-lab', label: 'Лаборатория R&D (Product Lab)' },
+      { id: 'product-catalog', label: 'Каталог моделей' },
     ],
   },
   {
-    groupTitle: 'Стратегия',
+    groupTitle: 'Запуски и операции',
     items: [
+      { id: 'launch-calendar', label: 'Календарь запусков' },
+      { id: 'roadmap-tasks', label: 'Задачи и проекты' },
+      { id: 'documents', label: 'Документы и файлы' },
+      { id: 'finance', label: 'Финансы и P&L' },
+      { id: 'marketing-growth', label: 'Маркетинг и рост' },
+    ],
+  },
+  {
+    groupTitle: 'Стратегия и обзор',
+    items: [
+      { id: 'dashboard', label: 'Дашборд группы' },
+      { id: 'brand-portfolio', label: 'Портфель брендов' },
       { id: 'brand-strategy', label: 'Стратегия бренда' },
       { id: 'market-intelligence', label: 'Рынок и конкуренты' },
     ],
   },
   {
-    groupTitle: 'Продукт',
-    items: [
-      { id: 'product-catalog', label: 'Каталог моделей' },
-      { id: 'product-lab', label: 'Лаборатория R&D' },
-    ],
-  },
-  {
-    groupTitle: 'Запуски и маркетинг',
-    items: [
-      { id: 'launch-calendar', label: 'Календарь запусков' },
-      { id: 'marketing-growth', label: 'Маркетинг и рост' },
-    ],
-  },
-  {
-    groupTitle: 'Операции',
-    items: [
-      { id: 'finance', label: 'Финансы и P&L' },
-      { id: 'roadmap-tasks', label: 'Задачи и проекты' },
-      { id: 'documents', label: 'Документы и файлы' },
-    ],
-  },
-  {
-    groupTitle: 'Система',
+    groupTitle: 'Система и доступ',
     items: [
       { id: 'team', label: 'Команда и роли' },
       { id: 'settings', label: 'Настройки' },
