@@ -2,59 +2,41 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  AlertCircle,
-  Archive,
+  ArrowLeft,
   ArrowRight,
-  CheckCircle2,
-  ClipboardPaste,
+  Check,
   Columns3,
-  GripVertical,
   LayoutGrid,
-  Lock,
   Plus,
-  RotateCcw,
   Search,
-  ShieldAlert,
-  Table2,
+  Sparkles,
+  Star,
   Trash2,
   Upload,
   X,
+  ZoomIn,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import {
   ConceptStage,
   ProductConcept,
   RnDDevelopmentType,
-  TaskPriority,
 } from '@/types/platform';
 import {
   CONCEPT_STAGE_LABELS_RU,
   RND_DEVELOPMENT_TYPE_LABELS_RU,
-  ROLE_LABELS_RU,
   SEVEN_KANBAN_STAGES,
   SevenKanbanStage,
-  TASK_PRIORITY_LABELS_RU,
   canUserApproveProduction,
   canUserEditBrand,
-  canUserViewBrandConcept,
-  normalizeConceptStageToSeven,
   validateRnDStageTransition,
+  normalizeConceptStageToSeven,
 } from '@/lib/finance';
 import {
   ProductLabCardBody,
   RND_CARD_TABS,
   RnDCardTabId,
 } from '@/components/sections/ProductLabTabs';
-
-const STAGE_SUBTITLES: Record<SevenKanbanStage, { num: string; title: string; subtitle: string }> = {
-  IDEA: { num: '01', title: 'ИДЕЯ', subtitle: 'Захват и сохранение' },
-  ANALYSIS: { num: '02', title: 'АНАЛИЗ', subtitle: 'Рынок и гипотеза' },
-  SAMPLE: { num: '03', title: 'ОБРАЗЕЦ', subtitle: 'Физический продукт' },
-  TEST: { num: '04', title: 'ТЕСТ', subtitle: 'Качество и посадка' },
-  DECISION: { num: '05', title: 'РЕШЕНИЕ', subtitle: 'Утвердить / вернуть' },
-  PRODUCTION: { num: '06', title: 'ПРОИЗВОДСТВО', subtitle: 'Партия и контроль' },
-  LAUNCH: { num: '07', title: 'ЗАПУСК', subtitle: 'Продажи и результат' },
-};
 
 export function ProductLabView() {
   const {
@@ -67,11 +49,9 @@ export function ProductLabView() {
     currentUser,
     brandFilter,
     setBrandFilter,
-    platformMode,
-    simpleMode,
-    setSimpleMode,
     selectedConceptId,
     setSelectedConceptId,
+    navigateTo,
     createConcept,
     updateConcept,
     updateConceptStage,
@@ -79,248 +59,97 @@ export function ProductLabView() {
     createProductFromConcept,
     createLaunch,
     createTask,
-    navigateTo,
     notify,
   } = usePlatform();
 
   const isStrategyMode = false;
 
-  // 4 режима отображения (п. 3.1 и 3.2 ТЗ: Доска Kanban — основной режим, Таблица, Галерея, Архив)
-  const [viewMode, setViewMode] = useState<'kanban' | 'table' | 'gallery' | 'archive'>(
-    'kanban'
-  );
-
-  // Фильтры и поиск (п. 3.3 ТЗ)
+  const [viewMode, setViewMode] = useState<'kanban' | 'gallery'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [stageFilter, setStageFilter] = useState<string>('ALL');
-  const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
-  const [ownerFilter, setOwnerFilter] = useState<string>('ALL');
-  const [factoryFilter, setFactoryFilter] = useState<string>('ALL');
 
-  // Вкладка внутри открытой единой карточки разработки (п. 5 ТЗ — 9 вкладок)
-  const [activeCardTab, setActiveCardTab] = useState<RnDCardTabId>('overview');
-
-  // Drag & Drop на семиэтапной доске Kanban
   const [draggedConceptId, setDraggedConceptId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<SevenKanbanStage | null>(null);
+  const [isDraggingPhotoOverCard, setIsDraggingPhotoOverCard] = useState(false);
 
-  // Модальное окно быстрого создания новой идеи (Схема 3, п. 4.1–4.2 ТЗ)
+  // Вкладка внутри открытой карточки (7 этапов + История)
+  const [activeCardTab, setActiveCardTab] = useState<RnDCardTabId>('overview');
+
+  // Индекс выбранного фото в галерее карточки и зум-лайтбокс
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
+
+  // Быстрое создание новой идеи (за 30–60 секунд, Стр. 2 и 4 PDF)
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
-  const [quickIdeaForm, setQuickIdeaForm] = useState({
+  const [quickIdeaForm, setQuickIdeaForm] = useState<{
+    brandId: string;
+    name: string;
+    comment: string;
+    referenceLink: string;
+    developmentType: RnDDevelopmentType;
+    ownerId: string;
+    targetLaunchDate: string;
+    images: string[];
+  }>({
     brandId: brandFilter === 'NA_TELE' ? 'NA_TELE' : 'BORNERS',
     name: '',
     comment: '',
     referenceLink: '',
-    developmentType: 'new_construction' as RnDDevelopmentType,
+    developmentType: 'new_construction',
     ownerId: currentUser.id,
-    tagsText: '',
-    images: [] as string[],
+    targetLaunchDate: '2027-01-15',
+    images: [],
   });
 
-  // Диалоговое окно контроля перехода между этапами (п. 15 ТЗ)
+  // Короткая проверка перед сменой этапа (Стр. 3 и Сценарий №3 PDF)
   const [stageGateModal, setStageGateModal] = useState<{
     concept: ProductConcept;
     targetStage: ConceptStage;
     missingFields: string[];
     requiresManagerApproval: boolean;
   } | null>(null);
+
   const [gateFillForm, setGateFillForm] = useState({
-    ownerId: '',
+    ownerId: currentUser.id,
     whatAttracted: '',
     hypothesis: '',
     risks: '',
     supplierName: '',
     approvalJustification: '',
-    exceptionReason: '',
   });
 
-  // ---------------------------------------------------------------------------
-  // ИЗОЛЯЦИЯ БРЕНДОВ ПО ПРАВАМ ДОСТУПА (КРИТЕРИЙ 08 ТЗ) И ФИЛЬТРАЦИЯ
-  // ---------------------------------------------------------------------------
   const accessibleConcepts = useMemo(() => {
-    return concepts.filter((c) => canUserViewBrandConcept(currentUser, c.brandId));
-  }, [concepts, currentUser]);
-
-  const activeConcepts = useMemo(() => {
-    return accessibleConcepts.filter(
-      (c) =>
-        !c.isArchived &&
-        !c.isDemo &&
-        c.stage !== 'REJECTED' &&
-        c.stage !== 'POSTPONED' &&
-        c.stage !== 'CANCELLED'
-    );
-  }, [accessibleConcepts]);
-
-  const archivedOrDemoConcepts = useMemo(() => {
-    return accessibleConcepts.filter(
-      (c) =>
-        c.isArchived ||
-        c.isDemo ||
-        c.stage === 'REJECTED' ||
-        c.stage === 'POSTPONED' ||
-        c.stage === 'CANCELLED'
-    );
-  }, [accessibleConcepts]);
+    return concepts.filter((c) => {
+      if (c.isArchived) return false;
+      if (brandFilter !== 'ALL' && c.brandId !== brandFilter) return false;
+      return true;
+    });
+  }, [concepts, brandFilter]);
 
   const filteredConcepts = useMemo(() => {
-    const baseList = viewMode === 'archive' ? archivedOrDemoConcepts : activeConcepts;
-    const q = searchQuery.trim().toLowerCase();
-
-    return baseList.filter((c) => {
-      if (brandFilter !== 'ALL' && c.brandId !== brandFilter) return false;
-      if (typeFilter !== 'ALL' && (c.developmentType || 'new_construction') !== typeFilter)
-        return false;
-      if (stageFilter !== 'ALL' && normalizeConceptStageToSeven(c.stage) !== stageFilter)
-        return false;
-      if (priorityFilter !== 'ALL' && (c.priority || 'Medium') !== priorityFilter)
-        return false;
-      if (ownerFilter !== 'ALL' && c.ownerId !== ownerFilter) return false;
-      if (
-        factoryFilter !== 'ALL' &&
-        !(c.supplierName || '').toLowerCase().includes(factoryFilter.toLowerCase())
-      )
-        return false;
-
-      if (q) {
-        const hay = [
-          c.code,
-          c.name,
-          c.ideaDescription,
-          c.whatAttracted,
-          ...(c.tags || []),
-          c.supplierName,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        if (!hay.includes(q)) return false;
+    return accessibleConcepts.filter((c) => {
+      const normStage = normalizeConceptStageToSeven(c.stage);
+      if (stageFilter !== 'ALL' && normStage !== stageFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesText =
+          c.name.toLowerCase().includes(q) ||
+          c.code.toLowerCase().includes(q) ||
+          c.ideaDescription.toLowerCase().includes(q) ||
+          (c.whatAttracted || '').toLowerCase().includes(q);
+        if (!matchesText) return false;
       }
       return true;
     });
-  }, [
-    viewMode,
-    archivedOrDemoConcepts,
-    activeConcepts,
-    brandFilter,
-    typeFilter,
-    stageFilter,
-    priorityFilter,
-    ownerFilter,
-    factoryFilter,
-    searchQuery,
-  ]);
+  }, [accessibleConcepts, stageFilter, searchQuery]);
 
-  // ---------------------------------------------------------------------------
-  // 16. ПОКАЗАТЕЛИ ВЕРХНЕЙ ПАНЕЛИ И СКВОЗНАЯ АНАЛИТИКА ПРОЦЕССА (ЧЕСТНЫЙ РАСЧЁТ)
-  // ---------------------------------------------------------------------------
-  const labMetrics = useMemo(() => {
-    const brandScoped = activeConcepts.filter(
-      (c) => brandFilter === 'ALL' || c.brandId === brandFilter
-    );
-    const totalActive = brandScoped.length;
-    const ideasAndAnalysis = brandScoped.filter((c) =>
-      ['IDEA', 'ANALYSIS'].includes(normalizeConceptStageToSeven(c.stage))
-    ).length;
-    const samplesInCheck = brandScoped.filter((c) =>
-      ['SAMPLE', 'TEST'].includes(normalizeConceptStageToSeven(c.stage))
-    ).length;
-    const awaitingDecision = brandScoped.filter(
-      (c) => normalizeConceptStageToSeven(c.stage) === 'DECISION'
-    ).length;
-    const delayedProductions = brandScoped.filter(
-      (c) =>
-        normalizeConceptStageToSeven(c.stage) === 'PRODUCTION' &&
-        (c.productionOrders?.some((o) => o.hasDelayRisk) || c.isBlocked)
-    ).length;
-    const upcomingLaunches = brandScoped.filter(
-      (c) => normalizeConceptStageToSeven(c.stage) === 'LAUNCH'
-    ).length;
+  const getUserFullName = (id?: string) =>
+    users.find((u) => u.id === id)?.fullName || 'Алексей Морозов';
 
-    const todayStr = '2026-10-31';
-    const overdueTasksCount = tasks.filter(
-      (t) =>
-        !t.isArchived &&
-        t.status !== 'Done' &&
-        (brandFilter === 'ALL' || t.brandId === brandFilter) &&
-        t.deadline < todayStr
-    ).length;
-
-    // Сквозная воронка конверсии по фактическим этапам карточек (п. 16 ТЗ)
-    const stageRank: Record<SevenKanbanStage, number> = {
-      IDEA: 1,
-      ANALYSIS: 2,
-      SAMPLE: 3,
-      TEST: 4,
-      DECISION: 5,
-      PRODUCTION: 6,
-      LAUNCH: 7,
-    };
-    const reachedAnalysis = brandScoped.filter(
-      (c) => stageRank[normalizeConceptStageToSeven(c.stage)] >= 2
-    ).length;
-    const reachedSample = brandScoped.filter(
-      (c) => stageRank[normalizeConceptStageToSeven(c.stage)] >= 3
-    ).length;
-    const passedTesting = brandScoped.filter(
-      (c) =>
-        stageRank[normalizeConceptStageToSeven(c.stage)] >= 5 ||
-        c.testProtocols?.some(
-          (tp) => tp.verdict === 'passed' || tp.verdict === 'passed_with_remarks'
-        )
-    ).length;
-    const reachedLaunch = brandScoped.filter(
-      (c) => stageRank[normalizeConceptStageToSeven(c.stage)] >= 7
-    ).length;
-
-    const ideaToAnalysisPct =
-      totalActive > 0 ? Math.round((reachedAnalysis / totalActive) * 100) : 0;
-    const analysisToSamplePct =
-      reachedAnalysis > 0 ? Math.round((reachedSample / reachedAnalysis) * 100) : 0;
-    const sampleToTestPassPct =
-      reachedSample > 0 ? Math.round((passedTesting / reachedSample) * 100) : 0;
-    const totalToLaunchPct =
-      totalActive > 0 ? Math.round((reachedLaunch / totalActive) * 100) : 0;
-
-    return {
-      totalActive,
-      ideasAndAnalysis,
-      samplesInCheck,
-      awaitingDecision,
-      delayedProductions,
-      upcomingLaunches,
-      overdueTasksCount,
-      ideaToAnalysisPct,
-      analysisToSamplePct,
-      sampleToTestPassPct,
-      totalToLaunchPct,
-    };
-  }, [activeConcepts, brandFilter, tasks]);
-
-  // ---------------------------------------------------------------------------
-  // ПОИСК ДУБЛИКАТОВ ПРИ СОЗДАНИИ НОВОЙ ИДЕИ (П. 4.2 ТЗ)
-  // ---------------------------------------------------------------------------
-  const duplicateCandidates = useMemo(() => {
-    const titleQ = quickIdeaForm.name.trim().toLowerCase();
-    const linkQ = quickIdeaForm.referenceLink.trim().toLowerCase();
-    if (titleQ.length < 3 && linkQ.length < 5) return [];
-
-    return accessibleConcepts.filter((c) => {
-      if (linkQ.length >= 5) {
-        const hasSameLink = (c.referenceLinks || []).some((l) =>
-          l.toLowerCase().includes(linkQ)
-        );
-        if (hasSameLink) return true;
-      }
-      if (titleQ.length >= 3) {
-        const words = titleQ.split(/\s+/).filter((w) => w.length >= 4);
-        if (c.name.toLowerCase().includes(titleQ)) return true;
-        if (words.some((w) => c.name.toLowerCase().includes(w))) return true;
-      }
-      return false;
-    });
-  }, [accessibleConcepts, quickIdeaForm.name, quickIdeaForm.referenceLink]);
+  const getUserShortName = (id?: string) => {
+    const full = getUserFullName(id);
+    return full.split(' ')[0] || full;
+  };
 
   const stageToTabId = (st: SevenKanbanStage): RnDCardTabId => {
     switch (st) {
@@ -341,42 +170,45 @@ export function ProductLabView() {
     }
   };
 
-  const tabIdToStage = (tab: RnDCardTabId): SevenKanbanStage | null => {
-    switch (tab) {
-      case 'overview':
-        return 'IDEA';
-      case 'analysis':
-        return 'ANALYSIS';
-      case 'samples':
-        return 'SAMPLE';
-      case 'testing':
-        return 'TEST';
-      case 'decisions':
-        return 'DECISION';
-      case 'production':
-        return 'PRODUCTION';
-      case 'launch':
-        return 'LAUNCH';
-      default:
-        return null;
-    }
+  const openConceptCard = (concept: ProductConcept, tab?: RnDCardTabId) => {
+    setSelectedConceptId(concept.id);
+    setActivePhotoIndex(0);
+    const norm = normalizeConceptStageToSeven(concept.stage);
+    setActiveCardTab(tab || stageToTabId(norm));
   };
 
-  // Переход между этапами: сразу переключает экран этапа и переводит карточку
+  // Короткая проверка перед сменой этапа (Стр. 3 и Сценарий №3 PDF)
   const attemptStageTransition = (concept: ProductConcept, targetStage: ConceptStage) => {
-    const norm = normalizeConceptStageToSeven(targetStage);
-    setActiveCardTab(stageToTabId(norm));
-    if (isStrategyMode) return;
-    if (normalizeConceptStageToSeven(concept.stage) === norm) {
+    const normTarget = normalizeConceptStageToSeven(targetStage);
+    const normCurrent = normalizeConceptStageToSeven(concept.stage);
+
+    if (normCurrent === normTarget && targetStage !== 'REJECTED') {
+      setActiveCardTab(stageToTabId(normTarget));
       return;
     }
 
-    if (norm === 'PRODUCTION' && !canUserApproveProduction(currentUser, concept.brandId)) {
-      notify(
-        'warning',
-        'Утвердить в производство может руководитель',
-        'Вкладка производства открыта для просмотра'
-      );
+    const check = validateRnDStageTransition(concept, targetStage, currentUser);
+    if (!check.allowed) {
+      setGateFillForm({
+        ownerId: concept.ownerId || currentUser.id,
+        whatAttracted: concept.whatAttracted || concept.ideaDescription || '',
+        hypothesis:
+          concept.analysisReport?.whatWeCreate ||
+          concept.whatAttracted ||
+          concept.ideaDescription ||
+          '',
+        risks:
+          concept.analysisReport?.openQuestionsAndRisks ||
+          'Проверить посадку и усадку после стирки',
+        supplierName: concept.supplierName || 'Ташкент Текстиль №1 (Узбекистан)',
+        approvalJustification: 'Образец и тесты проверены, утверждено в производство',
+      });
+      setStageGateModal({
+        concept,
+        targetStage,
+        missingFields: check.missingFields,
+        requiresManagerApproval: check.requiresManagerApproval,
+      });
       return;
     }
 
@@ -385,6 +217,7 @@ export function ProductLabView() {
       targetStage,
       `Переход на этап «${CONCEPT_STAGE_LABELS_RU[targetStage]}»`
     );
+    setActiveCardTab(stageToTabId(normTarget));
   };
 
   const handleConfirmStageGateModal = () => {
@@ -394,8 +227,7 @@ export function ProductLabView() {
     if (requiresManagerApproval && !canUserApproveProduction(currentUser, concept.brandId)) {
       notify(
         'error',
-        'Переход заблокирован (п. 10 и 15 ТЗ)',
-        'Простым перетаскиванием запрещено обходить утверждение производства. Обратитесь к Владельцу или руководителю бренда.'
+        'Утвердить передачу в производство может только руководитель'
       );
       return;
     }
@@ -403,9 +235,11 @@ export function ProductLabView() {
     const normalizedTarget = normalizeConceptStageToSeven(targetStage);
     const patch: Partial<ProductConcept> = {
       stage: targetStage,
-      ownerId: gateFillForm.ownerId || concept.ownerId,
-      whatAttracted: gateFillForm.whatAttracted || concept.whatAttracted,
-      ideaDescription: gateFillForm.whatAttracted || concept.ideaDescription,
+      ownerId: gateFillForm.ownerId || concept.ownerId || currentUser.id,
+      whatAttracted:
+        gateFillForm.whatAttracted || concept.whatAttracted || concept.name,
+      ideaDescription:
+        gateFillForm.whatAttracted || concept.ideaDescription || concept.name,
       supplierName: gateFillForm.supplierName || concept.supplierName,
     };
 
@@ -434,31 +268,11 @@ export function ProductLabView() {
           whatToVerifyOnSample: '',
           recommendation: 'continue',
         }),
-        whatWeCreate: gateFillForm.hypothesis || 'Сформулированная гипотеза',
-        openQuestionsAndRisks: gateFillForm.risks || 'Риски зафиксированы при переходе',
+        whatWeCreate: gateFillForm.hypothesis || 'Продуктовая гипотеза зафиксирована',
+        openQuestionsAndRisks:
+          gateFillForm.risks || 'Проверить посадку и стирку на образце',
         recommendation: 'continue',
       };
-    }
-
-    if (normalizedTarget === 'PRODUCTION' && canUserApproveProduction(currentUser, concept.brandId)) {
-      const nowTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
-      patch.approvalDecisions = [
-        {
-          id: `dec-${Date.now()}`,
-          decision: 'approve',
-          authorName: currentUser.fullName,
-          authorRole: currentUser.role,
-          decidedAt: nowTime,
-          approvedSampleLabel:
-            concept.samples?.[0]?.versionCode || `Версия v${concept.selectedDesignVersion}`,
-          justification:
-            gateFillForm.approvalJustification ||
-            gateFillForm.exceptionReason ||
-            'Утверждено руководителем при переходе на этап Производство',
-          conditions: 'Стандартный контроль качества AQL 1.5',
-        },
-        ...(concept.approvalDecisions || []),
-      ];
     }
 
     const nowTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
@@ -468,27 +282,24 @@ export function ProductLabView() {
         timestamp: nowTime,
         authorName: currentUser.fullName,
         authorRole: currentUser.role,
-        actionType: gateFillForm.exceptionReason.trim()
-          ? 'exception_override'
-          : 'stage_change',
+        actionType: 'stage_change',
         fromStage: concept.stage,
         toStage: targetStage,
-        reason: gateFillForm.exceptionReason.trim()
-          ? `Мотивированное решение руководителя: ${gateFillForm.exceptionReason.trim()}`
-          : `Дозаполнены обязательные данные и выполнен переход на этап «${CONCEPT_STAGE_LABELS_RU[targetStage]}»`,
+        reason: `Дополнены недостающие поля и выполнен переход на этап «${CONCEPT_STAGE_LABELS_RU[targetStage]}»`,
       },
       ...(concept.stageHistory || []),
     ];
 
     updateConcept(concept.id, patch);
     setStageGateModal(null);
-    notify('success', `Карточка переведена на этап «${CONCEPT_STAGE_LABELS_RU[targetStage]}»`);
+    setActiveCardTab(stageToTabId(normalizedTarget));
+    notify('success', `Статус изменён: «${CONCEPT_STAGE_LABELS_RU[targetStage]}»`);
   };
 
-  // Быстрое создание новой идеи (Схема 3, п. 4.1 ТЗ)
+  // Быстрое создание новой идеи (Сценарий №1 и №2 со Стр. 10 PDF)
   const handleQuickCreateIdea = () => {
     if (!quickIdeaForm.name.trim() && !quickIdeaForm.comment.trim()) {
-      notify('warning', 'Укажите название или краткое описание продуктовой идеи');
+      notify('warning', 'Укажите название или короткую суть идеи');
       return;
     }
     const title =
@@ -496,12 +307,7 @@ export function ProductLabView() {
       quickIdeaForm.comment.trim().slice(0, 60) ||
       'Новая продуктовая идея';
 
-    const tags = quickIdeaForm.tagsText
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    createConcept({
+    const created = createConcept({
       name: title,
       brandId: quickIdeaForm.brandId,
       stage: 'IDEA',
@@ -509,12 +315,23 @@ export function ProductLabView() {
       whatAttracted: quickIdeaForm.comment.trim() || title,
       ideaDescription: quickIdeaForm.comment.trim() || title,
       ownerId: quickIdeaForm.ownerId || currentUser.id,
-      tags,
+      targetLaunchDate: quickIdeaForm.targetLaunchDate || '2027-01-15',
       referenceLinks: quickIdeaForm.referenceLink.trim()
         ? [quickIdeaForm.referenceLink.trim()]
         : [],
       imageUrl: quickIdeaForm.images[0] || undefined,
     });
+
+    if (quickIdeaForm.images.length > 0) {
+      updateConcept(created.id, {
+        imageUrl: quickIdeaForm.images[0],
+        galleryPhotos: quickIdeaForm.images.map((url, idx) => ({
+          id: `ph-${Date.now()}-${idx}`,
+          url,
+          caption: idx === 0 ? 'Обложка карточки' : `Фото ${idx + 1}`,
+        })),
+      });
+    }
 
     setQuickIdeaOpen(false);
     setQuickIdeaForm({
@@ -524,55 +341,10 @@ export function ProductLabView() {
       referenceLink: '',
       developmentType: 'new_construction',
       ownerId: currentUser.id,
-      tagsText: '',
+      targetLaunchDate: '2027-01-15',
       images: [],
     });
-  };
-
-  // Ручное объединение дубликата с существующей карточкой (п. 4.2 ТЗ)
-  const handleMergeIntoExisting = (target: ProductConcept) => {
-    const nowTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
-    const mergedLinks = Array.from(
-      new Set([
-        ...(target.referenceLinks || []),
-        ...(quickIdeaForm.referenceLink.trim() ? [quickIdeaForm.referenceLink.trim()] : []),
-      ])
-    );
-    updateConcept(target.id, {
-      referenceLinks: mergedLinks,
-      comments: [
-        ...target.comments,
-        {
-          id: `cm-merge-${Date.now()}`,
-          authorName: currentUser.fullName,
-          authorRole: currentUser.role,
-          text: `[Объединено из новой идеи «${quickIdeaForm.name || 'без названия'}»]: ${
-            quickIdeaForm.comment || 'Добавлена ссылка/материалы без создания дубликата'
-          }`,
-          createdAt: nowTime,
-        },
-      ],
-      stageHistory: [
-        {
-          id: `sh-merge-${Date.now()}`,
-          timestamp: nowTime,
-          authorName: currentUser.fullName,
-          authorRole: currentUser.role,
-          actionType: 'stage_change',
-          fromStage: target.stage,
-          toStage: target.stage,
-          reason: `Ручное объединение дублирующей идеи «${quickIdeaForm.name}» с сохранением всех ссылок и комментариев (п. 4.2 ТЗ).`,
-        },
-        ...(target.stageHistory || []),
-      ],
-    });
-    setQuickIdeaOpen(false);
-    setSelectedConceptId(target.id);
-    notify(
-      'success',
-      `Объединено с карточкой ${target.code}`,
-      'Все ссылки, комментарии и история сохранены без дублирования'
-    );
+    openConceptCard(created, 'overview');
   };
 
   const activeConcept: ProductConcept | null = useMemo(
@@ -581,662 +353,810 @@ export function ProductLabView() {
   );
 
   const canEditActiveConcept =
-    !isStrategyMode &&
     activeConcept !== null &&
     canUserEditBrand(currentUser, activeConcept.brandId);
+
+  // Все фотографии открытой карточки (главное фото + лента миниатюр, Стр. 4 и 9 PDF)
+  const activeGalleryPhotos = useMemo(() => {
+    if (!activeConcept) return [];
+    if (activeConcept.galleryPhotos && activeConcept.galleryPhotos.length > 0) {
+      return activeConcept.galleryPhotos;
+    }
+    if (activeConcept.imageUrl) {
+      return [
+        {
+          id: 'ph-cover',
+          url: activeConcept.imageUrl,
+          caption: 'Главное фото',
+        },
+      ];
+    }
+    return [];
+  }, [activeConcept]);
+
+  const appendPhotosToActiveConcept = (dataUrls: string[]) => {
+    if (!activeConcept || dataUrls.length === 0) return;
+    const existing = activeGalleryPhotos;
+    const added = dataUrls.map((url, idx) => ({
+      id: `ph-${Date.now()}-${idx}`,
+      url,
+      caption: `Фото ${existing.length + idx + 1}`,
+    }));
+    const nextList = [...existing, ...added];
+    updateConcept(activeConcept.id, {
+      imageUrl: nextList[0].url,
+      galleryPhotos: nextList,
+    });
+    notify(
+      'success',
+      dataUrls.length === 1
+        ? 'Фотография добавлена в галерею карточки'
+        : `Добавлено фотографий: ${dataUrls.length}`
+    );
+  };
+
+  const setPhotoAsCover = (idx: number) => {
+    if (!activeConcept) return;
+    const list = [...activeGalleryPhotos];
+    const [picked] = list.splice(idx, 1);
+    if (!picked) return;
+    const reordered = [picked, ...list];
+    updateConcept(activeConcept.id, {
+      imageUrl: picked.url,
+      galleryPhotos: reordered,
+    });
+    setActivePhotoIndex(0);
+    notify('success', 'Назначено главным фото (обложкой карточки)');
+  };
+
+  const movePhotoOrder = (idx: number, dir: -1 | 1) => {
+    if (!activeConcept) return;
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= activeGalleryPhotos.length) return;
+    const list = [...activeGalleryPhotos];
+    const temp = list[idx];
+    list[idx] = list[targetIdx];
+    list[targetIdx] = temp;
+    updateConcept(activeConcept.id, {
+      imageUrl: list[0].url,
+      galleryPhotos: list,
+    });
+    setActivePhotoIndex(targetIdx);
+  };
+
+  const removePhotoFromGallery = (idx: number) => {
+    if (!activeConcept) return;
+    const list = activeGalleryPhotos.filter((_, i) => i !== idx);
+    updateConcept(activeConcept.id, {
+      imageUrl: list[0]?.url || '',
+      galleryPhotos: list,
+    });
+    setActivePhotoIndex(0);
+  };
+
+  // Короткая 3-я строка статуса на карточке фотодоски (Стр. 3 PDF)
+  const getBoardCardStatusLine = (c: ProductConcept, stage: SevenKanbanStage) => {
+    if (stage === 'TEST') {
+      return { text: 'Нужен тест', highlight: true };
+    }
+    if (stage === 'SAMPLE') {
+      return { text: `Тест до ${c.targetLaunchDate?.slice(5) || '15.11'}`, highlight: false };
+    }
+    if (c.targetLaunchDate) {
+      const [yyyy, mm] = c.targetLaunchDate.split('-');
+      return {
+        text: `Запуск: ${mm || '01'}.${yyyy || '2027'}`,
+        highlight: false,
+      };
+    }
+    return { text: 'Запуск: 01.2027', highlight: false };
+  };
+
   return (
     <div className="space-y-6 pb-20">
       {/* =====================================================================
-          ШАПКА ЛАБОРАТОРИИ R&D: СТРОГАЯ СИММЕТРИЯ В ОДНУ ЛИНИЮ
+          02 / ГЛАВНЫЙ ЭКРАН — ФОТОДОСКА (СТР. 3 PDF UX SPEC V2.0)
+          Шапка: Лаборатория продукта | Все бренды | Все этапы | + Новая идея
       ===================================================================== */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E8E8E5] pb-5">
-        <div>
-          <h1 className="text-[28px] md:text-[32px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white leading-tight">
-            Лаборатория R&D
-          </h1>
-          <p className="text-[14px] text-[#737373] mt-0.5">
-            Путь новинки по 7 этапам: от идеи и образца до запуска партии
-          </p>
-        </div>
-
-        {/* Правая панель управления: Поиск + Вид + Новая идея (все ровно h-10) */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative w-60 sm:w-64">
-            <Search className="h-4 w-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск модели или ID..."
-              className="w-full h-10 rounded-xl bg-white border border-[#E8E8E5] pl-9 pr-3.5 text-[13px] outline-none focus:border-[#171717]"
-            />
+      <div className="rounded-3xl bg-white border border-[#E8E8E5] p-6 md:p-7 space-y-6 shadow-2xs">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] md:text-[32px] font-bold tracking-[-0.03em] text-[#171717] leading-tight">
+              Лаборатория продукта
+            </h1>
+            <p className="text-[14px] text-[#737373] mt-0.5">
+              Крупные карточки, заметные референсы, свободное перетаскивание и минимум текста
+            </p>
           </div>
 
-          <div className="flex items-center h-10 bg-white p-1 rounded-xl border border-[#E8E8E5]">
+          <button
+            type="button"
+            onClick={() => setQuickIdeaOpen(true)}
+            className="inline-flex items-center gap-2 h-11 rounded-full bg-[#111111] hover:bg-[#D97745] text-white px-6 text-[14px] font-bold transition cursor-pointer shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            <span>+ Новая идея</span>
+          </button>
+        </div>
+
+        {/* Панель фильтров как на макете Стр. 3 PDF: Все бренды | Все этапы | Поиск | Вид */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Выпадающий список Все бренды */}
+            <select
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              className="h-10 rounded-full bg-[#F5F5F3] hover:bg-[#EAEAE6] border border-[#E8E8E5] px-4 text-[13px] font-bold text-[#171717] outline-none cursor-pointer transition"
+            >
+              <option value="ALL">Все бренды</option>
+              <option value="BORNERS">BORNERS</option>
+              <option value="NA_TELE">НА ТЕЛЕ</option>
+            </select>
+
+            {/* Выпадающий список Все этапы */}
+            <select
+              value={stageFilter}
+              onChange={(e) => setStageFilter(e.target.value)}
+              className="h-10 rounded-full bg-[#F5F5F3] hover:bg-[#EAEAE6] border border-[#E8E8E5] px-4 text-[13px] font-bold text-[#171717] outline-none cursor-pointer transition"
+            >
+              <option value="ALL">Все этапы (01–07)</option>
+              {SEVEN_KANBAN_STAGES.map((st, idx) => (
+                <option key={st} value={st}>
+                  0{idx + 1} · {CONCEPT_STAGE_LABELS_RU[st]}
+                </option>
+              ))}
+            </select>
+
+            {/* Поиск */}
+            <div className="relative w-56 sm:w-64">
+              <Search className="h-4 w-4 text-[#737373] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск модели или ID..."
+                className="w-full h-10 rounded-full bg-[#F5F5F3] border border-[#E8E8E5] pl-9 pr-4 text-[13px] outline-none focus:bg-white focus:border-[#171717]"
+              />
+            </div>
+          </div>
+
+          {/* Переключатель Фотодоска / Галерея */}
+          <div className="flex items-center h-10 bg-[#F5F5F3] p-1 rounded-full border border-[#E8E8E5]">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-bold transition cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-[#111111] text-white'
+                  ? 'bg-white text-[#171717] shadow-2xs'
                   : 'text-[#737373] hover:text-[#171717]'
               }`}
             >
               <Columns3 className="h-3.5 w-3.5" />
-              <span>Доска</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                viewMode === 'table'
-                  ? 'bg-[#111111] text-white'
-                  : 'text-[#737373] hover:text-[#171717]'
-              }`}
-            >
-              <Table2 className="h-3.5 w-3.5" />
-              <span>Таблица</span>
+              <span>Фотодоска</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('gallery')}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-bold transition cursor-pointer ${
                 viewMode === 'gallery'
-                  ? 'bg-[#111111] text-white'
+                  ? 'bg-white text-[#171717] shadow-2xs'
                   : 'text-[#737373] hover:text-[#171717]'
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
               <span>Галерея</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('archive')}
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-semibold transition cursor-pointer ${
-                viewMode === 'archive'
-                  ? 'bg-[#111111] text-white'
-                  : 'text-[#737373] hover:text-[#171717]'
-              }`}
-            >
-              <Archive className="h-3.5 w-3.5" />
-              <span>Архив ({archivedOrDemoConcepts.length})</span>
-            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setQuickIdeaOpen(true)}
-            className="inline-flex items-center gap-1.5 h-10 rounded-xl bg-[#D97745] hover:bg-[#C26535] text-white px-4 text-[13px] font-bold shadow-2xs transition cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Новая идея</span>
-          </button>
-        </div>
-      </div>
-
-      {/* =====================================================================
-          4 СИММЕТРИЧНЫЕ КАРТОЧКИ СВОДКИ (ОДИНАКОВАЯ ВЫСОТА И СТРУКТУРА)
-      ===================================================================== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
-              Всего в работе
-            </div>
-            <div className="text-[28px] font-bold text-[#171717] mt-1">
-              {labMetrics.totalActive}
-            </div>
-          </div>
-          <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
-            7 этапов
-          </span>
         </div>
 
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
-              Идеи и Анализ
-            </div>
-            <div className="text-[28px] font-bold text-[#171717] mt-1">
-              {labMetrics.ideasAndAnalysis}
-            </div>
-          </div>
-          <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
-            Этапы 01–02
-          </span>
-        </div>
+        {/* ===================================================================
+            ФОТОДОСКА KANBAN (Крупные карточки 240px+, фото 60% высоты, 3 строки текста)
+        =================================================================== */}
+        {viewMode === 'kanban' && (
+          <div className="space-y-3">
+            <div className="flex gap-4 overflow-x-auto pb-3 pt-1">
+              {SEVEN_KANBAN_STAGES.map((stage) => {
+                const stageItems = filteredConcepts.filter(
+                  (c) => normalizeConceptStageToSeven(c.stage) === stage
+                );
+                const isOver = dragOverStage === stage;
 
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373]">
-              Образцы и Тесты
-            </div>
-            <div className="text-[28px] font-bold text-[#171717] mt-1">
-              {labMetrics.samplesInCheck}
-            </div>
-          </div>
-          <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-semibold text-[#737373]">
-            Этапы 03–04
-          </span>
-        </div>
+                return (
+                  <div
+                    key={stage}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOverStage(stage);
+                    }}
+                    onDragLeave={() => setDragOverStage(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const cid =
+                        e.dataTransfer.getData('text/plain') || draggedConceptId;
+                      setDraggedConceptId(null);
+                      setDragOverStage(null);
+                      if (!cid) return;
+                      const found = concepts.find((x) => x.id === cid);
+                      if (found) {
+                        attemptStageTransition(found, stage);
+                      }
+                    }}
+                    className={`w-[252px] shrink-0 rounded-2xl p-3.5 flex flex-col gap-3.5 min-h-[500px] border transition ${
+                      isOver
+                        ? 'border-2 border-[#D97745] bg-[#FDF3EB]/60'
+                        : 'border-[#E8E8E5] bg-[#F7F7F5]/90'
+                    }`}
+                  >
+                    {/* Заголовок колонки: ИДЕЯ 12, АНАЛИЗ 5, ОБРАЗЕЦ 3... */}
+                    <div className="flex items-center justify-between px-1 pt-0.5">
+                      <span className="text-[13px] font-extrabold uppercase tracking-wider text-[#525252]">
+                        {CONCEPT_STAGE_LABELS_RU[stage]} {stageItems.length}
+                      </span>
+                    </div>
 
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between">
-          <div>
-            <div className="text-[12px] font-semibold uppercase tracking-wider text-[#D97745]">
-              Решение и Тираж
-            </div>
-            <div className="text-[28px] font-bold text-[#171717] mt-1">
-              {labMetrics.awaitingDecision +
-                labMetrics.upcomingLaunches +
-                labMetrics.delayedProductions}
-            </div>
-          </div>
-          <span className="px-2.5 py-1 rounded-lg bg-[#D97745]/10 text-[12px] font-bold text-[#D97745]">
-            Этапы 05–07
-          </span>
-        </div>
-      </div>
+                    {/* Список крупных фото-карточек */}
+                    <div className="space-y-3.5 flex-1">
+                      {stageItems.map((concept) => {
+                        const statusLine = getBoardCardStatusLine(concept, stage);
+                        const hasPhoto = Boolean(concept.imageUrl && concept.imageUrl.trim());
 
-      {/* =====================================================================
-          ДОСКА KANBAN ИЗ 7 СИММЕТРИЧНЫХ КОЛОНОК
-      ===================================================================== */}
-      {viewMode === 'kanban' && (
-        <div className="flex gap-4 overflow-x-auto pb-6">
-          {SEVEN_KANBAN_STAGES.map((stage) => {
-            const stageMeta = STAGE_SUBTITLES[stage];
-            const stageCards = filteredConcepts.filter(
-              (c) => normalizeConceptStageToSeven(c.stage) === stage
-            );
-            const isDropTarget = dragOverStage === stage;
+                        return (
+                          <div
+                            key={concept.id}
+                            draggable
+                            onDragStart={(e) => {
+                              setDraggedConceptId(concept.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', concept.id);
+                            }}
+                            onClick={() => openConceptCard(concept)}
+                            className="group relative bg-white rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-3 cursor-pointer transition shadow-2xs hover:shadow-md flex flex-col"
+                          >
+                            {/* Кнопка удаления в правом верхнем углу при наведении */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteConcept(concept.id);
+                              }}
+                              title="Удалить карточку"
+                              className="opacity-0 group-hover:opacity-100 absolute top-4 right-4 z-10 h-7 w-7 rounded-lg bg-white/90 border border-[#E8E8E5] flex items-center justify-center text-[#737373] hover:text-[#DC2626] hover:border-[#DC2626] transition cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
 
-            return (
-              <div
-                key={stage}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (dragOverStage !== stage) setDragOverStage(stage);
-                }}
-                onDragLeave={() => setDragOverStage(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const cid = e.dataTransfer.getData('text/plain') || draggedConceptId;
-                  setDraggedConceptId(null);
-                  setDragOverStage(null);
-                  if (!cid) return;
-                  const card = accessibleConcepts.find((c) => c.id === cid);
-                  if (card) {
-                    attemptStageTransition(card, stage);
-                  }
-                }}
-                className={`w-[280px] shrink-0 rounded-2xl p-3.5 min-h-[540px] flex flex-col border transition-all ${
-                  isDropTarget
-                    ? 'bg-white border-2 border-[#D97745] shadow-lg'
-                    : 'bg-[#F7F7F5] border-[#E8E8E5]'
-                }`}
-              >
-                {/* Заголовок колонки: строгая симметрия */}
-                <div className="flex items-center justify-between mb-3.5 pb-3 border-b border-[#E8E8E5]">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-md bg-[#111111] text-white text-[11px] font-bold flex items-center justify-center">
-                      {stageMeta.num}
-                    </span>
-                    <div>
-                      <div className="text-[13px] font-bold tracking-tight text-[#171717] leading-none">
-                        {stageMeta.title}
-                      </div>
-                      <div className="text-[11px] text-[#737373] mt-0.5">
-                        {stageMeta.subtitle}
-                      </div>
+                            {/* Крупное изображение (~60% высоты карточки, Стр. 3 PDF) */}
+                            <div className="h-[195px] w-full rounded-xl bg-[#EFECE8] border border-[#E8E8E5] overflow-hidden flex items-center justify-center">
+                              {hasPhoto ? (
+                                <img
+                                  src={concept.imageUrl}
+                                  alt={concept.name}
+                                  className="h-full w-full object-contain p-2 group-hover:scale-[1.03] transition-transform"
+                                />
+                              ) : (
+                                <div className="text-center px-4 text-[13px] font-medium text-[#737373]">
+                                  Карточка без фото
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Ровно 3 чистые строки под фото (Стр. 3 PDF: Название | Бренд · Имя | Статус/Дата) */}
+                            <div className="pt-3 px-0.5 space-y-1">
+                              <h4 className="text-[15px] font-bold text-[#171717] leading-snug line-clamp-1">
+                                {concept.name}
+                              </h4>
+
+                              <div className="text-[13px] text-[#737373] truncate">
+                                {concept.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ·{' '}
+                                {getUserShortName(concept.ownerId)}
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 pt-0.5">
+                                <span
+                                  className={`text-[13px] font-semibold ${
+                                    statusLine.highlight
+                                      ? 'text-[#D97745]'
+                                      : 'text-[#737373]'
+                                  }`}
+                                >
+                                  {statusLine.text}
+                                </span>
+
+                                {/* Меню «Переместить в...» (для мобильных и быстрого клика без drag-and-drop, Стр. 3 PDF) */}
+                                <select
+                                  value={stage}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    attemptStageTransition(
+                                      concept,
+                                      e.target.value as ConceptStage
+                                    );
+                                  }}
+                                  title="Переместить в этап..."
+                                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-[11px] font-bold text-[#171717] bg-[#F5F5F3] border border-[#E8E8E5] rounded-md px-1.5 py-0.5 cursor-pointer transition"
+                                >
+                                  {SEVEN_KANBAN_STAGES.map((st) => (
+                                    <option key={st} value={st}>
+                                      → {CONCEPT_STAGE_LABELS_RU[st]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  <span className="w-6 h-6 rounded-lg bg-white border border-[#E8E8E5] text-[12px] font-bold text-[#171717] flex items-center justify-center">
-                    {stageCards.length}
-                  </span>
+                );
+              })}
+            </div>
+
+            <div className="text-center text-[12px] font-medium text-[#737373]">
+              ← прокрутка колонок →
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================================
+            РЕЖИМ ГАЛЕРЕИ КАРТОЧЕК
+        =================================================================== */}
+        {viewMode === 'gallery' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 pt-2">
+            {filteredConcepts.map((concept) => {
+              const stage = normalizeConceptStageToSeven(concept.stage);
+              const statusLine = getBoardCardStatusLine(concept, stage);
+              return (
+                <div
+                  key={concept.id}
+                  onClick={() => openConceptCard(concept)}
+                  className="bg-white rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-4 space-y-3 cursor-pointer transition shadow-2xs"
+                >
+                  <div className="h-56 w-full rounded-xl bg-[#EFECE8] border border-[#E8E8E5] flex items-center justify-center p-3">
+                    {concept.imageUrl ? (
+                      <img
+                        src={concept.imageUrl}
+                        alt={concept.name}
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-[13px] text-[#737373]">Карточка без фото</span>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[12px] font-bold text-[#737373]">
+                      <span>{concept.code}</span>
+                      <span className="text-[#D97745] uppercase">
+                        {CONCEPT_STAGE_LABELS_RU[stage]}
+                      </span>
+                    </div>
+                    <h4 className="text-[16px] font-bold text-[#171717] truncate">
+                      {concept.name}
+                    </h4>
+                    <div className="flex items-center justify-between text-[13px] text-[#737373]">
+                      <span>
+                        {concept.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ·{' '}
+                        {getUserShortName(concept.ownerId)}
+                      </span>
+                      <span className="font-semibold">{statusLine.text}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* =====================================================================
+          03 / КАРТОЧКА ИДЕИ И ЗАГРУЗКА ФОТОГРАФИЙ (СТР. 4 PDF UX SPEC V2.0)
+          Большой просмотр продукта: слева галерея, справа краткий паспорт, ниже — этапы
+      ===================================================================== */}
+      {activeConcept && (
+        <div
+          onPaste={(e) => {
+            const items = Array.from(e.clipboardData?.items || []);
+            const urls: string[] = [];
+            items.forEach((item) => {
+              if (item.type.startsWith('image/')) {
+                const file = item.getAsFile();
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  if (typeof reader.result === 'string') {
+                    appendPhotosToActiveConcept([reader.result]);
+                  }
+                };
+                reader.readAsDataURL(file);
+              }
+            });
+            if (urls.length > 0) {
+              appendPhotosToActiveConcept(urls);
+            }
+          }}
+          className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]"
+        >
+          <div className="w-full max-w-5xl bg-[#FAF8F5] h-full overflow-y-auto p-6 md:p-10 space-y-7 shadow-2xl">
+            {/* ВЕРХНЯЯ СТРОКА: RD-024 / НА ТЕЛЕ / ИДЕЯ + АВТОСОХРАНЕНИЕ + УДАЛИТЬ + ЗАКРЫТЬ */}
+            <div className="rounded-3xl bg-white border border-[#E8E8E5] p-6 md:p-8 space-y-6 shadow-2xs">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1.5 flex-1 min-w-[260px]">
+                  <div className="flex flex-wrap items-center gap-2.5 text-[12px] font-bold uppercase tracking-wider text-[#737373]">
+                    <span>
+                      {activeConcept.code} /{' '}
+                      {activeConcept.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} /{' '}
+                      {CONCEPT_STAGE_LABELS_RU[
+                        normalizeConceptStageToSeven(activeConcept.stage)
+                      ].toUpperCase()}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E8F5E9] text-[#16805D] text-[11px] font-bold normal-case">
+                      <Check className="h-3 w-3" />
+                      Сохранено
+                    </span>
+                  </div>
+
+                  {/* Крупный редактируемый заголовок модели */}
+                  <input
+                    disabled={!canEditActiveConcept}
+                    value={activeConcept.name}
+                    onChange={(e) =>
+                      updateConcept(activeConcept.id, { name: e.target.value })
+                    }
+                    className="w-full text-[26px] md:text-[32px] font-bold tracking-tight text-[#171717] bg-transparent border-b border-transparent hover:border-[#E8E8E5] focus:border-[#171717] outline-none pb-1"
+                  />
                 </div>
 
-                {/* Карточки: одинаковая высота и структура для идеальной симметрии */}
-                <div className="space-y-3 flex-1">
-                  {stageCards.map((card) => {
-                    const isBorners = card.brandId === 'BORNERS';
-                    const owner = users.find((u) => u.id === card.ownerId);
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const idToRemove = activeConcept.id;
+                      setSelectedConceptId(null);
+                      deleteConcept(idToRemove);
+                    }}
+                    className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-[#E8E8E5] text-[#737373] hover:text-[#DC2626] hover:border-[#DC2626] text-[13px] font-semibold transition cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Удалить</span>
+                  </button>
 
-                    return (
-                      <div
-                        key={card.id}
-                        draggable
-                        onDragStart={(e) => {
-                          setDraggedConceptId(card.id);
-                          e.dataTransfer.setData('text/plain', card.id);
-                        }}
-                        onDragEnd={() => {
-                          setDraggedConceptId(null);
-                          setDragOverStage(null);
-                        }}
-                        onClick={() => {
-                          setSelectedConceptId(card.id);
-                          setActiveCardTab(
-                            stage === 'ANALYSIS'
-                              ? 'analysis'
-                              : stage === 'SAMPLE'
-                              ? 'samples'
-                              : stage === 'TEST'
-                              ? 'testing'
-                              : stage === 'DECISION'
-                              ? 'decisions'
-                              : stage === 'PRODUCTION'
-                              ? 'production'
-                              : stage === 'LAUNCH'
-                              ? 'launch'
-                              : 'overview'
-                          );
-                        }}
-                        className="bg-white rounded-xl border border-[#E8E8E5] hover:border-[#171717] p-3.5 flex flex-col justify-between gap-3 cursor-pointer transition group shadow-2xs"
-                      >
-                        {/* Верхняя строка: Бренд + ID слева, Кнопка удаления справа */}
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                            <span
-                              className="px-2 py-0.5 rounded-md text-white"
-                              style={{
-                                backgroundColor: isBorners ? '#D97745' : '#8B8078',
-                              }}
-                            >
-                              {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded-md bg-[#F7F7F5] border border-[#E8E8E5] text-[#737373]">
-                              {card.code}
-                            </span>
-                          </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConceptId(null)}
+                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#111111] text-white text-[13px] font-bold hover:opacity-90 cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>Закрыть</span>
+                  </button>
+                </div>
+              </div>
 
-                          <button
-                            type="button"
-                            title="Удалить карточку"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteConcept(card.id);
-                            }}
-                            className="p-1.5 rounded-lg text-[#737373] hover:text-[#DC2626] hover:bg-[#DC2626]/10 cursor-pointer transition"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+              {/* ===============================================================
+                  ПЕРВЫЙ ЭКРАН КАРТОЧКИ (СТР. 4 PDF):
+                  СЛЕВА — БОЛЬШАЯ ФОТОГАЛЕРЕЯ (3 СПОСОБА ЗАГРУЗКИ),
+                  СПРАВА — КРАТКИЙ ПАСПОРТ (4 БЛОКА)
+              =============================================================== */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* ЛЕВАЯ КОЛОНКА (7/12): Большое главное фото + лента миниатюр + Drag&Drop/Paste/Upload */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPhotoOverCard(true);
+                  }}
+                  onDragLeave={() => setIsDraggingPhotoOverCard(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingPhotoOverCard(false);
+                    const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+                      f.type.startsWith('image/')
+                    );
+                    if (files.length === 0) return;
+                    files.forEach((file) => {
+                      const r = new FileReader();
+                      r.onload = () => {
+                        if (typeof r.result === 'string') {
+                          appendPhotosToActiveConcept([r.result]);
+                        }
+                      };
+                      r.readAsDataURL(file);
+                    });
+                  }}
+                  className={`lg:col-span-7 space-y-3 rounded-2xl transition ${
+                    isDraggingPhotoOverCard ? 'ring-2 ring-[#D97745] bg-[#FDF3EB]/40 p-2' : ''
+                  }`}
+                >
+                  {/* Крупное главное фото */}
+                  <div className="relative h-[340px] w-full rounded-2xl bg-[#EFECE8] border border-[#E8E8E5] overflow-hidden flex items-center justify-center group">
+                    {activeGalleryPhotos[activePhotoIndex]?.url ? (
+                      <>
+                        <img
+                          src={activeGalleryPhotos[activePhotoIndex].url}
+                          alt={activeConcept.name}
+                          onClick={() =>
+                            setZoomPhotoUrl(
+                              activeGalleryPhotos[activePhotoIndex]?.url || null
+                            )
+                          }
+                          className="h-full w-full object-contain p-3 cursor-zoom-in"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setZoomPhotoUrl(
+                              activeGalleryPhotos[activePhotoIndex]?.url || null
+                            )
+                          }
+                          className="opacity-0 group-hover:opacity-100 absolute bottom-3 right-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/75 text-white text-[12px] font-semibold cursor-pointer transition"
+                        >
+                          <ZoomIn className="h-3.5 w-3.5" />
+                          <span>Увеличить</span>
+                        </button>
+                      </>
+                    ) : (
+                      <div className="text-center p-6 space-y-2 text-[#737373]">
+                        <div className="text-[15px] font-bold text-[#171717]">
+                          Перетащите сюда 1–20 фото или нажмите Cmd+V
                         </div>
-
-                        {/* Центр: Симметричное превью фото + Название (ровно 2 строки) */}
-                        <div className="space-y-2.5">
-                          <div className="h-28 w-full rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] p-2 flex items-center justify-center">
-                            <img
-                              src={card.imageUrl}
-                              alt={card.name}
-                              className="max-h-24 w-full object-contain"
-                            />
-                          </div>
-
-                          <div className="text-[14px] font-bold text-[#171717] group-hover:text-[#D97745] transition leading-snug line-clamp-2 min-h-[38px]">
-                            {card.name}
-                          </div>
-                        </div>
-
-                        {/* Нижняя строка: Ответственный и Дата */}
-                        <div className="flex items-center justify-between pt-2.5 border-t border-[#E8E8E5] text-[11px] text-[#737373]">
-                          <span className="font-semibold text-[#171717] truncate max-w-[130px]">
-                            {owner ? owner.fullName : 'Не назначен'}
-                          </span>
-                          <span className="shrink-0">
-                            {card.targetLaunchDate || 'Без срока'}
-                          </span>
+                        <div className="text-[13px]">
+                          Поддерживаются PNG / JPG / WEBP и скриншоты из буфера обмена
                         </div>
                       </div>
+                    )}
+                  </div>
+
+                  {/* Лента миниатюр + управление порядком / обложкой + кнопка «Добавить фото» */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {activeGalleryPhotos.map((ph, idx) => {
+                      const isCurrent = idx === activePhotoIndex;
+                      const isCover = idx === 0;
+                      return (
+                        <div
+                          key={ph.id}
+                          onClick={() => setActivePhotoIndex(idx)}
+                          className={`group relative h-20 w-24 rounded-xl overflow-hidden border-2 bg-[#EFECE8] cursor-pointer transition ${
+                            isCurrent
+                              ? 'border-[#171717] shadow-xs'
+                              : 'border-[#E8E8E5] opacity-85 hover:opacity-100'
+                          }`}
+                        >
+                          <img
+                            src={ph.url}
+                            alt={ph.caption || 'thumb'}
+                            className="h-full w-full object-cover"
+                          />
+                          {isCover && (
+                            <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/75 text-white text-[9px] font-bold uppercase">
+                              Обложка
+                            </span>
+                          )}
+                          {canEditActiveConcept && (
+                            <div className="opacity-0 group-hover:opacity-100 absolute inset-x-0 bottom-0 bg-black/80 p-1 flex items-center justify-between text-white transition">
+                              {!isCover && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPhotoAsCover(idx);
+                                  }}
+                                  title="Сделать обложкой"
+                                  className="p-0.5 hover:text-[#D97745] cursor-pointer"
+                                >
+                                  <Star className="h-3 w-3" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  movePhotoOrder(idx, -1);
+                                }}
+                                title="Сдвинуть влево"
+                                className="p-0.5 hover:text-[#D97745] cursor-pointer"
+                              >
+                                <ArrowLeft className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  movePhotoOrder(idx, 1);
+                                }}
+                                title="Сдвинуть вправо"
+                                className="p-0.5 hover:text-[#D97745] cursor-pointer"
+                              >
+                                <ArrowRight className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removePhotoFromGallery(idx);
+                                }}
+                                title="Удалить фото"
+                                className="p-0.5 hover:text-[#DC2626] cursor-pointer"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Кнопка загрузки «Добавить фото» (множественная загрузка + drag-and-drop + Cmd+V) */}
+                    {canEditActiveConcept && (
+                      <label className="h-20 px-4 rounded-xl border-2 border-dashed border-[#D5D3CE] hover:border-[#D97745] bg-[#F7F7F5] flex flex-col items-center justify-center text-center cursor-pointer transition">
+                        <Upload className="h-4 w-4 text-[#D97745] mb-1" />
+                        <span className="text-[11px] font-bold text-[#171717]">
+                          + Добавить фото
+                        </span>
+                        <span className="text-[10px] text-[#737373]">
+                          или Cmd+V / Drag
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            files.forEach((f) => {
+                              const r = new FileReader();
+                              r.onload = () => {
+                                if (typeof r.result === 'string') {
+                                  appendPhotosToActiveConcept([r.result]);
+                                }
+                              };
+                              r.readAsDataURL(f);
+                            });
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* ПРАВАЯ КОЛОНКА (5/12): Краткий паспорт из 4 чистых карточек (Один в один со Стр. 4 PDF!) */}
+                <div className="lg:col-span-5 space-y-3">
+                  {/* 1. БРЕНД / АВТОР */}
+                  <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-1.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+                      БРЕНД / АВТОР
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <select
+                        disabled={!canEditActiveConcept}
+                        value={activeConcept.brandId}
+                        onChange={(e) =>
+                          updateConcept(activeConcept.id, { brandId: e.target.value })
+                        }
+                        className="text-[15px] font-bold text-[#171717] bg-transparent outline-none cursor-pointer"
+                      >
+                        <option value="BORNERS">BORNERS</option>
+                        <option value="NA_TELE">НА ТЕЛЕ</option>
+                      </select>
+                      <span className="text-[14px] font-semibold text-[#525252]">
+                        · {getUserShortName(activeConcept.authorId || currentUser.id)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 2. ТИП РАЗРАБОТКИ */}
+                  <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-1.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+                      ТИП РАЗРАБОТКИ
+                    </div>
+                    <select
+                      disabled={!canEditActiveConcept}
+                      value={activeConcept.developmentType || 'new_construction'}
+                      onChange={(e) =>
+                        updateConcept(activeConcept.id, {
+                          developmentType: e.target.value as RnDDevelopmentType,
+                        })
+                      }
+                      className="w-full text-[15px] font-bold text-[#171717] bg-transparent outline-none cursor-pointer"
+                    >
+                      {Object.entries(RND_DEVELOPMENT_TYPE_LABELS_RU).map(([k, v]) => (
+                        <option key={k} value={k}>
+                          {v}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 3. ОТВЕТСТВЕННЫЙ / СРОК */}
+                  <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-1.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+                      ОТВЕТСТВЕННЫЙ / СРОК
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 items-center">
+                      <select
+                        disabled={!canEditActiveConcept}
+                        value={activeConcept.ownerId}
+                        onChange={(e) =>
+                          updateConcept(activeConcept.id, { ownerId: e.target.value })
+                        }
+                        className="text-[15px] font-bold text-[#171717] bg-transparent outline-none cursor-pointer truncate"
+                      >
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.fullName.split(' ')[0]} ({u.fullName})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="date"
+                        disabled={!canEditActiveConcept}
+                        value={activeConcept.targetLaunchDate || '2027-01-15'}
+                        onChange={(e) =>
+                          updateConcept(activeConcept.id, {
+                            targetLaunchDate: e.target.value,
+                          })
+                        }
+                        className="text-[14px] font-bold text-[#171717] bg-transparent outline-none text-right"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. СУТЬ ИДЕИ (тёплая карточка как на Стр. 4 PDF) */}
+                  <div className="rounded-2xl bg-[#FDF5EF] border border-[#F3DFD1] p-4 space-y-1.5">
+                    <div className="text-[13px] font-bold text-[#171717]">
+                      Суть идеи
+                    </div>
+                    <textarea
+                      rows={3}
+                      disabled={!canEditActiveConcept}
+                      value={
+                        activeConcept.whatAttracted ??
+                        activeConcept.ideaDescription ??
+                        ''
+                      }
+                      onChange={(e) =>
+                        updateConcept(activeConcept.id, {
+                          whatAttracted: e.target.value,
+                          ideaDescription: e.target.value,
+                        })
+                      }
+                      placeholder="Тонкий материал, мягкая посадка, почти незаметные края..."
+                      className="w-full bg-transparent text-[14px] text-[#525252] leading-relaxed outline-none resize-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ===============================================================
+                  ПОЛОСА 7 ЭТАПОВ НИЖЕ ПАСПОРТА (СТР. 4 PDF):
+                  ИДЕЯ · АНАЛИЗ · ОБРАЗЕЦ · ТЕСТ · РЕШЕНИЕ · ПРОИЗВОДСТВО · ЗАПУСК
+              =============================================================== */}
+              <div className="pt-4 border-t border-[#E8E8E5] flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {RND_CARD_TABS.map((t) => {
+                    const isTabActive = activeCardTab === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setActiveCardTab(t.id)}
+                        className={`px-3.5 py-2 rounded-xl text-[12px] font-extrabold uppercase tracking-wider transition cursor-pointer ${
+                          isTabActive
+                            ? 'bg-[#111111] text-white shadow-2xs'
+                            : 'bg-[#F7F7F5] text-[#737373] hover:text-[#171717]'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
                     );
                   })}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* =====================================================================
-          РЕЖИМ 2: ТАБЛИЦА — СРАВНЕНИЕ И МАССОВАЯ РАБОТА (П. 3.2 ТЗ)
-      ===================================================================== */}
-      {viewMode === 'table' && (
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white overflow-x-auto">
-          <table className="w-full text-left border-collapse text-[14px]">
-            <thead>
-              <tr className="bg-[#F7F7F5] border-b border-[#E8E8E5] text-[12px] uppercase text-[#737373]">
-                <th className="p-4">ID и Модель</th>
-                <th className="p-4">Бренд</th>
-                <th className="p-4">Тип разработки</th>
-                <th className="p-4">Этап (1–7)</th>
-                <th className="p-4">Образцы / Тесты</th>
-                <th className="p-4">Ответственный</th>
-                <th className="p-4">Следующий шаг</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#E8E8E5]">
-              {filteredConcepts.map((c) => {
-                const owner = users.find((u) => u.id === c.ownerId);
-                return (
-                  <tr
-                    key={c.id}
-                    onClick={() => {
-                      setSelectedConceptId(c.id);
-                      setActiveCardTab('overview');
-                    }}
-                    className="hover:bg-[#F7F7F5]/60 cursor-pointer transition"
-                  >
-                    <td className="p-4">
-                      <div className="font-bold text-[#171717]">
-                        {c.code} · {c.name}
-                      </div>
-                      <div className="text-[12px] text-[#737373] line-clamp-1">
-                        {c.ideaDescription}
-                      </div>
-                    </td>
-                    <td className="p-4 font-bold">
-                      <span
-                        style={{
-                          color: c.brandId === 'BORNERS' ? '#D97745' : '#8B8078',
-                        }}
-                      >
-                        {c.brandId === 'BORNERS' ? 'BORNERS' : 'НА ТЕЛЕ'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-[13px]">
-                      {
-                        RND_DEVELOPMENT_TYPE_LABELS_RU[
-                          c.developmentType || 'new_construction'
-                        ]
-                      }
-                    </td>
-                    <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[12px] font-bold">
-                        {CONCEPT_STAGE_LABELS_RU[c.stage]}
-                      </span>
-                    </td>
-                    <td className="p-4 text-[13px]">
-                      Образцов: <b>{c.samples?.length || 0}</b> · Тестов:{' '}
-                      <b>{c.testProtocols?.length || 0}</b>
-                    </td>
-                    <td className="p-4 text-[13px] font-medium">
-                      {owner?.fullName || '—'}
-                    </td>
-                    <td className="p-4 text-[13px] text-[#737373] max-w-xs truncate">
-                      {c.nextStep || '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* =====================================================================
-          РЕЖИМ 3: ГАЛЕРЕЯ — ИДЕИ С ПРИОРИТЕТОМ ФОТОГРАФИЙ (П. 3.2 ТЗ)
-      ===================================================================== */}
-      {viewMode === 'gallery' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredConcepts.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => {
-                setSelectedConceptId(c.id);
-                setActiveCardTab('overview');
-              }}
-              className="rounded-2xl border border-[#E8E8E5] hover:border-[#171717] bg-white p-6 space-y-4 cursor-pointer transition group"
-            >
-              <div className="h-56 w-full rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] flex items-center justify-center p-6">
-                <img
-                  src={c.imageUrl}
-                  alt={c.name}
-                  className="h-full w-full object-contain group-hover:scale-105 transition-transform"
-                />
-              </div>
-              <div className="flex items-center justify-between text-[12px] font-bold">
-                <span
-                  style={{ color: c.brandId === 'BORNERS' ? '#D97745' : '#8B8078' }}
-                >
-                  {c.brandId === 'BORNERS' ? 'BORNERS' : 'НА ТЕЛЕ'} · {c.code}
-                </span>
-                <span className="px-2.5 py-1 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[#171717]">
-                  {CONCEPT_STAGE_LABELS_RU[c.stage]}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-[19px] font-bold text-[#171717]">{c.name}</h3>
-                <p className="text-[13px] text-[#737373] mt-1 line-clamp-2">
-                  {c.ideaDescription}
-                </p>
-              </div>
-              {c.nextStep && (
-                <div className="pt-3 border-t border-[#E8E8E5] text-[13px]">
-                  <span className="text-[#737373]">Следующий шаг: </span>
-                  <b className="text-[#171717]">{c.nextStep}</b>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* =====================================================================
-          РЕЖИМ 4: АРХИВ И ДЕМО-ЗАПИСИ (П. 3.2 И 21 ТЗ)
-      ===================================================================== */}
-      {viewMode === 'archive' && (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5] p-5 text-[14px]">
-            <b>Архив и отделённые демонстрационные записи (п. 3.2 и 21 ТЗ):</b> Здесь хранятся отложенные, отклонённые разработки, а также демонстрационные капсулы из первой версии интерфейса (отделены от реальных разработок без удаления файлов). Любую карточку можно возобновить в 1 клик.
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredConcepts.map((c) => (
-              <div
-                key={c.id}
-                className="rounded-2xl border border-[#E8E8E5] bg-white p-5 flex items-center justify-between gap-4"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-[12px] font-bold">
-                    <span>{c.code}</span>
-                    {c.isDemo && (
-                      <span className="px-2 py-0.5 rounded bg-[#D97745]/15 text-[#D97745]">
-                        ДЕМО-АРХИВ (п. 21 ТЗ)
-                      </span>
-                    )}
-                    <span className="px-2 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5]">
-                      {CONCEPT_STAGE_LABELS_RU[c.stage]}
-                    </span>
-                  </div>
-                  <div className="text-[17px] font-bold text-[#171717]">{c.name}</div>
-                  <p className="text-[13px] text-[#737373]">{c.ideaDescription}</p>
-                </div>
-                <div className="flex flex-col gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedConceptId(c.id);
-                      setActiveCardTab('overview');
-                    }}
-                    className="px-3.5 py-2 rounded-xl border border-[#E8E8E5] text-[13px] font-semibold cursor-pointer"
-                  >
-                    Открыть
-                  </button>
-                  {!isStrategyMode && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        updateConcept(c.id, {
-                          isArchived: false,
-                          isDemo: false,
-                          stage: 'IDEA',
-                        });
-                        notify(
-                          'success',
-                          `Карточка ${c.code} возобновлена на этап «01 · Идея»`
-                        );
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-[#111111] text-white text-[13px] font-semibold cursor-pointer"
-                    >
-                      Возобновить в Идеи
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================================
-          5. ЕДИНАЯ КАРТОЧКА РАЗРАБОТКИ С 9 ВКЛАДКАМИ (П. 5–18 ТЗ)
-      ===================================================================== */}
-      {activeConcept && (
-        <div
-          onClick={() => setSelectedConceptId(null)}
-          className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[1px]"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-5xl bg-white dark:bg-zinc-900 h-full overflow-y-auto p-6 md:p-9 space-y-6 shadow-2xl border-l border-[#E8E8E5]"
-          >
-            {/* Шапка карточки: название, бренд, статус, ответственный, следующий шаг (п. 5 ТЗ) */}
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
-              <div className="space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold">
-                  <span className="px-2.5 py-1 rounded-md bg-[#111111] text-white">
-                    {activeConcept.code}
-                  </span>
-                  <span
-                    className="px-2.5 py-1 rounded-md text-white"
-                    style={{
-                      backgroundColor:
-                        activeConcept.brandId === 'BORNERS' ? '#D97745' : '#8B8078',
-                    }}
-                  >
-                    {activeConcept.brandId === 'BORNERS' ? 'BORNERS' : 'НА ТЕЛЕ'}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-md bg-[#F7F7F5] border border-[#E8E8E5] text-[#171717]">
-                    {
-                      RND_DEVELOPMENT_TYPE_LABELS_RU[
-                        activeConcept.developmentType || 'new_construction'
-                      ]
-                    }
-                  </span>
-                  {activeConcept.isBlocked && (
-                    <span className="px-2.5 py-1 rounded-md bg-[#DC2626] text-white">
-                      Заблокировано: {activeConcept.blockReason || 'Пауза'}
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-[26px] md:text-[30px] font-bold text-[#171717] dark:text-white leading-tight">
-                  {activeConcept.name}
-                </h2>
-                {activeConcept.nextStep && (
-                  <div className="text-[13px] text-[#737373]">
-                    Следующий шаг:{' '}
-                    <b className="text-[#171717]">{activeConcept.nextStep}</b>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!isStrategyMode && (
-                  <button
-                    type="button"
-                    onClick={() => deleteConcept(activeConcept.id)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#DC2626]/30 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white px-3.5 py-2.5 text-[13px] font-bold transition cursor-pointer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Удалить карточку</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setSelectedConceptId(null)}
-                  className="rounded-xl border border-[#E8E8E5] p-2.5 text-[#171717] hover:bg-[#111111] hover:text-white cursor-pointer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
             </div>
 
-            {/* Единая панель этапов и разделов карточки: клик сразу меняет экран и этап */}
-            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-2 space-y-2">
-              <div className="grid grid-cols-2 sm:grid-cols-7 gap-1.5">
-                {SEVEN_KANBAN_STAGES.map((st) => {
-                  const tabForStage = stageToTabId(st);
-                  const isTabOpen = activeCardTab === tabForStage;
-                  const isCurrentStage =
-                    normalizeConceptStageToSeven(activeConcept.stage) === st;
-                  const meta = STAGE_SUBTITLES[st];
-
-                  return (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => {
-                        setActiveCardTab(tabForStage);
-                        if (!isStrategyMode && !isCurrentStage) {
-                          attemptStageTransition(activeConcept, st);
-                        }
-                      }}
-                      className={`p-2.5 rounded-xl text-left border transition cursor-pointer ${
-                        isTabOpen
-                          ? 'bg-[#111111] text-white border-[#111111] shadow-xs'
-                          : isCurrentStage
-                          ? 'bg-white text-[#171717] border-[#D97745]'
-                          : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#171717]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span
-                          className={`text-[10px] font-bold ${
-                            isTabOpen || isCurrentStage ? 'text-[#D97745]' : 'text-[#737373]'
-                          }`}
-                        >
-                          {meta.num}
-                        </span>
-                        {isCurrentStage && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#D97745]" />
-                        )}
-                      </div>
-                      <div className="text-[12px] font-bold truncate mt-0.5">
-                        {meta.title}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveCardTab('files')}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
-                    activeCardTab === 'files'
-                      ? 'bg-[#111111] text-white'
-                      : 'bg-white border border-[#E8E8E5] text-[#737373] hover:text-[#171717]'
-                  }`}
-                >
-                  Комментарии ({activeConcept.comments?.length || 0})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveCardTab('history')}
-                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
-                    activeCardTab === 'history'
-                      ? 'bg-[#111111] text-white'
-                      : 'bg-white border border-[#E8E8E5] text-[#737373] hover:text-[#171717]'
-                  }`}
-                >
-                  История этапов
-                </button>
-              </div>
-            </div>
-
-            {/* Содержимое активной вкладки */}
+            {/* ЭКРАН ВЫБРАННОГО ЭТАПА (01 ИДЕЯ ... 07 ЗАПУСК) */}
             <ProductLabCardBody
               concept={activeConcept}
               activeTab={activeCardTab}
               canEdit={canEditActiveConcept}
-              isStrategyMode={isStrategyMode}
+              isStrategyMode={false}
               currentUser={currentUser}
               users={users}
               products={products}
@@ -1285,7 +1205,8 @@ export function ProductLabView() {
       )}
 
       {/* =====================================================================
-          4. МОДАЛЬНОЕ ОКНО БЫСТРОГО СОЗДАНИЯ НОВОЙ ИДЕИ (СХЕМА 3, П. 4.1–4.2 ТЗ)
+          МОДАЛЬНОЕ ОКНО БЫСТРОГО СОЗДАНИЯ НОВОЙ ИДЕИ ЗА 30–60 СЕКУНД (СТР. 2, 4, 5 PDF)
+          Перетащить 1–20 фото сразу, вставить Cmd+V, минимум полей
       ===================================================================== */}
       {quickIdeaOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -1303,11 +1224,30 @@ export function ProductLabView() {
                         ...prev,
                         images: [...prev.images, reader.result as string],
                       }));
-                      notify('success', 'Скриншот вставлен из буфера обмена');
+                      notify('success', 'Скриншот из буфера добавлен в галерею');
                     }
                   };
                   reader.readAsDataURL(file);
                 }
+              });
+            }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+                f.type.startsWith('image/')
+              );
+              files.forEach((file) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  if (typeof reader.result === 'string') {
+                    setQuickIdeaForm((prev) => ({
+                      ...prev,
+                      images: [...prev.images, reader.result as string],
+                    }));
+                  }
+                };
+                reader.readAsDataURL(file);
               });
             }}
             className="w-full max-w-2xl bg-white rounded-3xl border border-[#E8E8E5] p-7 md:p-8 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto"
@@ -1315,10 +1255,10 @@ export function ProductLabView() {
             <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
               <div>
                 <h3 className="text-[24px] font-bold text-[#171717]">
-                  Новая продуктовая идея
+                  Новая идея продукта
                 </h3>
                 <p className="text-[13px] text-[#737373]">
-                  Схема 3 ТЗ: минимум действий на входе — обязательны только бренд и название/описание (без требования себестоимости и фабрики)
+                  Минимум полей: бренд, название, ответственный, короткая суть и фотографии
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1327,7 +1267,7 @@ export function ProductLabView() {
                   onClick={handleQuickCreateIdea}
                   className="h-10 px-5 rounded-full bg-[#D97745] hover:bg-[#C26535] text-white text-[13px] font-bold uppercase tracking-wider cursor-pointer"
                 >
-                  СОХРАНИТЬ
+                  Сохранить идею
                 </button>
                 <button
                   type="button"
@@ -1340,17 +1280,17 @@ export function ProductLabView() {
             </div>
 
             <div className="space-y-4 text-[14px]">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                    Бренд (обязательно)
+                    Бренд
                   </label>
                   <select
                     value={quickIdeaForm.brandId}
                     onChange={(e) =>
                       setQuickIdeaForm({ ...quickIdeaForm, brandId: e.target.value })
                     }
-                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5 font-bold"
+                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3 font-bold"
                   >
                     <option value="BORNERS">BORNERS</option>
                     <option value="NA_TELE">НА ТЕЛЕ</option>
@@ -1359,7 +1299,59 @@ export function ProductLabView() {
 
                 <div>
                   <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                    Тип разработки (опционально)
+                    Ответственный
+                  </label>
+                  <select
+                    value={quickIdeaForm.ownerId}
+                    onChange={(e) =>
+                      setQuickIdeaForm({ ...quickIdeaForm, ownerId: e.target.value })
+                    }
+                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3 font-semibold"
+                  >
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Плановая дата запуска
+                  </label>
+                  <input
+                    type="date"
+                    value={quickIdeaForm.targetLaunchDate}
+                    onChange={(e) =>
+                      setQuickIdeaForm({
+                        ...quickIdeaForm,
+                        targetLaunchDate: e.target.value,
+                      })
+                    }
+                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3 font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Название модели
+                  </label>
+                  <input
+                    value={quickIdeaForm.name}
+                    onChange={(e) =>
+                      setQuickIdeaForm({ ...quickIdeaForm, name: e.target.value })
+                    }
+                    placeholder="Напр.: Бесшовная база 2.0"
+                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Тип разработки
                   </label>
                   <select
                     value={quickIdeaForm.developmentType}
@@ -1369,7 +1361,7 @@ export function ProductLabView() {
                         developmentType: e.target.value as RnDDevelopmentType,
                       })
                     }
-                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5 font-semibold"
+                    className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3 font-semibold"
                   >
                     {Object.entries(RND_DEVELOPMENT_TYPE_LABELS_RU).map(([k, v]) => (
                       <option key={k} value={k}>
@@ -1382,21 +1374,7 @@ export function ProductLabView() {
 
               <div>
                 <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Название
-                </label>
-                <input
-                  value={quickIdeaForm.name}
-                  onChange={(e) =>
-                    setQuickIdeaForm({ ...quickIdeaForm, name: e.target.value })
-                  }
-                  placeholder="Напр.: Свободные трусы в эстетике Old Money"
-                  className="w-full h-11 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-4 font-semibold"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Комментарий / суть идеи
+                  Короткая суть идеи
                 </label>
                 <textarea
                   rows={2}
@@ -1404,134 +1382,132 @@ export function ProductLabView() {
                   onChange={(e) =>
                     setQuickIdeaForm({ ...quickIdeaForm, comment: e.target.value })
                   }
-                  placeholder="Изучить посадку, резинку, материалы и доступную цену"
+                  placeholder="Тонкий материал, мягкая посадка, почти незаметные края..."
                   className="w-full rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] p-3.5"
                 />
               </div>
 
-              {/* 4.2 Проверка дубликатов с кнопкой ручного объединения */}
-              {duplicateCandidates.length > 0 && (
-                <div className="rounded-2xl border border-[#D97745] bg-[#D97745]/10 p-4 space-y-2.5 text-[13px]">
-                  <div className="font-bold text-[#171717]">
-                    Найдены возможные совпадения в базе (п. 4.2 ТЗ «Дубликаты»):
-                  </div>
-                  {duplicateCandidates.map((dup) => (
-                    <div
-                      key={dup.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3 border border-[#E8E8E5]"
-                    >
-                      <div>
-                        <span className="font-bold text-[#171717]">
-                          {dup.code} · {dup.name}
-                        </span>
-                        <span className="text-[12px] text-[#737373] ml-2">
-                          ({CONCEPT_STAGE_LABELS_RU[dup.stage]})
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleMergeIntoExisting(dup)}
-                        className="px-3 py-1.5 rounded-lg bg-[#111111] text-white text-[12px] font-semibold cursor-pointer"
-                      >
-                        Объединить с этой карточкой
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                    Ссылка на WB / Ozon / соцсети (сохраняется всегда)
-                  </label>
-                  <input
-                    value={quickIdeaForm.referenceLink}
-                    onChange={(e) =>
-                      setQuickIdeaForm({
-                        ...quickIdeaForm,
-                        referenceLink: e.target.value,
-                      })
-                    }
-                    placeholder="https://www.wildberries.ru/catalog/..."
-                    className="w-full h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                    Теги через запятую (опционально)
-                  </label>
-                  <input
-                    value={quickIdeaForm.tagsText}
-                    onChange={(e) =>
-                      setQuickIdeaForm({ ...quickIdeaForm, tagsText: e.target.value })
-                    }
-                    placeholder="Old Money, хлопок, Узбекистан"
-                    className="w-full h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3"
-                  />
-                </div>
+              <div>
+                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                  Ссылка на референс / карточку конкурента (опционально)
+                </label>
+                <input
+                  value={quickIdeaForm.referenceLink}
+                  onChange={(e) =>
+                    setQuickIdeaForm({
+                      ...quickIdeaForm,
+                      referenceLink: e.target.value,
+                    })
+                  }
+                  placeholder="https://www.wildberries.ru/catalog/..."
+                  className="w-full h-10 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] px-3.5"
+                />
               </div>
 
-              {/* Зона множественной загрузки, drag-and-drop и вставки из буфера обмена (Схема 3 ТЗ) */}
-              <label className="block rounded-2xl border-2 border-dashed border-[#E8E8E5] hover:border-[#D97745] bg-[#F7F7F5]/60 p-5 text-center cursor-pointer transition">
-                <div className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#737373]">
-                  <Upload className="h-4 w-4 text-[#D97745]" />
-                  <span>
-                    + Фото / скриншоты / видео / перетащите файлы или нажмите Cmd+V (из буфера)
-                  </span>
-                </div>
+              {/* Зона загрузки 1–20 фото (ПЕРЕТАЩИТЬ / ВСТАВИТЬ Cmd+V / ВЫБРАТЬ, Стр. 4 и Сценарий №1 PDF) */}
+              <div className="rounded-2xl border-2 border-dashed border-[#D5D3CE] hover:border-[#D97745] bg-[#F7F7F5]/70 p-5 space-y-3 text-center transition">
+                <label className="block cursor-pointer">
+                  <div className="inline-flex items-center gap-2 text-[14px] font-bold text-[#171717]">
+                    <Upload className="h-4 w-4 text-[#D97745]" />
+                    <span>
+                      Перетащите 1–20 фото сюда, нажмите Cmd+V или выберите файлы
+                    </span>
+                  </div>
+                  <div className="text-[12px] text-[#737373] mt-0.5">
+                    Можно сразу выбрать обложку и поменять порядок миниатюр
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      files.forEach((f) => {
+                        const r = new FileReader();
+                        r.onload = () => {
+                          if (typeof r.result === 'string') {
+                            setQuickIdeaForm((prev) => ({
+                              ...prev,
+                              images: [...prev.images, r.result as string],
+                            }));
+                          }
+                        };
+                        r.readAsDataURL(f);
+                      });
+                    }}
+                  />
+                </label>
+
                 {quickIdeaForm.images.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-2 mt-3">
+                  <div className="flex flex-wrap justify-center gap-2.5 pt-2">
                     {quickIdeaForm.images.map((img, i) => (
-                      <img
+                      <div
                         key={i}
-                        src={img}
-                        alt="preview"
-                        className="h-14 w-14 rounded-lg object-cover border border-[#E8E8E5] bg-white"
-                      />
+                        className={`relative h-20 w-20 rounded-xl overflow-hidden border-2 bg-white ${
+                          i === 0 ? 'border-[#D97745]' : 'border-[#E8E8E5]'
+                        }`}
+                      >
+                        <img
+                          src={img}
+                          alt="preview"
+                          className="h-full w-full object-cover"
+                        />
+                        {i === 0 ? (
+                          <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-[#D97745] text-white text-[9px] font-bold">
+                            Обложка
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setQuickIdeaForm((prev) => {
+                                const list = [...prev.images];
+                                const [picked] = list.splice(i, 1);
+                                return { ...prev, images: [picked, ...list] };
+                              })
+                            }
+                            className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 text-white text-[9px] font-bold cursor-pointer"
+                          >
+                            Сделать обложкой
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setQuickIdeaForm((prev) => ({
+                              ...prev,
+                              images: prev.images.filter((_, idx) => idx !== i),
+                            }))
+                          }
+                          className="absolute top-1 right-1 h-4 w-4 rounded-full bg-black/75 text-white flex items-center justify-center text-[10px] cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    files.forEach((f) => {
-                      const r = new FileReader();
-                      r.onload = () => {
-                        if (typeof r.result === 'string') {
-                          setQuickIdeaForm((prev) => ({
-                            ...prev,
-                            images: [...prev.images, r.result as string],
-                          }));
-                        }
-                      };
-                      r.readAsDataURL(f);
-                    });
-                  }}
-                />
-              </label>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* =====================================================================
-          15. ДИАЛОГОВОЕ ОКНО КОНТРОЛЯ ПЕРЕХОДА МЕЖДУ ЭТАПАМИ (STAGE GATE MODAL)
+          КОРОТКАЯ ПРОВЕРКА ПЕРЕД СМЕНОЙ ЭТАПА (СТР. 3 И СЦЕНАРИЙ №3 PDF)
+          Если данных не хватает — показать перечень недостающего с возможностью заполнить или вернуться
       ===================================================================== */}
       {stageGateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl bg-white rounded-3xl border border-[#E8E8E5] p-7 space-y-5 shadow-2xl">
+          <div className="w-full max-w-lg bg-white rounded-3xl border border-[#E8E8E5] p-7 space-y-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-[#E8E8E5] pb-4">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-wider text-[#D97745]">
-                  Контрольная точка перехода (п. 15 ТЗ)
+                  Короткая проверка перед сменой этапа
                 </div>
                 <h3 className="text-[20px] font-bold text-[#171717] mt-0.5">
-                  Переход на этап «{CONCEPT_STAGE_LABELS_RU[stageGateModal.targetStage]}»
+                  Перевод в этап «{CONCEPT_STAGE_LABELS_RU[stageGateModal.targetStage]}»
                 </h3>
               </div>
               <button
@@ -1543,9 +1519,9 @@ export function ProductLabView() {
               </button>
             </div>
 
-            <div className="rounded-xl bg-[#D97745]/10 border border-[#D97745]/30 p-4 space-y-1.5 text-[13px]">
+            <div className="rounded-2xl bg-[#FDF3EB] border border-[#D97745]/30 p-4 space-y-1.5 text-[13px]">
               <div className="font-bold text-[#171717]">
-                Для перехода требуется проверить и дополнить следующие условия:
+                Чтобы перевести карточку вперёд, укажите недостающие данные:
               </div>
               {stageGateModal.missingFields.map((mf, i) => (
                 <div key={i} className="text-[#171717]">
@@ -1554,133 +1530,76 @@ export function ProductLabView() {
               ))}
             </div>
 
-            {stageGateModal.requiresManagerApproval &&
-            !canUserApproveProduction(currentUser, stageGateModal.concept.brandId) ? (
-              <div className="rounded-xl bg-[#DC2626]/10 border border-[#DC2626]/30 p-4 text-[13px] text-[#DC2626] font-semibold">
-                Ваша роль ({ROLE_LABELS_RU[currentUser.role]}) не позволяет утверждать передачу в производство. Простым перетаскиванием запрещено обходить утверждение руководителя (п. 15 и Критерий 05 ТЗ).
-              </div>
-            ) : (
-              <div className="space-y-3 text-[14px]">
-                <div className="font-bold text-[#171717]">
-                  Дозаполнить недостающие данные прямо в окне:
-                </div>
+            <div className="space-y-3 text-[14px]">
+              {normalizeConceptStageToSeven(stageGateModal.targetStage) ===
+                'ANALYSIS' && (
+                <>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Ответственный
+                    </label>
+                    <select
+                      value={gateFillForm.ownerId}
+                      onChange={(e) =>
+                        setGateFillForm({ ...gateFillForm, ownerId: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-semibold"
+                    >
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Короткая суть идеи
+                    </label>
+                    <input
+                      value={gateFillForm.whatAttracted}
+                      onChange={(e) =>
+                        setGateFillForm({
+                          ...gateFillForm,
+                          whatAttracted: e.target.value,
+                        })
+                      }
+                      className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
+                    />
+                  </div>
+                </>
+              )}
 
-                {normalizeConceptStageToSeven(stageGateModal.targetStage) === 'ANALYSIS' && (
-                  <>
-                    <div>
-                      <label className="block text-[12px] font-semibold mb-1">
-                        Ответственный за разработку
-                      </label>
-                      <select
-                        value={gateFillForm.ownerId}
-                        onChange={(e) =>
-                          setGateFillForm({ ...gateFillForm, ownerId: e.target.value })
-                        }
-                        className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-semibold"
-                      >
-                        {users.map((u) => (
-                          <option key={u.id} value={u.id}>
-                            {u.fullName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-semibold mb-1">
-                        Суть идеи / что привлекло внимание
-                      </label>
-                      <input
-                        value={gateFillForm.whatAttracted}
-                        onChange={(e) =>
-                          setGateFillForm({ ...gateFillForm, whatAttracted: e.target.value })
-                        }
-                        className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {normalizeConceptStageToSeven(stageGateModal.targetStage) === 'SAMPLE' && (
-                  <>
-                    <div>
-                      <label className="block text-[12px] font-semibold mb-1">
-                        Продуктовая гипотеза
-                      </label>
-                      <input
-                        value={gateFillForm.hypothesis}
-                        onChange={(e) =>
-                          setGateFillForm({ ...gateFillForm, hypothesis: e.target.value })
-                        }
-                        placeholder="Что создаём и в чём преимущество..."
-                        className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-semibold mb-1">
-                        Ключевые риски
-                      </label>
-                      <input
-                        value={gateFillForm.risks}
-                        onChange={(e) =>
-                          setGateFillForm({ ...gateFillForm, risks: e.target.value })
-                        }
-                        placeholder="Что необходимо проверить на образце..."
-                        className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {normalizeConceptStageToSeven(stageGateModal.targetStage) ===
-                  'PRODUCTION' && (
-                  <>
-                    <div>
-                      <label className="block text-[12px] font-semibold mb-1">
-                        Утверждённая фабрика-производитель
-                      </label>
-                      <input
-                        value={gateFillForm.supplierName}
-                        onChange={(e) =>
-                          setGateFillForm({ ...gateFillForm, supplierName: e.target.value })
-                        }
-                        placeholder="Напр.: Фабрика A (Гуандун, КНР)"
-                        className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-semibold mb-1">
-                        Обоснование утверждения руководителем
-                      </label>
-                      <input
-                        value={gateFillForm.approvalJustification}
-                        onChange={(e) =>
-                          setGateFillForm({
-                            ...gateFillForm,
-                            approvalJustification: e.target.value,
-                          })
-                        }
-                        placeholder="Образец проверен, себестоимость и посадка согласованы..."
-                        className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                    Комментарий к переходу / причина мотивированного исключения руководителя
-                  </label>
-                  <input
-                    value={gateFillForm.exceptionReason}
-                    onChange={(e) =>
-                      setGateFillForm({ ...gateFillForm, exceptionReason: e.target.value })
-                    }
-                    placeholder="Запишется в неизменяемую историю карточки..."
-                    className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
-                  />
-                </div>
-              </div>
-            )}
+              {normalizeConceptStageToSeven(stageGateModal.targetStage) ===
+                'SAMPLE' && (
+                <>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Что берём за основу и чем лучше?
+                    </label>
+                    <input
+                      value={gateFillForm.hypothesis}
+                      onChange={(e) =>
+                        setGateFillForm({ ...gateFillForm, hypothesis: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Какой риск проверяем на образце?
+                    </label>
+                    <input
+                      value={gateFillForm.risks}
+                      onChange={(e) =>
+                        setGateFillForm({ ...gateFillForm, risks: e.target.value })
+                      }
+                      className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-[#E8E8E5]">
               <button
@@ -1688,20 +1607,31 @@ export function ProductLabView() {
                 onClick={() => setStageGateModal(null)}
                 className="h-10 px-4 rounded-xl border border-[#E8E8E5] text-[13px] font-semibold cursor-pointer"
               >
-                Отмена
+                Вернуться в карточку
               </button>
-              {(!stageGateModal.requiresManagerApproval ||
-                canUserApproveProduction(currentUser, stageGateModal.concept.brandId)) && (
-                <button
-                  type="button"
-                  onClick={handleConfirmStageGateModal}
-                  className="h-10 px-5 rounded-xl bg-[#111111] text-white text-[13px] font-bold cursor-pointer"
-                >
-                  Сохранить данные и перевести этап →
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleConfirmStageGateModal}
+                className="h-10 px-5 rounded-xl bg-[#111111] text-white text-[13px] font-bold cursor-pointer"
+              >
+                Заполнить и перевести →
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ЗУМ-ЛАЙТБОКС ДЛЯ УВЕЛИЧЕНИЯ ЛЮБОЙ ФОТОГРАФИИ (СТР. 4 И 9 PDF) */}
+      {zoomPhotoUrl && (
+        <div
+          onClick={() => setZoomPhotoUrl(null)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-6 cursor-zoom-out"
+        >
+          <img
+            src={zoomPhotoUrl}
+            alt="Увеличенное фото"
+            className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain bg-white p-4"
+          />
         </div>
       )}
     </div>

@@ -3,10 +3,15 @@
 import React, { useState } from 'react';
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
+  FileDown,
   Plus,
+  Printer,
   Trash2,
   Upload,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   AppUser,
@@ -16,17 +21,13 @@ import {
   Product,
   ProductConcept,
   RnDAnalysisReport,
-  RnDDevelopmentType,
-  RnDLaunchChecklist,
+  RnDDecisionOutcome,
   RnDMarketEvidence,
-  RnDPostLaunchCheckpoint,
   RnDProductionInternalStatus,
   RnDSampleItem,
   TaskItem,
 } from '@/types/platform';
 import {
-  RND_DEVELOPMENT_TYPE_LABELS_RU,
-  ROLE_LABELS_RU,
   canUserApproveProduction,
   canUserViewCostPrice,
   formatCurrencyRub,
@@ -43,23 +44,46 @@ export type RnDCardTabId =
   | 'files'
   | 'history';
 
-export const RND_CARD_TABS: { id: RnDCardTabId; label: string }[] = [
-  { id: 'overview', label: '01 · Идея' },
-  { id: 'analysis', label: '02 · Анализ' },
-  { id: 'samples', label: '03 · Образец' },
-  { id: 'testing', label: '04 · Тест' },
-  { id: 'decisions', label: '05 · Решение' },
-  { id: 'production', label: '06 · Производство' },
-  { id: 'launch', label: '07 · Запуск' },
-  { id: 'files', label: 'Комментарии' },
-  { id: 'history', label: 'История' },
+export const RND_CARD_TABS: { id: RnDCardTabId; label: string; shortNum: string; title: string }[] = [
+  { id: 'overview', label: '01 Идея', shortNum: '01', title: 'Идея' },
+  { id: 'analysis', label: '02 Анализ', shortNum: '02', title: 'Анализ' },
+  { id: 'samples', label: '03 Образец', shortNum: '03', title: 'Образец' },
+  { id: 'testing', label: '04 Тест', shortNum: '04', title: 'Тест' },
+  { id: 'decisions', label: '05 Решение', shortNum: '05', title: 'Решение' },
+  { id: 'production', label: '06 Производство', shortNum: '06', title: 'Производство' },
+  { id: 'launch', label: '07 Запуск', shortNum: '07', title: 'Запуск' },
+  { id: 'history', label: 'История решений', shortNum: '•', title: 'История' },
+];
+
+export const FACTORY_DIRECTORY = [
+  { name: 'Ташкент Текстиль №1', country: 'Узбекистан' },
+  { name: 'Фергана Коттон Полотно', country: 'Узбекистан' },
+  { name: 'Гуандун Интимейтс (Guangdong Intimates)', country: 'Китай' },
+  { name: 'Сучжоу Бесшовные Технологии (Suzhou Seamless)', country: 'Китай' },
+  { name: 'Стамбул Трикотаж (Istanbul Knitwear)', country: 'Турция' },
+  { name: 'Иваново Премиум Трикотаж', country: 'Россия' },
+];
+
+export const MATERIAL_DIRECTORY: {
+  ru: string;
+  en: string;
+  zh: string;
+}[] = [
+  { ru: 'Хлопок', en: 'Cotton', zh: '棉 (Cotton)' },
+  { ru: 'Модал', en: 'Modal', zh: '莫代尔 (Modal)' },
+  { ru: 'Микромодал', en: 'MicroModal', zh: '超细莫代尔 (MicroModal)' },
+  { ru: 'Эластан', en: 'Elastane / Spandex', zh: '氨纶 (Elastane)' },
+  { ru: 'Полиамид', en: 'Polyamide / Nylon', zh: '锦纶 / 尼龙 (Polyamide)' },
+  { ru: 'Бамбук', en: 'Bamboo Fiber', zh: '竹纤维 (Bamboo)' },
+  { ru: 'Вискоза', en: 'Viscose', zh: '粘胶纤维 (Viscose)' },
+  { ru: 'Микрофибра', en: 'Microfiber', zh: '超细纤维 (Microfiber)' },
 ];
 
 export const PRODUCTION_INTERNAL_STATUSES: {
   code: RnDProductionInternalStatus;
   label: string;
 }[] = [
-  { code: 'order_prep', label: 'Подготовка' },
+  { code: 'order_prep', label: 'Черновик заказа' },
   { code: 'order_placed', label: 'Заказ размещён' },
   { code: 'in_production', label: 'В пошиве' },
   { code: 'qc_inspection', label: 'Проверка ОТК' },
@@ -67,6 +91,9 @@ export const PRODUCTION_INTERNAL_STATUSES: {
   { code: 'in_delivery', label: 'В доставке' },
   { code: 'received', label: 'Принято на склад' },
 ];
+
+type SevenSizeKey = 'S' | 'M' | 'L' | 'XL' | '2XL' | '3XL' | '4XL';
+const SEVEN_SIZES: SevenSizeKey[] = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
 
 export interface ProductLabCardBodyProps {
   concept: ProductConcept;
@@ -102,7 +129,6 @@ export function ProductLabCardBody({
   activeTab,
   canEdit,
   currentUser,
-  users,
   products,
   onUpdateConcept,
   onChangeStageWithGate,
@@ -114,33 +140,44 @@ export function ProductLabCardBody({
   const canApproveProd = canUserApproveProduction(currentUser, concept.brandId);
 
   const [newRefLink, setNewRefLink] = useState('');
-  const [commentText, setCommentText] = useState('');
+  const [showExtraAnalysis, setShowExtraAnalysis] = useState(false);
 
-  // Конкурент (Этап 02 Анализ) — всего 4 удобных поля
+  // Поля добавления конкурента (Блок РЫНОК в 02 Анализ)
   const [evForm, setEvForm] = useState({
     competitorBrand: '',
     articleSku: '',
     priceRub: '',
+    packQty: '4 шт.',
     estimatedRevenueRub: '',
-    comparisonNote: '',
+    sourceName: 'WB / MPStats',
   });
 
-  // Образец (Этап 03 Образец) — компактная форма
+  // Состав материала из справочника (03 Образец — сумма = 100%)
+  const [compRows, setCompRows] = useState<{ material: string; pct: string }[]>([
+    { material: 'Хлопок', pct: '95' },
+    { material: 'Эластан', pct: '5' },
+  ]);
+
   const [sampleForm, setSampleForm] = useState({
-    factoryName: '',
-    country: 'Узбекистан',
-    materialAndComposition: '',
-    estimatedUnitProductionPrice: '',
+    factoryName: FACTORY_DIRECTORY[0].name,
+    customFactory: '',
+    receivedAt: new Date().toISOString().slice(0, 10),
+    sampleCostRub: '3500',
+    deliveryCostRub: '1200',
+    estimatedUnitProductionPrice: concept.plannedUnitCost ? String(concept.plannedUnitCost) : '340',
     comments: '',
+    photos: [] as string[],
   });
 
-  // Партия (Этап 06 Производство)
-  const [poForm, setPoForm] = useState({
-    factoryName: concept.supplierName || '',
-    totalUnits: '3000',
-    unitPrice: concept.plannedUnitCost ? String(concept.plannedUnitCost) : '',
-    plannedReadyDate: concept.targetLaunchDate || '2027-02-01',
-  });
+  // 05 Решение — комментарий и возврат на этап
+  const [decisionReason, setDecisionReason] = useState('');
+  const [reworkTargetStage, setReworkTargetStage] = useState<ConceptStage>('SAMPLE');
+
+  const parseCleanNumber = (raw: string): number | null => {
+    const cleaned = raw.replace(/[^\d]/g, '');
+    if (!cleaned) return null;
+    return parseInt(cleaned, 10);
+  };
 
   const currentAnalysis: RnDAnalysisReport = concept.analysisReport || {
     whatWeCreate: concept.ideaDescription || '',
@@ -178,193 +215,75 @@ export function ProductLabCardBody({
     });
   };
 
-  const parseCleanNumber = (raw: string): number | null => {
-    const cleaned = raw.replace(/[^\d]/g, '');
-    if (!cleaned) return null;
-    return parseInt(cleaned, 10);
-  };
-
   const linkedProduct = products.find(
     (p) => p.id === concept.linkedProductId || p.conceptId === concept.id
   );
 
+  // Расчёт комплекта и 1 пары (Важное правило расчёта со Стр. 5 PDF)
+  const packUnits = concept.packUnitsCount && concept.packUnitsCount > 0 ? concept.packUnitsCount : 4;
+  const packRetailPrice = concept.plannedRetailPrice || 2600;
+  const unitRetailPrice = Math.round(packRetailPrice / packUnits);
+  const unitCostPrice = concept.plannedUnitCost || 320;
+  const packCostPrice = unitCostPrice * packUnits;
+
+  // Четыре понятные проверки (04 Тест со Стр. 6 PDF)
+  const fourChecks = concept.fourChecksTest || {
+    fitAndComfort: 'passed' as const,
+    fitAndComfortComment: '',
+    waistbandAndSeams: 'passed' as const,
+    waistbandAndSeamsComment: '',
+    washShapeColor: 'passed' as const,
+    washShapeColorComment: '',
+    manufacturingQuality: 'passed' as const,
+    manufacturingQualityComment: '',
+  };
+
+  const updateFourCheck = (patch: Partial<NonNullable<ProductConcept['fourChecksTest']>>) => {
+    const next = { ...fourChecks, ...patch };
+    onUpdateConcept(concept.id, {
+      fourChecksTest: next,
+    });
+  };
+
   // ===========================================================================
-  // ЭТАП 01: ИДЕЯ (Только суть, фото, бренд, ссылки — ничего лишнего!)
+  // ЭТАП 01: ИДЕЯ (Стр. 5 PDF — Ссылки и Выход в Анализ)
   // ===========================================================================
   if (activeTab === 'overview') {
+    const hasRequiredForAnalysis =
+      Boolean(concept.name.trim()) &&
+      Boolean(concept.brandId) &&
+      Boolean(concept.ownerId) &&
+      Boolean((concept.whatAttracted || concept.ideaDescription || '').trim());
+
     return (
       <div className="space-y-6 text-[15px]">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Фото */}
-          <div className="lg:col-span-4 rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-5 flex flex-col items-center justify-center min-h-[220px]">
-            <img
-              src={concept.imageUrl}
-              alt={concept.name}
-              className="max-h-44 w-full object-contain"
-            />
-            {canEdit && (
-              <label className="mt-4 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E8E8E5] text-[13px] font-semibold text-[#171717] hover:border-[#171717] cursor-pointer transition">
-                <Upload className="h-3.5 w-3.5" />
-                <span>Заменить фото</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    const r = new FileReader();
-                    r.onload = () => {
-                      if (typeof r.result === 'string') {
-                        onUpdateConcept(concept.id, { imageUrl: r.result });
-                      }
-                    };
-                    r.readAsDataURL(f);
-                  }}
-                />
-              </label>
-            )}
-          </div>
-
-          {/* Главные поля карточки */}
-          <div className="lg:col-span-8 rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[14px]">
-              <div className="sm:col-span-2">
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Название модели / идеи
-                </label>
-                <input
-                  disabled={!canEdit}
-                  value={concept.name}
-                  onChange={(e) => onUpdateConcept(concept.id, { name: e.target.value })}
-                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 font-bold text-[16px]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Бренд
-                </label>
-                <select
-                  disabled={!canEdit}
-                  value={concept.brandId}
-                  onChange={(e) => onUpdateConcept(concept.id, { brandId: e.target.value })}
-                  className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-semibold"
-                >
-                  <option value="BORNERS">BORNERS</option>
-                  <option value="NA_TELE">НА ТЕЛЕ</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Ответственный
-                </label>
-                <select
-                  disabled={!canEdit}
-                  value={concept.ownerId}
-                  onChange={(e) => onUpdateConcept(concept.id, { ownerId: e.target.value })}
-                  className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-semibold"
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} ({ROLE_LABELS_RU[u.role]})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Тип разработки
-                </label>
-                <select
-                  disabled={!canEdit}
-                  value={concept.developmentType || 'new_construction'}
-                  onChange={(e) =>
-                    onUpdateConcept(concept.id, {
-                      developmentType: e.target.value as RnDDevelopmentType,
-                    })
-                  }
-                  className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-medium"
-                >
-                  {Object.entries(RND_DEVELOPMENT_TYPE_LABELS_RU).map(([k, label]) => (
-                    <option key={k} value={k}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Плановая дата запуска
-                </label>
-                <input
-                  type="date"
-                  disabled={!canEdit}
-                  value={concept.targetLaunchDate || ''}
-                  onChange={(e) =>
-                    onUpdateConcept(concept.id, { targetLaunchDate: e.target.value })
-                  }
-                  className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-medium"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                  Следующий конкретный шаг
-                </label>
-                <input
-                  disabled={!canEdit}
-                  value={concept.nextStep || ''}
-                  onChange={(e) => onUpdateConcept(concept.id, { nextStep: e.target.value })}
-                  placeholder="Например: заказать образец на фабрике в Узбекистане"
-                  className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3.5 bg-[#F7F7F5]/60 font-medium"
-                />
-              </div>
+        {/* Ссылки на источники / референсы */}
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-[17px] font-bold text-[#171717]">
+                Ссылки на источники и референсы (WB / Ozon / соцсети)
+              </h3>
+              <p className="text-[13px] text-[#737373]">
+                Сохраняются внутри карточки и доступны на всех следующих этапах
+              </p>
             </div>
           </div>
-        </div>
 
-        {/* Суть идеи и ссылки */}
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-5">
-          <div>
-            <label className="block text-[14px] font-bold text-[#171717] mb-2">
-              Суть идеи (что понравилось, какую задачу решаем)
-            </label>
-            <textarea
-              rows={3}
-              disabled={!canEdit}
-              value={concept.whatAttracted ?? concept.ideaDescription ?? ''}
-              onChange={(e) =>
-                onUpdateConcept(concept.id, {
-                  whatAttracted: e.target.value,
-                  ideaDescription: e.target.value,
-                })
-              }
-              placeholder="Опишите идею простыми словами: какая ткань, посадка, комплектность или принт..."
-              className="w-full rounded-xl border border-[#E8E8E5] p-3.5 text-[14px]"
-            />
-          </div>
-
-          <div className="space-y-2.5 pt-3 border-t border-[#E8E8E5]">
-            <label className="block text-[14px] font-bold text-[#171717]">
-              Ссылки на конкурентов / референсы (WB, Ozon, Instagram)
-            </label>
-            <div className="space-y-1.5">
+          {(concept.referenceLinks || []).length > 0 ? (
+            <div className="space-y-2">
               {(concept.referenceLinks || []).map((link, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px]"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px]"
                 >
                   <a
                     href={link}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[#171717] font-medium underline truncate inline-flex items-center gap-1.5"
+                    className="text-[#171717] font-medium underline truncate inline-flex items-center gap-2"
                   >
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[#D97745]" />
                     <span className="truncate">{link}</span>
                   </a>
                   {canEdit && (
@@ -377,7 +296,7 @@ export function ProductLabCardBody({
                           ),
                         })
                       }
-                      className="text-[#737373] hover:text-[#DC2626] cursor-pointer px-1"
+                      className="text-[#737373] hover:text-[#DC2626] font-semibold cursor-pointer px-2"
                     >
                       Удалить
                     </button>
@@ -385,307 +304,539 @@ export function ProductLabCardBody({
                 </div>
               ))}
             </div>
-            {canEdit && (
-              <div className="flex gap-2">
-                <input
-                  value={newRefLink}
-                  onChange={(e) => setNewRefLink(e.target.value)}
-                  placeholder="Вставьте ссылку на товар конкурента..."
-                  className="flex-1 h-10 rounded-xl border border-[#E8E8E5] px-3.5 text-[13px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!newRefLink.trim()) return;
-                    onUpdateConcept(concept.id, {
-                      referenceLinks: [...(concept.referenceLinks || []), newRefLink.trim()],
-                    });
-                    setNewRefLink('');
-                  }}
-                  className="px-4 h-10 rounded-xl bg-[#111111] text-white text-[13px] font-semibold cursor-pointer"
-                >
-                  + Добавить ссылку
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ===========================================================================
-  // ЭТАП 02: АНАЛИЗ (Гипотеза + Простая таблица конкурентов + Целевая цена)
-  // ===========================================================================
-  if (activeTab === 'analysis') {
-    return (
-      <div className="space-y-6 text-[15px]">
-        {/* Короткая гипотеза и экономика */}
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-          <h3 className="text-[18px] font-bold text-[#171717]">
-            Продуктовая гипотеза и целевая экономика
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[14px]">
-            <div className="md:col-span-2">
-              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                За счёт чего товар выиграет у конкурентов?
-              </label>
-              <input
-                disabled={!canEdit}
-                value={currentAnalysis.concreteAdvantage || currentAnalysis.whatWeCreate}
-                onChange={(e) => {
-                  updateAnalysisField('concreteAdvantage', e.target.value);
-                  updateAnalysisField('whatWeCreate', e.target.value);
-                }}
-                placeholder="Например: плотный модал 180 г/м², не скатывается, выгодный набор 3-4 шт."
-                className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                Плановая розничная цена на МП (₽)
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                disabled={!canEdit}
-                value={concept.plannedRetailPrice ? String(concept.plannedRetailPrice) : ''}
-                onChange={(e) =>
-                  onUpdateConcept(concept.id, {
-                    plannedRetailPrice: parseCleanNumber(e.target.value) ?? 0,
-                  })
-                }
-                placeholder="Например: 1890"
-                className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                Целевая себестоимость 1 ед. (₽)
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                disabled={!canEdit || !hasCostAccess}
-                value={
-                  hasCostAccess && concept.plannedUnitCost
-                    ? String(concept.plannedUnitCost)
-                    : ''
-                }
-                onChange={(e) =>
-                  onUpdateConcept(concept.id, {
-                    plannedUnitCost: parseCleanNumber(e.target.value) ?? 0,
-                  })
-                }
-                placeholder={hasCostAccess ? 'Например: 420' : 'Скрыто по правам'}
-                className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 font-bold"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
-                Жалобы покупателей у конкурентов / на что обратить внимание на фабрике
-              </label>
-              <textarea
-                rows={2}
-                disabled={!canEdit}
-                value={currentAnalysis.openQuestionsAndRisks}
-                onChange={(e) =>
-                  updateAnalysisField('openQuestionsAndRisks', e.target.value)
-                }
-                placeholder="Например: у конкурентов маломерит размер XL и тугая резинка..."
-                className="w-full rounded-xl border border-[#E8E8E5] p-3"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Простая и удобная таблица конкурентов */}
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-          <h3 className="text-[18px] font-bold text-[#171717]">
-            Анализ конкурентов на маркетплейсах
-          </h3>
-
-          {currentAnalysis.marketEvidences.length > 0 ? (
-            <div className="space-y-2.5">
-              {currentAnalysis.marketEvidences.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="rounded-xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 flex flex-wrap items-center justify-between gap-4 text-[14px]"
-                >
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-[#171717]">
-                      {ev.competitorBrand}{' '}
-                      {ev.articleSku ? `· Арт. ${ev.articleSku}` : ''}
-                    </div>
-                    {ev.comparisonNote && (
-                      <div className="text-[13px] text-[#737373]">{ev.comparisonNote}</div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-5">
-                    <div>
-                      <span className="text-[12px] text-[#737373] block">Цена</span>
-                      <span className="font-bold text-[#171717]">
-                        {formatCurrencyRub(ev.priceRub)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[12px] text-[#737373] block">Выручка / мес.</span>
-                      <span className="font-bold text-[#D97745]">
-                        {formatCurrencyRub(ev.estimatedRevenueRub)}
-                      </span>
-                    </div>
-                    {canEdit && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateAnalysisField(
-                            'marketEvidences',
-                            currentAnalysis.marketEvidences.filter((x) => x.id !== ev.id)
-                          )
-                        }
-                        className="p-2 rounded-lg text-[#737373] hover:text-[#DC2626] hover:bg-white cursor-pointer"
-                        title="Удалить конкурента"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
           ) : (
-            <div className="rounded-xl bg-[#F7F7F5] p-4 text-[13px] text-[#737373]">
-              Конкуренты пока не добавлены. Добавьте 1–2 референса ниже:
+            <div className="rounded-xl bg-[#F7F7F5] p-3.5 text-[13px] text-[#737373]">
+              Ссылки пока не добавлены. Прикрепите ссылку на карточку конкурента или референс:
             </div>
           )}
 
           {canEdit && (
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 pt-3 border-t border-[#E8E8E5] text-[13px]">
+            <div className="flex gap-2.5">
               <input
-                value={evForm.competitorBrand}
-                onChange={(e) =>
-                  setEvForm({ ...evForm, competitorBrand: e.target.value })
-                }
-                placeholder="Бренд (напр. WUCHT)"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <input
-                value={evForm.articleSku}
-                onChange={(e) => setEvForm({ ...evForm, articleSku: e.target.value })}
-                placeholder="Артикул МП"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={evForm.priceRub}
-                onChange={(e) =>
-                  setEvForm({
-                    ...evForm,
-                    priceRub: e.target.value.replace(/[^\d]/g, ''),
-                  })
-                }
-                placeholder="Цена (₽)"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={evForm.estimatedRevenueRub}
-                onChange={(e) =>
-                  setEvForm({
-                    ...evForm,
-                    estimatedRevenueRub: e.target.value.replace(/[^\d]/g, ''),
-                  })
-                }
-                placeholder="Выручка в мес. (₽)"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
+                value={newRefLink}
+                onChange={(e) => setNewRefLink(e.target.value)}
+                placeholder="https://www.wildberries.ru/catalog/..."
+                className="flex-1 h-10 rounded-xl border border-[#E8E8E5] px-3.5 text-[13px] bg-[#F7F7F5]/60 focus:bg-white outline-none"
               />
               <button
                 type="button"
                 onClick={() => {
-                  if (!evForm.competitorBrand.trim()) {
-                    notify('warning', 'Укажите название бренда конкурента');
-                    return;
-                  }
-                  const newItem: RnDMarketEvidence = {
-                    id: `ev-${Date.now()}`,
-                    competitorBrand: evForm.competitorBrand.trim(),
-                    articleSku: evForm.articleSku.trim() || '—',
-                    productTitle: concept.name,
-                    priceRub: parseCleanNumber(evForm.priceRub) || 0,
-                    packQty: '1 уп.',
-                    estimatedRevenueRub: parseCleanNumber(evForm.estimatedRevenueRub) || 0,
-                    observationPeriod: '30 дн.',
-                    sourceName: 'Маркетплейс',
-                    confidenceStatus: 'verified',
-                    comparisonNote: evForm.comparisonNote.trim(),
-                  };
-                  updateAnalysisField('marketEvidences', [
-                    ...currentAnalysis.marketEvidences,
-                    newItem,
-                  ]);
-                  setEvForm({
-                    competitorBrand: '',
-                    articleSku: '',
-                    priceRub: '',
-                    estimatedRevenueRub: '',
-                    comparisonNote: '',
+                  if (!newRefLink.trim()) return;
+                  onUpdateConcept(concept.id, {
+                    referenceLinks: [...(concept.referenceLinks || []), newRefLink.trim()],
                   });
+                  setNewRefLink('');
+                  notify('success', 'Ссылка сохранена в карточке');
                 }}
-                className="h-10 rounded-xl bg-[#111111] text-white font-semibold cursor-pointer px-4"
+                className="px-4 h-10 rounded-xl bg-[#111111] text-white text-[13px] font-semibold cursor-pointer"
               >
-                + Добавить
+                + Добавить ссылку
               </button>
             </div>
           )}
+        </div>
+
+        {/* Блок результата этапа 01 ИДЕЯ (Стр. 5 PDF) */}
+        <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5] p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="text-[14px] font-bold text-[#171717]">
+              Выход: идея сохранена. Для перехода в анализ нужны название, бренд, ответственный и суть.
+            </div>
+            <div className="text-[13px] text-[#737373]">
+              {hasRequiredForAnalysis
+                ? '✓ Все обязательные поля идеи заполнены — можно переводить в Анализ.'
+                : 'Заполните суть идеи и ответственного в паспорте выше для перевода в Анализ.'}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onChangeStageWithGate(concept, 'ANALYSIS')}
+            className="h-11 px-6 rounded-xl bg-[#111111] hover:bg-[#D97745] text-white text-[14px] font-bold transition cursor-pointer shrink-0"
+          >
+            На анализ (02 Анализ) →
+          </button>
         </div>
       </div>
     );
   }
 
   // ===========================================================================
-  // ЭТАП 03: ОБРАЗЕЦ (Чистый список образцов + быстрое добавление в 1 строку)
+  // ЭТАП 02: АНАЛИЗ (Стр. 5 PDF — Всего 3 блока: РЫНОК, ПРОДУКТ, ЭКОНОМИКА)
+  // ===========================================================================
+  if (activeTab === 'analysis') {
+    return (
+      <div className="space-y-6 text-[15px]">
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-6">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#FDF3EB] text-[#D97745] text-[12px] font-bold mb-2">
+              02 АНАЛИЗ
+            </div>
+            <h3 className="text-[20px] font-bold text-[#171717]">
+              Три блока доказательств перед заказом образца
+            </h3>
+            <p className="text-[13px] text-[#737373]">
+              Всего три блока — дополнительные поля раскрываются по желанию
+            </p>
+          </div>
+
+          {/* 1. РЫНОК */}
+          <div className="rounded-2xl bg-[#F7F7F5]/70 border border-[#E8E8E5] p-5 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+              <div className="md:col-span-3">
+                <div className="text-[14px] font-bold uppercase tracking-wider text-[#171717]">
+                  1. РЫНОК
+                </div>
+                <div className="text-[12px] text-[#737373] mt-1">
+                  Конкуренты, ссылки, цена комплекта, комплектность, ориентировочный спрос и источник
+                </div>
+              </div>
+
+              <div className="md:col-span-9 space-y-3">
+                {currentAnalysis.marketEvidences.length > 0 && (
+                  <div className="space-y-2">
+                    {currentAnalysis.marketEvidences.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="rounded-xl bg-white border border-[#E8E8E5] p-3.5 flex flex-wrap items-center justify-between gap-3 text-[13px]"
+                      >
+                        <div>
+                          <span className="font-bold text-[#171717]">
+                            {ev.competitorBrand}
+                          </span>
+                          <span className="text-[#737373] ml-2">
+                            Арт: {ev.articleSku} · Комплект: <b>{ev.packQty || '4 шт.'}</b> · Источник: {ev.sourceName}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span>
+                            Цена комплекта: <b>{formatCurrencyRub(ev.priceRub)}</b>
+                          </span>
+                          <span className="text-[#D97745] font-bold">
+                            Спрос: {formatCurrencyRub(ev.estimatedRevenueRub)}/мес.
+                          </span>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateAnalysisField(
+                                  'marketEvidences',
+                                  currentAnalysis.marketEvidences.filter((x) => x.id !== ev.id)
+                                )
+                              }
+                              className="text-[#737373] hover:text-[#DC2626] cursor-pointer"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {canEdit && (
+                  <div className="grid grid-cols-1 sm:grid-cols-6 gap-2 text-[13px]">
+                    <input
+                      value={evForm.competitorBrand}
+                      onChange={(e) =>
+                        setEvForm({ ...evForm, competitorBrand: e.target.value })
+                      }
+                      placeholder="Конкурент (бренд)"
+                      className="h-10 rounded-xl border border-[#E8E8E5] bg-white px-3"
+                    />
+                    <input
+                      value={evForm.articleSku}
+                      onChange={(e) => setEvForm({ ...evForm, articleSku: e.target.value })}
+                      placeholder="Ссылка / Артикул"
+                      className="h-10 rounded-xl border border-[#E8E8E5] bg-white px-3"
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={evForm.priceRub}
+                      onChange={(e) =>
+                        setEvForm({
+                          ...evForm,
+                          priceRub: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                      placeholder="Цена набора (₽)"
+                      className="h-10 rounded-xl border border-[#E8E8E5] bg-white px-3"
+                    />
+                    <input
+                      value={evForm.packQty}
+                      onChange={(e) => setEvForm({ ...evForm, packQty: e.target.value })}
+                      placeholder="Комплект (4 шт.)"
+                      className="h-10 rounded-xl border border-[#E8E8E5] bg-white px-3"
+                    />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={evForm.estimatedRevenueRub}
+                      onChange={(e) =>
+                        setEvForm({
+                          ...evForm,
+                          estimatedRevenueRub: e.target.value.replace(/[^\d]/g, ''),
+                        })
+                      }
+                      placeholder="Спрос ₽/мес."
+                      className="h-10 rounded-xl border border-[#E8E8E5] bg-white px-3"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!evForm.competitorBrand.trim()) {
+                          notify('warning', 'Укажите бренд конкурента');
+                          return;
+                        }
+                        const item: RnDMarketEvidence = {
+                          id: `ev-${Date.now()}`,
+                          competitorBrand: evForm.competitorBrand.trim(),
+                          articleSku: evForm.articleSku.trim() || '—',
+                          productTitle: concept.name,
+                          priceRub: parseCleanNumber(evForm.priceRub) || 2600,
+                          packQty: evForm.packQty.trim() || '4 шт.',
+                          estimatedRevenueRub:
+                            parseCleanNumber(evForm.estimatedRevenueRub) || 1500000,
+                          observationPeriod: '30 дней',
+                          sourceName: evForm.sourceName || 'WB / MPStats',
+                          confidenceStatus: 'verified',
+                          comparisonNote: '',
+                        };
+                        updateAnalysisField('marketEvidences', [
+                          ...currentAnalysis.marketEvidences,
+                          item,
+                        ]);
+                        setEvForm({
+                          competitorBrand: '',
+                          articleSku: '',
+                          priceRub: '',
+                          packQty: '4 шт.',
+                          estimatedRevenueRub: '',
+                          sourceName: 'WB / MPStats',
+                        });
+                      }}
+                      className="h-10 rounded-xl bg-[#111111] text-white font-semibold cursor-pointer px-3"
+                    >
+                      + Конкурент
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. ПРОДУКТ */}
+          <div className="rounded-2xl bg-[#F7F7F5]/70 border border-[#E8E8E5] p-5">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+              <div className="md:col-span-3">
+                <div className="text-[14px] font-bold uppercase tracking-wider text-[#171717]">
+                  2. ПРОДУКТ
+                </div>
+                <div className="text-[12px] text-[#737373] mt-1">
+                  Что берём за основу? Чем лучше/иначе? Какой риск или гипотезу проверяем?
+                </div>
+              </div>
+
+              <div className="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[14px]">
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Что берём за основу и чем лучше конкурентов?
+                  </label>
+                  <textarea
+                    rows={2}
+                    disabled={!canEdit}
+                    value={currentAnalysis.whatWeCreate}
+                    onChange={(e) => {
+                      updateAnalysisField('whatWeCreate', e.target.value);
+                      updateAnalysisField('concreteAdvantage', e.target.value);
+                    }}
+                    placeholder="Базовое лекало боксеров + более мягкая резинка без давления..."
+                    className="w-full rounded-xl border border-[#E8E8E5] bg-white p-3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Какой риск или гипотезу проверяем на образце?
+                  </label>
+                  <textarea
+                    rows={2}
+                    disabled={!canEdit}
+                    value={currentAnalysis.openQuestionsAndRisks}
+                    onChange={(e) =>
+                      updateAnalysisField('openQuestionsAndRisks', e.target.value)
+                    }
+                    placeholder="Проверить усадку полотна после 5 стирок и плотность краёв..."
+                    className="w-full rounded-xl border border-[#E8E8E5] bg-white p-3"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. ЭКОНОМИКА (Важное правило расчёта со Стр. 5 PDF: комплект + число пар -> цена за пару) */}
+          <div className="rounded-2xl bg-[#F7F7F5]/70 border border-[#E8E8E5] p-5">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+              <div className="md:col-span-3">
+                <div className="text-[14px] font-bold uppercase tracking-wider text-[#171717]">
+                  3. ЭКОНОМИКА
+                </div>
+                <div className="text-[12px] text-[#737373] mt-1">
+                  Цена комплекта + число пар → цена за пару. Экономика считается на одинаковой базе: и на комплект, и на пару.
+                </div>
+              </div>
+
+              <div className="md:col-span-9 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[14px]">
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Цена комплекта (₽)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={!canEdit}
+                      value={concept.plannedRetailPrice ? String(concept.plannedRetailPrice) : ''}
+                      onChange={(e) =>
+                        onUpdateConcept(concept.id, {
+                          plannedRetailPrice: parseCleanNumber(e.target.value) ?? 0,
+                        })
+                      }
+                      placeholder="2600"
+                      className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-white px-3.5 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Число пар в наборе (шт.)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={!canEdit}
+                      value={String(packUnits)}
+                      onChange={(e) => {
+                        const val = parseCleanNumber(e.target.value);
+                        onUpdateConcept(concept.id, {
+                          packUnitsCount: val && val > 0 ? val : 1,
+                        });
+                      }}
+                      placeholder="4"
+                      className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-white px-3.5 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#D97745] mb-1">
+                      Цена за 1 пару (авторасчёт)
+                    </label>
+                    <div className="h-11 rounded-xl border border-[#D97745]/40 bg-[#FDF3EB] px-3.5 flex items-center font-bold text-[#D97745] text-[16px]">
+                      {formatCurrencyRub(unitRetailPrice)} / пара
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                      Себестоимость 1 пары (₽)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={!canEdit || !hasCostAccess}
+                      value={
+                        hasCostAccess && concept.plannedUnitCost
+                          ? String(concept.plannedUnitCost)
+                          : ''
+                      }
+                      onChange={(e) =>
+                        onUpdateConcept(concept.id, {
+                          plannedUnitCost: parseCleanNumber(e.target.value) ?? 0,
+                        })
+                      }
+                      placeholder={hasCostAccess ? '320' : 'Скрыто'}
+                      className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-white px-3.5 font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* Наглядная плашка пересчёта на одинаковой базе (Стр. 5 PDF) */}
+                <div className="rounded-xl bg-white border border-[#E8E8E5] p-3.5 flex flex-wrap items-center justify-between gap-3 text-[13px]">
+                  <div>
+                    <span className="font-bold text-[#171717]">
+                      Расчёт на единой базе:
+                    </span>{' '}
+                    Цена <b>{formatCurrencyRub(packRetailPrice)}</b> за комплект из{' '}
+                    <b>{packUnits} шт.</b> = <b>{formatCurrencyRub(unitRetailPrice)}</b> за пару.
+                  </div>
+                  {hasCostAccess && (
+                    <div className="text-[#737373]">
+                      Себестоимость набора: <b className="text-[#171717]">{formatCurrencyRub(packCostPrice)}</b> · За 1 пару:{' '}
+                      <b className="text-[#171717]">{formatCurrencyRub(unitCostPrice)}</b>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Раскрывающиеся дополнительные поля по желанию */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowExtraAnalysis((v) => !v)}
+              className="inline-flex items-center gap-2 text-[13px] font-semibold text-[#737373] hover:text-[#171717] cursor-pointer"
+            >
+              {showExtraAnalysis ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+              <span>
+                {showExtraAnalysis
+                  ? 'Скрыть дополнительные поля анализа'
+                  : '+ Раскрыть дополнительные поля (жалобы в отзывах, фабрики, MOQ)'}
+              </span>
+            </button>
+
+            {showExtraAnalysis && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3 pt-3 border-t border-[#E8E8E5] text-[13px]">
+                <div>
+                  <label className="block font-semibold text-[#737373] mb-1">
+                    Плюсы и жалобы покупателей в отзывах конкурентов
+                  </label>
+                  <input
+                    value={currentAnalysis.competitorProsAndComplaints}
+                    onChange={(e) =>
+                      updateAnalysisField('competitorProsAndComplaints', e.target.value)
+                    }
+                    placeholder="Жалуются на тугую резинку и катышки..."
+                    className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-[#737373] mb-1">
+                    Потенциальные фабрики и минимальная партия (MOQ)
+                  </label>
+                  <input
+                    value={currentAnalysis.potentialFactories}
+                    onChange={(e) =>
+                      updateAnalysisField('potentialFactories', e.target.value)
+                    }
+                    placeholder="Узбекистан / Китай, MOQ от 1 500 комплектов..."
+                    className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Выход: короткий вывод и одно решение: «Заказывать образец» / «Доработать» / «Отложить» (Стр. 5 PDF) */}
+        <div className="rounded-2xl border border-[#16805D]/30 bg-[#E8F5E9]/60 p-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex-1 min-w-[260px]">
+              <label className="block text-[13px] font-bold text-[#171717] mb-1">
+                Выход анализа: короткий вывод и решение по заказу образца
+              </label>
+              <input
+                value={currentAnalysis.summaryAndPros}
+                onChange={(e) => updateAnalysisField('summaryAndPros', e.target.value)}
+                placeholder="Спрос подтверждён, целевая цена 650 ₽/пара проходит по марже — заказываем образец"
+                className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-white px-3.5 text-[14px]"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  updateAnalysisField('recommendation', 'continue');
+                  onChangeStageWithGate(concept, 'SAMPLE');
+                }}
+                className="h-11 px-5 rounded-xl bg-[#16805D] hover:bg-[#126b4d] text-white text-[13px] font-bold cursor-pointer transition"
+              >
+                Заказывать образец (03 Образец) →
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateAnalysisField('recommendation', 'supplement');
+                  notify('warning', 'Анализ отмечен на доработку');
+                }}
+                className="h-11 px-4 rounded-xl bg-white border border-[#E8E8E5] hover:border-[#171717] text-[#171717] text-[13px] font-bold cursor-pointer transition"
+              >
+                Доработать
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateAnalysisField('recommendation', 'postpone');
+                  notify('warning', 'Карточка отложена по итогам анализа');
+                }}
+                className="h-11 px-4 rounded-xl bg-white border border-[#E8E8E5] text-[#737373] hover:text-[#DC2626] text-[13px] font-bold cursor-pointer transition"
+              >
+                Отложить
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // ЭТАП 03: ОБРАЗЕЦ (Стр. 6 PDF и Сценарий №5: Справочник фабрик + Состав = 100%)
   // ===========================================================================
   if (activeTab === 'samples') {
     const samples = concept.samples || [];
+    const totalPct = compRows.reduce(
+      (sum, r) => sum + (parseCleanNumber(r.pct) || 0),
+      0
+    );
+    const isCompositionValid = totalPct === 100;
+    const compositionLabel = compRows
+      .filter((r) => (parseCleanNumber(r.pct) || 0) > 0)
+      .map((r) => `${r.material} ${parseCleanNumber(r.pct) || 0}%`)
+      .join(' + ');
 
     return (
       <div className="space-y-6 text-[15px]">
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[18px] font-bold text-[#171717]">
-              Физические образцы от фабрик ({samples.length})
-            </h3>
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#FDF3EB] text-[#D97745] text-[12px] font-bold mb-2">
+                03 ОБРАЗЕЦ
+              </div>
+              <h3 className="text-[20px] font-bold text-[#171717]">
+                Фабрика, состав ткани (= 100%) и версии образца
+              </h3>
+              <p className="text-[13px] text-[#737373]">
+                Фабрика из справочника; дата получения; фотографии; ткань и состав; цена образца и доставки; предложение по серийному выпуску
+              </p>
+            </div>
           </div>
 
-          {samples.length === 0 ? (
-            <div className="rounded-xl bg-[#F7F7F5] p-5 text-[14px] text-[#737373]">
-              Образцы ещё не добавлены. Заполните форму ниже, чтобы добавить первый образец.
-            </div>
-          ) : (
+          {/* Список созданных версий образца */}
+          {samples.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {samples.map((s) => (
                 <div
                   key={s.id}
                   className={`rounded-2xl border p-5 space-y-3 ${
                     s.isSelectedForProduction
-                      ? 'border-2 border-[#16805D] bg-[#16805D]/5'
-                      : 'border-[#E8E8E5] bg-[#F7F7F5]/50'
+                      ? 'border-2 border-[#16805D] bg-[#E8F5E9]/30'
+                      : 'border-[#E8E8E5] bg-[#F7F7F5]/60'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-bold text-[16px] text-[#171717]">
-                        {s.versionCode} · {s.factoryName} ({s.country})
+                        {s.versionCode} · {s.factoryName}
                       </div>
-                      <div className="text-[13px] text-[#737373] mt-0.5">
-                        {s.materialAndComposition}
+                      <div className="text-[13px] font-semibold text-[#D97745] mt-0.5">
+                        Состав: {s.materialAndComposition}
                       </div>
                     </div>
                     {canEdit && (
@@ -696,41 +847,52 @@ export function ProductLabCardBody({
                             samples: samples.filter((x) => x.id !== s.id),
                           })
                         }
-                        className="p-1.5 rounded-lg text-[#737373] hover:text-[#DC2626] cursor-pointer"
-                        title="Удалить образец"
+                        className="text-[#737373] hover:text-[#DC2626] cursor-pointer p-1"
+                        title="Удалить версию образца"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-[13px] pt-2 border-t border-[#E8E8E5]">
-                    <span>
-                      Себестоимость:{' '}
-                      <b>
-                        {hasCostAccess && s.estimatedUnitProductionPrice
-                          ? `${s.estimatedUnitProductionPrice} ₽`
-                          : '—'}
-                      </b>
-                    </span>
-                    <span>
-                      Оценка: <b>{s.preliminaryScore}/5</b>
-                    </span>
-                  </div>
-
-                  {s.comments && (
-                    <div className="text-[13px] text-[#171717] bg-white rounded-xl p-3 border border-[#E8E8E5]">
-                      {s.comments}
+                  {s.photos && s.photos.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto py-1">
+                      {s.photos.map((ph, idx) => (
+                        <img
+                          key={idx}
+                          src={ph}
+                          alt={s.versionCode}
+                          className="h-16 w-16 rounded-xl object-cover border border-[#E8E8E5] bg-white"
+                        />
+                      ))}
                     </div>
                   )}
 
+                  <div className="flex flex-wrap items-center gap-4 text-[13px] pt-2 border-t border-[#E8E8E5]">
+                    <span>
+                      Дата получения: <b>{s.receivedAt}</b>
+                    </span>
+                    <span>
+                      Образец + доставка:{' '}
+                      <b>{formatCurrencyRub((s.sampleCostRub || 0) + (s.deliveryCostRub || 0))}</b>
+                    </span>
+                    <span>
+                      Серийная цена:{' '}
+                      <b>
+                        {hasCostAccess && s.estimatedUnitProductionPrice
+                          ? `${s.estimatedUnitProductionPrice} ₽/шт.`
+                          : '—'}
+                      </b>
+                    </span>
+                  </div>
+
                   {canEdit && (
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="pt-1">
                       <button
                         type="button"
                         onClick={() =>
                           onUpdateConcept(concept.id, {
-                            supplierName: `${s.factoryName} (${s.country})`,
+                            supplierName: s.factoryName,
                             plannedUnitCost:
                               s.estimatedUnitProductionPrice || concept.plannedUnitCost,
                             samples: samples.map((item) => ({
@@ -739,15 +901,15 @@ export function ProductLabCardBody({
                             })),
                           })
                         }
-                        className={`px-3 py-1.5 rounded-xl text-[12px] font-bold cursor-pointer transition ${
+                        className={`px-3.5 py-1.5 rounded-xl text-[12px] font-bold cursor-pointer transition ${
                           s.isSelectedForProduction
                             ? 'bg-[#16805D] text-white'
                             : 'bg-white border border-[#E8E8E5] text-[#171717] hover:border-[#171717]'
                         }`}
                       >
                         {s.isSelectedForProduction
-                          ? '✓ Выбран основным образцом'
-                          : 'Выбрать основным'}
+                          ? '✓ Выбран для теста и серии'
+                          : 'Выбрать эту версию образца'}
                       </button>
                     </div>
                   )}
@@ -756,115 +918,727 @@ export function ProductLabCardBody({
             </div>
           )}
 
-          {/* Простая форма добавления образца */}
+          {/* Конструктор новой версии образца (Стр. 6 PDF) */}
           {canEdit && (
-            <div className="pt-4 border-t border-[#E8E8E5] space-y-3">
-              <div className="text-[14px] font-bold text-[#171717]">
-                + Добавить новый образец
+            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-5 space-y-4">
+              <div className="text-[15px] font-bold text-[#171717]">
+                + Добавить версию образца (Версия {samples.length + 1})
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[13px]">
-                <input
-                  value={sampleForm.factoryName}
-                  onChange={(e) =>
-                    setSampleForm({ ...sampleForm, factoryName: e.target.value })
+
+              {/* Конструктор состава ткани из справочника с проверкой 100% (Сценарий №5) */}
+              <div className="rounded-xl bg-white border border-[#E8E8E5] p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[14px] font-bold text-[#171717]">
+                      Материал ▾ {compositionLabel || 'Выберите состав'}
+                    </div>
+                    <div className="text-[12px] text-[#737373]">
+                      Материалы добавляются строками из справочника, сумма должна быть ровно 100%
+                    </div>
+                  </div>
+
+                  <div
+                    className={`px-3 py-1 rounded-lg text-[13px] font-bold ${
+                      isCompositionValid
+                        ? 'bg-[#E8F5E9] text-[#16805D]'
+                        : 'bg-[#DC2626]/10 text-[#DC2626]'
+                    }`}
+                  >
+                    Сумма состава: {totalPct}% {isCompositionValid ? '✓' : '⚠️ (нужно 100%)'}
+                  </div>
+                </div>
+
+                {!isCompositionValid && (
+                  <div className="rounded-xl bg-[#DC2626]/10 border border-[#DC2626]/30 p-3 flex items-center gap-2 text-[13px] font-semibold text-[#DC2626]">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <span>
+                      Предупреждение: сумма долей материалов сейчас составляет {totalPct}% (вместо 100%). Пожалуйста, проверьте проценты перед сохранением образца!
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {compRows.map((row, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5 text-[13px]">
+                      <select
+                        value={row.material}
+                        onChange={(e) =>
+                          setCompRows((prev) =>
+                            prev.map((item, i) =>
+                              i === idx ? { ...item, material: e.target.value } : item
+                            )
+                          )
+                        }
+                        className="h-10 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-3 font-semibold min-w-[180px]"
+                      >
+                        {MATERIAL_DIRECTORY.map((m) => (
+                          <option key={m.ru} value={m.ru}>
+                            {m.ru} ({m.en})
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="relative w-28">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={row.pct}
+                          onChange={(e) =>
+                            setCompRows((prev) =>
+                              prev.map((item, i) =>
+                                i === idx
+                                  ? { ...item, pct: e.target.value.replace(/[^\d]/g, '') }
+                                  : item
+                              )
+                            )
+                          }
+                          className="w-full h-10 rounded-xl border border-[#E8E8E5] px-3 pr-7 font-bold"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737373] font-bold">
+                          %
+                        </span>
+                      </div>
+
+                      {compRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCompRows((prev) => prev.filter((_, i) => i !== idx))
+                          }
+                          className="text-[#737373] hover:text-[#DC2626] text-[12px] font-semibold cursor-pointer px-2"
+                        >
+                          Удалить
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCompRows((prev) => [...prev, { material: 'Эластан', pct: '0' }])
                   }
-                  placeholder="Фабрика (напр. Ташкент Текстиль)"
-                  className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-                />
-                <select
-                  value={sampleForm.country}
-                  onChange={(e) =>
-                    setSampleForm({ ...sampleForm, country: e.target.value })
-                  }
-                  className="h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white font-medium"
+                  className="text-[13px] font-bold text-[#D97745] hover:underline cursor-pointer"
                 >
-                  <option value="Узбекистан">Узбекистан</option>
-                  <option value="Китай">Китай</option>
-                  <option value="Россия">Россия</option>
-                  <option value="Турция">Турция</option>
-                </select>
-                <input
-                  value={sampleForm.materialAndComposition}
-                  onChange={(e) =>
-                    setSampleForm({
-                      ...sampleForm,
-                      materialAndComposition: e.target.value,
-                    })
-                  }
-                  placeholder="Ткань и состав (напр. Модал 92%)"
-                  className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={sampleForm.estimatedUnitProductionPrice}
-                  onChange={(e) =>
-                    setSampleForm({
-                      ...sampleForm,
-                      estimatedUnitProductionPrice: e.target.value.replace(/[^\d]/g, ''),
-                    })
-                  }
-                  placeholder="Себестоимость 1 шт. (₽)"
-                  className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-                />
+                  + Добавить материал из справочника
+                </button>
               </div>
-              <div className="flex gap-2.5">
-                <input
-                  value={sampleForm.comments}
-                  onChange={(e) =>
-                    setSampleForm({ ...sampleForm, comments: e.target.value })
-                  }
-                  placeholder="Комментарий по качеству образца, посадке и швам..."
-                  className="flex-1 h-10 rounded-xl border border-[#E8E8E5] px-3 text-[13px]"
-                />
+
+              {/* Поля фабрики, даты, цены образца и серийного предложения */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-[13px]">
+                <div className="lg:col-span-2">
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Фабрика из справочника
+                  </label>
+                  <select
+                    value={sampleForm.factoryName}
+                    onChange={(e) =>
+                      setSampleForm({ ...sampleForm, factoryName: e.target.value })
+                    }
+                    className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-white px-3 font-semibold"
+                  >
+                    {FACTORY_DIRECTORY.map((f) => (
+                      <option key={f.name} value={`${f.name} (${f.country})`}>
+                        {f.name} ({f.country})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Дата получения
+                  </label>
+                  <input
+                    type="date"
+                    value={sampleForm.receivedAt}
+                    onChange={(e) =>
+                      setSampleForm({ ...sampleForm, receivedAt: e.target.value })
+                    }
+                    className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-white px-3"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Цена образца + доставка (₽)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={sampleForm.sampleCostRub}
+                    onChange={(e) =>
+                      setSampleForm({
+                        ...sampleForm,
+                        sampleCostRub: e.target.value.replace(/[^\d]/g, ''),
+                      })
+                    }
+                    placeholder="3500"
+                    className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-white px-3 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                    Предложение на серию (₽/шт.)
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={sampleForm.estimatedUnitProductionPrice}
+                    onChange={(e) =>
+                      setSampleForm({
+                        ...sampleForm,
+                        estimatedUnitProductionPrice: e.target.value.replace(/[^\d]/g, ''),
+                      })
+                    }
+                    placeholder="340"
+                    className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-white px-3 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <label className="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-white border border-[#E8E8E5] hover:border-[#171717] text-[13px] font-semibold cursor-pointer">
+                  <Upload className="h-4 w-4 text-[#D97745]" />
+                  <span>
+                    + Фото образца {sampleForm.photos.length > 0 ? `(${sampleForm.photos.length})` : ''}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      files.forEach((f) => {
+                        const r = new FileReader();
+                        r.onload = () => {
+                          if (typeof r.result === 'string') {
+                            setSampleForm((prev) => ({
+                              ...prev,
+                              photos: [...prev.photos, r.result as string],
+                            }));
+                          }
+                        };
+                        r.readAsDataURL(f);
+                      });
+                    }}
+                  />
+                </label>
+
                 <button
                   type="button"
                   onClick={() => {
-                    if (!sampleForm.factoryName.trim()) {
-                      notify('warning', 'Укажите название фабрики');
+                    if (!isCompositionValid) {
+                      notify(
+                        'warning',
+                        `Сумма состава должна быть 100% (сейчас ${totalPct}%)`,
+                        'Исправьте проценты материалов в конструкторе состава'
+                      );
                       return;
                     }
                     const newSample: RnDSampleItem = {
                       id: `smp-${Date.now()}`,
-                      versionCode: `Образец №${samples.length + 1}`,
-                      factoryName: sampleForm.factoryName.trim(),
-                      country: sampleForm.country,
-                      orderedAt: new Date().toISOString().slice(0, 10),
-                      receivedAt: new Date().toISOString().slice(0, 10),
-                      materialAndComposition:
-                        sampleForm.materialAndComposition.trim() || 'Базовое полотно',
-                      densityGsm: 160,
+                      versionCode: `Версия ${samples.length + 1}`,
+                      factoryName: sampleForm.factoryName,
+                      country: 'Справочник',
+                      orderedAt: sampleForm.receivedAt,
+                      receivedAt: sampleForm.receivedAt,
+                      status: 'testing',
+                      photos: sampleForm.photos,
+                      materialAndComposition: compositionLabel,
+                      compositionRows: compRows.map((r) => ({
+                        material: r.material,
+                        pct: parseCleanNumber(r.pct) || 0,
+                      })),
+                      densityGsm: 180,
                       sizeTested: 'M / L',
                       color: 'Базовый',
-                      measurementsNote: 'В норме',
-                      sampleCostRub: 0,
+                      measurementsNote: 'По спецификации',
+                      sampleCostRub: parseCleanNumber(sampleForm.sampleCostRub) || 0,
+                      deliveryCostRub: parseCleanNumber(sampleForm.deliveryCostRub) || 0,
                       estimatedUnitProductionPrice:
-                        parseCleanNumber(sampleForm.estimatedUnitProductionPrice) || 0,
+                        parseCleanNumber(sampleForm.estimatedUnitProductionPrice) || 340,
                       currency: 'RUB',
-                      photos: [],
                       preliminaryScore: 5,
-                      comments: sampleForm.comments.trim() || 'Образец получен',
-                      status: 'testing',
-                      isSelectedForProduction: samples.length === 0,
+                      comments: sampleForm.comments.trim() || 'Образец принят на тестирование',
+                      isSelectedForProduction: true,
                     };
                     onUpdateConcept(concept.id, {
-                      samples: [...samples, newSample],
-                      supplierName: `${newSample.factoryName} (${newSample.country})`,
+                      supplierName: newSample.factoryName,
+                      plannedUnitCost: newSample.estimatedUnitProductionPrice,
+                      samples: [
+                        ...samples.map((s) => ({ ...s, isSelectedForProduction: false })),
+                        newSample,
+                      ],
                     });
-                    setSampleForm({
-                      factoryName: '',
-                      country: 'Узбекистан',
-                      materialAndComposition: '',
-                      estimatedUnitProductionPrice: '',
-                      comments: '',
-                    });
-                    notify('success', 'Образец добавлен');
+                    setSampleForm((prev) => ({ ...prev, photos: [], comments: '' }));
+                    notify('success', `${newSample.versionCode} (${compositionLabel}) сохранена`);
                   }}
-                  className="h-10 px-5 rounded-xl bg-[#111111] text-white text-[13px] font-semibold cursor-pointer shrink-0"
+                  className="h-10 px-6 rounded-xl bg-[#111111] text-white text-[13px] font-bold cursor-pointer"
                 >
-                  + Сохранить образец
+                  Сохранить версию образца
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Выход этапа 03 ОБРАЗЕЦ */}
+        <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5] p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-[14px] font-bold text-[#171717]">
+            Итог этапа 03: Фабрика, фото, состав (= 100%) и цена образца зафиксированы.
+          </div>
+          <button
+            type="button"
+            onClick={() => onChangeStageWithGate(concept, 'TEST')}
+            className="h-11 px-6 rounded-xl bg-[#111111] hover:bg-[#D97745] text-white text-[14px] font-bold transition cursor-pointer"
+          >
+            На тест (04 Тест) →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // ЭТАП 04: ТЕСТ (Стр. 6 PDF и Сценарий №6 — Ровно 4 понятные проверки)
+  // ===========================================================================
+  if (activeTab === 'testing') {
+    const checkItems: {
+      key: 'fitAndComfort' | 'waistbandAndSeams' | 'washShapeColor' | 'manufacturingQuality';
+      commentKey:
+        | 'fitAndComfortComment'
+        | 'waistbandAndSeamsComment'
+        | 'washShapeColorComment'
+        | 'manufacturingQualityComment';
+      label: string;
+      placeholder: string;
+    }[] = [
+      {
+        key: 'fitAndComfort',
+        commentKey: 'fitAndComfortComment',
+        label: 'Посадка и комфорт',
+        placeholder: 'Комментарий по посадке и лекалам...',
+      },
+      {
+        key: 'waistbandAndSeams',
+        commentKey: 'waistbandAndSeamsComment',
+        label: 'Резинка и швы',
+        placeholder: 'Комментарий по эластичности резинки и обработке швов...',
+      },
+      {
+        key: 'washShapeColor',
+        commentKey: 'washShapeColorComment',
+        label: 'Стирка / форма / цвет',
+        placeholder: 'Отметьте усадку, пиллинг или потерю цвета после стирки...',
+      },
+      {
+        key: 'manufacturingQuality',
+        commentKey: 'manufacturingQualityComment',
+        label: 'Качество изготовления',
+        placeholder: 'Нитки, симметрия, маркировка...',
+      },
+    ];
+
+    const statusOptions: {
+      val: 'passed' | 'remarks' | 'failed' | 'untested';
+      label: string;
+      activeCls: string;
+    }[] = [
+      {
+        val: 'passed',
+        label: 'Прошёл',
+        activeCls: 'bg-[#16805D] text-white border-[#16805D]',
+      },
+      {
+        val: 'remarks',
+        label: 'Замечания',
+        activeCls: 'bg-[#D97745] text-white border-[#D97745]',
+      },
+      {
+        val: 'failed',
+        label: 'Не прошёл',
+        activeCls: 'bg-[#DC2626] text-white border-[#DC2626]',
+      },
+      {
+        val: 'untested',
+        label: 'Не проверяли',
+        activeCls: 'bg-[#525252] text-white border-[#525252]',
+      },
+    ];
+
+    const untestedList = checkItems.filter((item) => fourChecks[item.key] === 'untested');
+    const defectsList = checkItems.filter(
+      (item) => fourChecks[item.key] === 'remarks' || fourChecks[item.key] === 'failed'
+    );
+
+    return (
+      <div className="space-y-6 text-[15px]">
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-5">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#FDF3EB] text-[#D97745] text-[12px] font-bold mb-2">
+              04 ТЕСТ
+            </div>
+            <h3 className="text-[20px] font-bold text-[#171717]">
+              Четыре понятные проверки, без длинной анкеты
+            </h3>
+            <p className="text-[13px] text-[#737373]">
+              Никаких загадочных «5/5»: проверяем реальные характеристики и фиксируем вывод. Комментарий и фото к конкретному пункту — только если нужны.
+            </p>
+          </div>
+
+          <div className="divide-y divide-[#E8E8E5] border-t border-b border-[#E8E8E5]">
+            {checkItems.map((item) => {
+              const currentVal = fourChecks[item.key];
+              const currentComment = fourChecks[item.commentKey] || '';
+              const showCommentInput =
+                currentVal === 'remarks' ||
+                currentVal === 'failed' ||
+                Boolean(currentComment);
+
+              return (
+                <div key={item.key} className="py-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="text-[16px] font-bold text-[#171717] min-w-[210px]">
+                      {item.label}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {statusOptions.map((opt) => {
+                        const isActive = currentVal === opt.val;
+                        return (
+                          <button
+                            key={opt.val}
+                            type="button"
+                            disabled={!canEdit}
+                            onClick={() => updateFourCheck({ [item.key]: opt.val })}
+                            className={`px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition cursor-pointer ${
+                              isActive
+                                ? opt.activeCls
+                                : 'bg-[#F7F7F5] text-[#737373] border-[#E8E8E5] hover:text-[#171717]'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Комментарий к конкретному пункту (особенно при Замечаниях / Не прошёл) */}
+                  <div className="flex items-center gap-2">
+                    <input
+                      disabled={!canEdit}
+                      value={currentComment}
+                      onChange={(e) =>
+                        updateFourCheck({ [item.commentKey]: e.target.value })
+                      }
+                      placeholder={
+                        showCommentInput
+                          ? item.placeholder
+                          : '+ Добавить комментарий к пункту (по желанию)...'
+                      }
+                      className={`w-full h-10 rounded-xl border px-3.5 text-[13px] ${
+                        currentVal === 'failed' || currentVal === 'remarks'
+                          ? 'border-[#D97745] bg-[#FDF3EB]/50 font-medium text-[#171717]'
+                          : 'border-[#E8E8E5] bg-[#F7F7F5]/60 text-[#171717]'
+                      }`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Итоговое резюме: все дефекты и все «Не проверяли» видны сразу */}
+          <div className="rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-2 text-[13px]">
+            <div className="font-bold text-[#171717]">
+              Итоговое резюме тестирования (передаётся в этап «05 Решение»):
+            </div>
+            {defectsList.length > 0 ? (
+              <div className="text-[#D97745] font-semibold">
+                • Обнаружены замечания / дефекты:{' '}
+                {defectsList
+                  .map(
+                    (d) =>
+                      `${d.label} (${
+                        fourChecks[d.commentKey] ||
+                        (fourChecks[d.key] === 'failed' ? 'Не прошёл' : 'Замечания')
+                      })`
+                  )
+                  .join('; ')}
+              </div>
+            ) : (
+              <div className="text-[#16805D] font-semibold">
+                • Дефектов и критических замечаний не отмечено.
+              </div>
+            )}
+
+            {untestedList.length > 0 && (
+              <div className="text-[#525252] font-semibold">
+                • Пункты со статусом «Не проверяли»:{' '}
+                {untestedList.map((u) => u.label).join(', ')}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Выход этапа 04 ТЕСТ */}
+        <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5] p-5 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-[14px] font-bold text-[#171717]">
+            Итог этапа 04: Результаты 4 проверок сохранены и готовы для принятия решения.
+          </div>
+          <button
+            type="button"
+            onClick={() => onChangeStageWithGate(concept, 'DECISION')}
+            className="h-11 px-6 rounded-xl bg-[#111111] hover:bg-[#D97745] text-white text-[14px] font-bold transition cursor-pointer"
+          >
+            Перейти к решению (05 Решение) →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // ЭТАП 05: РЕШЕНИЕ (Стр. 6 PDF и Сценарий №6 — Сводка + УТВЕРДИТЬ / ДОРАБОТАТЬ / ОТКЛОНИТЬ)
+  // ===========================================================================
+  if (activeTab === 'decisions') {
+    const selectedSample =
+      (concept.samples || []).find((s) => s.isSelectedForProduction) ||
+      concept.samples?.[0];
+
+    const checkLabels: Record<string, string> = {
+      passed: 'Прошёл ✓',
+      remarks: 'Замечания ⚠️',
+      failed: 'Не прошёл ❌',
+      untested: 'Не проверяли •',
+    };
+
+    const executeDecision = (outcome: RnDDecisionOutcome) => {
+      if (outcome === 'approve' && !canApproveProd) {
+        notify('error', 'Утвердить в производство может только руководитель');
+        return;
+      }
+      const targetStage: ConceptStage =
+        outcome === 'approve'
+          ? 'PRODUCTION'
+          : outcome === 'rework'
+          ? reworkTargetStage
+          : 'REJECTED';
+
+      const nowStr = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const reasonText =
+        decisionReason.trim() ||
+        (outcome === 'approve'
+          ? 'Утверждено в серийное производство'
+          : outcome === 'rework'
+          ? `Возвращено на доработку (этап ${reworkTargetStage})`
+          : 'Отклонено по результатам проверки');
+
+      onUpdateConcept(concept.id, {
+        stage: targetStage,
+        isArchived: outcome === 'reject',
+        approvalDecisions: [
+          {
+            id: `dec-${Date.now()}`,
+            decision: outcome,
+            authorName: currentUser.fullName,
+            authorRole: currentUser.role,
+            decidedAt: nowStr,
+            approvedSampleLabel: selectedSample?.versionCode || 'Основной образец',
+            justification: reasonText,
+            conditions: '',
+          },
+          ...(concept.approvalDecisions || []),
+        ],
+        stageHistory: [
+          {
+            id: `sh-dec-${Date.now()}`,
+            timestamp: nowStr,
+            authorName: currentUser.fullName,
+            authorRole: currentUser.role,
+            actionType: outcome === 'rework' ? 'rollback' : 'decision',
+            fromStage: concept.stage,
+            toStage: targetStage,
+            reason: `[Решение: ${
+              outcome === 'approve'
+                ? 'УТВЕРДИТЬ'
+                : outcome === 'rework'
+                ? 'ДОРАБОТАТЬ'
+                : 'ОТКЛОНИТЬ'
+            }] ${reasonText}`,
+          },
+          ...(concept.stageHistory || []),
+        ],
+      });
+
+      onChangeStageWithGate(concept, targetStage);
+    };
+
+    return (
+      <div className="space-y-6 text-[15px]">
+        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-6">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#FDF3EB] text-[#D97745] text-[12px] font-bold mb-2">
+              05 РЕШЕНИЕ
+            </div>
+            <h3 className="text-[20px] font-bold text-[#171717]">
+              Сводка доказательств перед выбором решения
+            </h3>
+            <p className="text-[13px] text-[#737373]">
+              Перед выбором система показывает сводку: анализ, цену, выбранный образец, тесты и замечания. Сохраняем кто, когда и почему.
+            </p>
+          </div>
+
+          {/* Сводка в 3 симметричных карточках */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[13px]">
+            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+                1. АНАЛИЗ И ЦЕНА
+              </div>
+              <div className="font-bold text-[15px] text-[#171717]">
+                Набор {packUnits} шт.: {formatCurrencyRub(packRetailPrice)} ({formatCurrencyRub(unitRetailPrice)} / пара)
+              </div>
+              <div className="text-[#737373]">
+                {currentAnalysis.summaryAndPros ||
+                  currentAnalysis.whatWeCreate ||
+                  'Гипотеза и спрос зафиксированы'}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+                2. ВЫБРАННЫЙ ОБРАЗЕЦ
+              </div>
+              <div className="font-bold text-[15px] text-[#171717]">
+                {selectedSample
+                  ? `${selectedSample.versionCode} · ${selectedSample.factoryName}`
+                  : concept.supplierName || 'Образец №1'}
+              </div>
+              <div className="text-[#D97745] font-semibold">
+                {selectedSample?.materialAndComposition || 'Хлопок 95% + Эластан 5%'}
+              </div>
+              {hasCostAccess && (
+                <div className="text-[#737373]">
+                  Себестоимость: <b>{formatCurrencyRub(unitCostPrice)} / шт.</b>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 space-y-1.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#737373]">
+                3. ТЕСТЫ И ЗАМЕЧАНИЯ
+              </div>
+              <div>
+                Посадка: <b>{checkLabels[fourChecks.fitAndComfort]}</b>{' '}
+                {fourChecks.fitAndComfortComment ? `(${fourChecks.fitAndComfortComment})` : ''}
+              </div>
+              <div>
+                Резинка и швы: <b>{checkLabels[fourChecks.waistbandAndSeams]}</b>{' '}
+                {fourChecks.waistbandAndSeamsComment
+                  ? `(${fourChecks.waistbandAndSeamsComment})`
+                  : ''}
+              </div>
+              <div>
+                Стирка / цвет: <b>{checkLabels[fourChecks.washShapeColor]}</b>{' '}
+                {fourChecks.washShapeColorComment ? `(${fourChecks.washShapeColorComment})` : ''}
+              </div>
+              <div>
+                Качество: <b>{checkLabels[fourChecks.manufacturingQuality]}</b>{' '}
+                {fourChecks.manufacturingQualityComment
+                  ? `(${fourChecks.manufacturingQualityComment})`
+                  : ''}
+              </div>
+            </div>
+          </div>
+
+          {/* Поле причины решения и выбор этапа при доработке */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <div className="md:col-span-2">
+              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                Причина решения / комментарий (сохраняется в историю с именем и временем)
+              </label>
+              <input
+                value={decisionReason}
+                onChange={(e) => setDecisionReason(e.target.value)}
+                placeholder="Укажите причину утверждения, доработки или отказа..."
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[14px]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                При «Доработать» вернуть в этап:
+              </label>
+              <select
+                value={reworkTargetStage}
+                onChange={(e) => setReworkTargetStage(e.target.value as ConceptStage)}
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-3 font-semibold text-[13px]"
+              >
+                <option value="SAMPLE">03 Образец (перешить образец)</option>
+                <option value="TEST">04 Тест (повторить проверку)</option>
+                <option value="ANALYSIS">02 Анализ (пересчитать экономику)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ТРИ КРУПНЫЕ КНОПКИ СО СТР. 6 PDF: УТВЕРДИТЬ | ДОРАБОТАТЬ | ОТКЛОНИТЬ */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            <button
+              type="button"
+              onClick={() => executeDecision('approve')}
+              className="h-14 rounded-2xl bg-[#E8F5E9] hover:bg-[#16805D] text-[#16805D] hover:text-white border border-[#16805D]/30 font-bold text-[15px] tracking-wider uppercase transition cursor-pointer"
+            >
+              УТВЕРДИТЬ
+            </button>
+
+            <button
+              type="button"
+              onClick={() => executeDecision('rework')}
+              className="h-14 rounded-2xl bg-[#FDF3EB] hover:bg-[#D97745] text-[#D97745] hover:text-white border border-[#D97745]/30 font-bold text-[15px] tracking-wider uppercase transition cursor-pointer"
+            >
+              ДОРАБОТАТЬ
+            </button>
+
+            <button
+              type="button"
+              onClick={() => executeDecision('reject')}
+              className="h-14 rounded-2xl bg-[#F5F5F4] hover:bg-[#DC2626] text-[#171717] hover:text-white border border-[#E8E8E5] font-bold text-[15px] tracking-wider uppercase transition cursor-pointer"
+            >
+              ОТКЛОНИТЬ
+            </button>
+          </div>
+
+          {/* История принятых решений */}
+          {(concept.approvalDecisions || []).length > 0 && (
+            <div className="pt-4 border-t border-[#E8E8E5] space-y-2 text-[13px]">
+              <div className="font-bold text-[#737373] uppercase text-[11px] tracking-wider">
+                Журнал решений по карточке:
+              </div>
+              {(concept.approvalDecisions || []).map((d) => (
+                <div
+                  key={d.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F7F7F5] px-4 py-2.5 border border-[#E8E8E5]"
+                >
+                  <div>
+                    <b className="text-[#171717]">
+                      {d.decision === 'approve'
+                        ? '✓ Утверждено'
+                        : d.decision === 'rework'
+                        ? '↻ На доработку'
+                        : '✕ Отклонено'}
+                    </b>{' '}
+                    · {d.justification}
+                  </div>
+                  <div className="text-[12px] text-[#737373]">
+                    {d.authorName} · {d.decidedAt}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -873,264 +1647,534 @@ export function ProductLabCardBody({
   }
 
   // ===========================================================================
-  // ЭТАП 04: ТЕСТ (Быстрая проверка посадки, швов и стирки без бюрократии)
-  // ===========================================================================
-  if (activeTab === 'testing') {
-    const protocols = concept.testProtocols || [];
-    const latestProtocol = protocols[0];
-
-    const quickSetVerdict = (verdict: 'passed' | 'passed_with_remarks' | 'rework_required') => {
-      const sample = concept.samples?.[0];
-      const newProt = {
-        id: `tp-${Date.now()}`,
-        sampleId: sample?.id || 'smp-default',
-        sampleVersionLabel: sample?.versionCode || 'Образец №1',
-        testDate: new Date().toISOString().slice(0, 10),
-        testerName: currentUser.fullName,
-        criteria: latestProtocol?.criteria || [],
-        washCyclesCount: 5,
-        washTempAndMode: '40°C деликатная стирка',
-        measurementsBeforeAfter: latestProtocol?.measurementsBeforeAfter || 'Без усадки',
-        verdict,
-        summaryComment: latestProtocol?.summaryComment || '',
-      };
-      onUpdateConcept(concept.id, {
-        testProtocols: [newProt, ...protocols.slice(1)],
-      });
-      notify('success', 'Результат теста сохранён');
-    };
-
-    return (
-      <div className="space-y-6 text-[15px]">
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-5">
-          <h3 className="text-[18px] font-bold text-[#171717]">
-            Итог тестирования и проверки после стирки
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              {
-                id: 'passed' as const,
-                title: '✅ Тест пройден успешно',
-                desc: 'Посадка, швы и стирка без замечаний',
-                activeClass: 'border-[#16805D] bg-[#16805D]/10 text-[#16805D]',
-              },
-              {
-                id: 'passed_with_remarks' as const,
-                title: '⚠️ Пройден с замечаниями',
-                desc: 'Мелкие правки перед запуском тиража',
-                activeClass: 'border-[#D97745] bg-[#D97745]/10 text-[#D97745]',
-              },
-              {
-                id: 'rework_required' as const,
-                title: '❌ Требуется перешив образца',
-                desc: 'Усадка, плохая посадка или брак ткани',
-                activeClass: 'border-[#DC2626] bg-[#DC2626]/10 text-[#DC2626]',
-              },
-            ].map((opt) => {
-              const isSelected = latestProtocol?.verdict === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  disabled={!canEdit}
-                  onClick={() => quickSetVerdict(opt.id)}
-                  className={`p-4 rounded-2xl border-2 text-left transition cursor-pointer ${
-                    isSelected
-                      ? opt.activeClass
-                      : 'border-[#E8E8E5] bg-[#F7F7F5]/60 hover:border-[#171717] text-[#171717]'
-                  }`}
-                >
-                  <div className="font-bold text-[15px]">{opt.title}</div>
-                  <div className="text-[12px] opacity-80 mt-1">{opt.desc}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="block text-[13px] font-semibold text-[#737373] mb-1.5">
-                Как образец повёл себя в носке и на примерке (посадка, резинка, швы)
-              </label>
-              <textarea
-                rows={3}
-                disabled={!canEdit}
-                value={latestProtocol?.summaryComment || ''}
-                onChange={(e) => {
-                  const text = e.target.value;
-                  const sample = concept.samples?.[0];
-                  const updated = {
-                    id: latestProtocol?.id || `tp-${Date.now()}`,
-                    sampleId: sample?.id || 'smp-1',
-                    sampleVersionLabel: sample?.versionCode || 'Образец №1',
-                    testDate: new Date().toISOString().slice(0, 10),
-                    testerName: currentUser.fullName,
-                    criteria: latestProtocol?.criteria || [],
-                    washCyclesCount: 5,
-                    washTempAndMode: '40°C',
-                    measurementsBeforeAfter:
-                      latestProtocol?.measurementsBeforeAfter || '',
-                    verdict: latestProtocol?.verdict || 'passed',
-                    summaryComment: text,
-                  };
-                  onUpdateConcept(concept.id, {
-                    testProtocols: [updated, ...protocols.slice(1)],
-                  });
-                }}
-                placeholder="Напишите коротко: удобно ли сидит, не скручивается ли резинка..."
-                className="w-full rounded-xl border border-[#E8E8E5] p-3 text-[14px]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[13px] font-semibold text-[#737373] mb-1.5">
-                Результат после стирки (усадка, катышки, цвет)
-              </label>
-              <textarea
-                rows={3}
-                disabled={!canEdit}
-                value={latestProtocol?.measurementsBeforeAfter || ''}
-                onChange={(e) => {
-                  const text = e.target.value;
-                  const sample = concept.samples?.[0];
-                  const updated = {
-                    id: latestProtocol?.id || `tp-${Date.now()}`,
-                    sampleId: sample?.id || 'smp-1',
-                    sampleVersionLabel: sample?.versionCode || 'Образец №1',
-                    testDate: new Date().toISOString().slice(0, 10),
-                    testerName: currentUser.fullName,
-                    criteria: latestProtocol?.criteria || [],
-                    washCyclesCount: 5,
-                    washTempAndMode: '40°C',
-                    measurementsBeforeAfter: text,
-                    verdict: latestProtocol?.verdict || 'passed',
-                    summaryComment: latestProtocol?.summaryComment || '',
-                  };
-                  onUpdateConcept(concept.id, {
-                    testProtocols: [updated, ...protocols.slice(1)],
-                  });
-                }}
-                placeholder="Например: после 5 стирок при 40°C усадка не более 1.5%, цвет сохранился..."
-                className="w-full rounded-xl border border-[#E8E8E5] p-3 text-[14px]"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ===========================================================================
-  // ЭТАП 05: РЕШЕНИЕ (3 понятные кнопки в 1 клик)
-  // ===========================================================================
-  if (activeTab === 'decisions') {
-    const handleQuickDecision = (outcome: 'approve' | 'rework' | 'reject') => {
-      if (outcome === 'approve' && !canApproveProd) {
-        notify('error', 'Утвердить в производство может только руководитель');
-        return;
-      }
-      const nextStage: ConceptStage =
-        outcome === 'approve'
-          ? 'PRODUCTION'
-          : outcome === 'rework'
-          ? 'SAMPLE'
-          : 'REJECTED';
-
-      onUpdateConcept(concept.id, {
-        stage: nextStage,
-        isArchived: outcome === 'reject',
-        approvalDecisions: [
-          {
-            id: `dec-${Date.now()}`,
-            decision: outcome,
-            authorName: currentUser.fullName,
-            authorRole: currentUser.role,
-            decidedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-            approvedSampleLabel: concept.samples?.[0]?.versionCode || 'Основной образец',
-            justification:
-              outcome === 'approve'
-                ? 'Утверждено в производство'
-                : outcome === 'rework'
-                ? 'Возвращено на доработку образца'
-                : 'Идея отклонена',
-            conditions: '',
-          },
-          ...(concept.approvalDecisions || []),
-        ],
-      });
-      onChangeStageWithGate(concept, nextStage);
-    };
-
-    return (
-      <div className="space-y-6 text-[15px]">
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-5">
-          <div>
-            <h3 className="text-[18px] font-bold text-[#171717]">
-              Решение по модели «{concept.name}»
-            </h3>
-            <p className="text-[13px] text-[#737373] mt-1">
-              Выберите действие в 1 клик — карточка автоматически перейдёт на нужный этап:
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              type="button"
-              onClick={() => handleQuickDecision('approve')}
-              className="p-5 rounded-2xl bg-[#16805D] hover:bg-[#126b4d] text-white text-left space-y-1.5 cursor-pointer transition shadow-xs"
-            >
-              <div className="text-[17px] font-bold">✅ Утвердить в производство</div>
-              <div className="text-[13px] text-white/85">
-                Образец проверен — переводим карточку на этап «06 · Производство»
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickDecision('rework')}
-              className="p-5 rounded-2xl bg-[#F7F7F5] hover:border-[#171717] border border-[#E8E8E5] text-[#171717] text-left space-y-1.5 cursor-pointer transition"
-            >
-              <div className="text-[17px] font-bold">🔄 Вернуть на доработку образца</div>
-              <div className="text-[13px] text-[#737373]">
-                Нужно исправить лекала или ткань на этапе «03 · Образец»
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickDecision('reject')}
-              className="p-5 rounded-2xl bg-[#DC2626]/10 hover:bg-[#DC2626] hover:text-white border border-[#DC2626]/30 text-[#DC2626] text-left space-y-1.5 cursor-pointer transition"
-            >
-              <div className="text-[17px] font-bold">❌ Отклонить и убрать в архив</div>
-              <div className="text-[13px] opacity-80">
-                Модель не прошла проверку или невыгодна по экономике
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ===========================================================================
-  // ЭТАП 06: ПРОИЗВОДСТВО (Партия, фабрика, статус пошива и передача в каталог)
+  // ЭТАП 06: ПРОИЗВОДСТВО — НАСТОЯЩИЙ ЗАКАЗ + ЭКСПОРТ PDF RU / EN / ZH (Стр. 7 и 8 PDF)
   // ===========================================================================
   if (activeTab === 'production') {
     const orders = concept.productionOrders || [];
-    const activeOrder = orders[0];
+    const currentOrder = orders[0] || {
+      id: 'po-default',
+      orderNumber: `PO-2027-01`,
+      factoryName: concept.supplierName || FACTORY_DIRECTORY[0].name,
+      contactPerson: 'Менеджер производства',
+      approvedSampleVersion: concept.samples?.[0]?.versionCode || 'Версия 1',
+      internalStatus: 'order_prep' as const,
+      materialAndColors:
+        concept.samples?.[0]?.materialAndComposition || 'Хлопок 95% + Эластан 5%',
+      sizeBreakdown: { S: 150, M: 450, L: 750, XL: 600, XXL: 450 },
+      packsBySize: {
+        S: 150,
+        M: 450,
+        L: 750,
+        XL: 600,
+        '2XL': 450,
+        '3XL': 300,
+        '4XL': 300,
+      },
+      unitsPerPack: packUnits,
+      packColorComposition: '2 × тёмно-синие + 1 × чёрные + 1 × терракотовые',
+      totalUnits: 12000,
+      packConfiguration: `${packUnits} шт. в наборе`,
+      packagingDetails: 'Матовый зип-пакет 180 мкм со штрихкодом EAN-13 / Честный Знак',
+      unitPrice: concept.plannedUnitCost || 320,
+      currency: 'RUB' as const,
+      plannedReadyDate: concept.targetLaunchDate || '2027-02-15',
+      paymentTerms: '30% депозит / 70% перед отгрузкой',
+      orderVersion: 1,
+      approvedAt: new Date().toISOString().slice(0, 10),
+      chineseVerified: true,
+      qcNotes: 'AQL 1.5',
+      logisticsTracking: '',
+    };
+
+    const packsMap: Record<SevenSizeKey, number> = currentOrder.packsBySize || {
+      S: 150,
+      M: 450,
+      L: 750,
+      XL: 600,
+      '2XL': 450,
+      '3XL': 300,
+      '4XL': 300,
+    };
+
+    const unitsInOnePack =
+      currentOrder.unitsPerPack && currentOrder.unitsPerPack > 0
+        ? currentOrder.unitsPerPack
+        : packUnits;
+
+    const totalPacks = SEVEN_SIZES.reduce((sum, sz) => sum + (packsMap[sz] || 0), 0);
+    const totalPieces = totalPacks * unitsInOnePack;
+    const totalOrderSum = totalPieces * (currentOrder.unitPrice || 0);
+
+    const saveOrderPatch = (patch: Partial<typeof currentOrder>) => {
+      const updated = {
+        ...currentOrder,
+        ...patch,
+      };
+      const nextPacks = updated.packsBySize || packsMap;
+      const nextUnitsPerPack = updated.unitsPerPack || unitsInOnePack;
+      const calcPacks = SEVEN_SIZES.reduce((s, sz) => s + (nextPacks[sz] || 0), 0);
+      updated.totalUnits = calcPacks * nextUnitsPerPack;
+
+      onUpdateConcept(concept.id, {
+        supplierName: updated.factoryName,
+        productionOrders: [updated, ...orders.slice(1)],
+      });
+    };
+
+    const handleExportFactoryPdf = () => {
+      const nextVer = (currentOrder.orderVersion || 1) + (orders.length > 0 ? 1 : 0);
+      const today = new Date().toISOString().slice(0, 10);
+      saveOrderPatch({
+        orderVersion: nextVer,
+        approvedAt: today,
+        internalStatus: 'order_placed',
+      });
+      notify(
+        'success',
+        `Сформирован PDF заказа v${nextVer} (RU / EN / ZH)`,
+        `Итого: ${totalPacks.toLocaleString('ru-RU')} наборов (${totalPieces.toLocaleString('ru-RU')} шт. белья)`
+      );
+      if (typeof window !== 'undefined') {
+        setTimeout(() => window.print(), 150);
+      }
+    };
 
     return (
       <div className="space-y-6 text-[15px]">
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* БЛОК 1: PRODUCTION ORDER / НАСТОЯЩИЙ ЗАКАЗ ПО ЦВЕТАМ, РАЗМЕРАМ И ФАБРИКЕ (Стр. 7 PDF) */}
+        <div className="rounded-3xl border border-[#E8E8E5] bg-white p-6 md:p-8 space-y-6 shadow-xs">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#E8E8E5] pb-5">
             <div>
-              <h3 className="text-[18px] font-bold text-[#171717]">
-                Заказ партии на фабрике
+              <div className="text-[12px] font-bold uppercase tracking-widest text-[#737373]">
+                PRODUCTION ORDER / {currentOrder.internalStatus === 'order_prep' ? 'ЧЕРНОВИК' : 'УТВЕРЖДЁН'} · ВЕРСИЯ v{currentOrder.orderVersion || 1}
+              </div>
+              <h3 className="text-[24px] font-bold text-[#171717] mt-1">
+                {concept.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · {concept.name} ({unitsInOnePack} шт.)
               </h3>
-              <p className="text-[13px] text-[#737373]">
-                Фабрика, объём тиража, себестоимость и текущий статус готовности
+              <p className="text-[13px] text-[#737373] mt-0.5">
+                Образец: <b>{currentOrder.approvedSampleVersion}</b> · Состав: <b>{currentOrder.materialAndColors}</b> · Дата согласования: <b>{currentOrder.approvedAt || '—'}</b>
               </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <img
+                src={concept.imageUrl}
+                alt={concept.name}
+                className="h-16 w-16 rounded-2xl object-contain bg-[#F7F7F5] border border-[#E8E8E5] p-1.5"
+              />
+            </div>
+          </div>
+
+          {/* Параметры фабрики, сроков, упаковки и цены */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-[13px]">
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-[#737373] mb-1">
+                Фабрика (из справочника)
+              </label>
+              <select
+                disabled={!canEdit}
+                value={currentOrder.factoryName}
+                onChange={(e) => saveOrderPatch({ factoryName: e.target.value })}
+                className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-3 font-bold text-[#171717]"
+              >
+                {FACTORY_DIRECTORY.map((f) => (
+                  <option key={f.name} value={`${f.name} (${f.country})`}>
+                    {f.name} ({f.country})
+                  </option>
+                ))}
+                <option value={currentOrder.factoryName}>{currentOrder.factoryName}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-[#737373] mb-1">
+                План готовности партии
+              </label>
+              <input
+                type="date"
+                disabled={!canEdit}
+                value={currentOrder.plannedReadyDate}
+                onChange={(e) => saveOrderPatch({ plannedReadyDate: e.target.value })}
+                className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-3 font-bold text-[#171717]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-[#737373] mb-1">
+                Цена фабрики за 1 шт. и валюта
+              </label>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  disabled={!canEdit}
+                  value={currentOrder.unitPrice ? String(currentOrder.unitPrice) : ''}
+                  onChange={(e) =>
+                    saveOrderPatch({
+                      unitPrice: parseCleanNumber(e.target.value) ?? 0,
+                    })
+                  }
+                  className="flex-1 h-10 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-3 font-bold text-[#171717]"
+                />
+                <select
+                  disabled={!canEdit}
+                  value={currentOrder.currency}
+                  onChange={(e) =>
+                    saveOrderPatch({
+                      currency: e.target.value as 'RUB' | 'USD' | 'CNY',
+                    })
+                  }
+                  className="w-20 h-10 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-2 font-bold"
+                >
+                  <option value="RUB">RUB</option>
+                  <option value="USD">USD</option>
+                  <option value="CNY">CNY</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase text-[#737373] mb-1">
+                Условия оплаты и упаковка
+              </label>
+              <input
+                disabled={!canEdit}
+                value={currentOrder.paymentTerms || '30% депозит / 70% перед отгрузкой'}
+                onChange={(e) => saveOrderPatch({ paymentTerms: e.target.value })}
+                className="w-full h-10 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5] px-3 font-medium text-[#171717]"
+              />
+            </div>
+          </div>
+
+          {/* Состав набора по цветам (Стр. 7 PDF) */}
+          <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+            <div className="md:col-span-9">
+              <label className="block text-[12px] font-bold text-[#737373] mb-1">
+                Состав набора по цветам
+              </label>
+              <input
+                disabled={!canEdit}
+                value={
+                  currentOrder.packColorComposition ||
+                  '2 × тёмно-синие + 1 × чёрные + 1 × терракотовые'
+                }
+                onChange={(e) =>
+                  saveOrderPatch({ packColorComposition: e.target.value })
+                }
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-white px-4 text-[15px] font-bold text-[#171717]"
+              />
+            </div>
+
+            <div className="md:col-span-3">
+              <label className="block text-[12px] font-bold text-[#737373] mb-1">
+                Штук белья в 1 наборе
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                disabled={!canEdit}
+                value={String(unitsInOnePack)}
+                onChange={(e) => {
+                  const v = parseCleanNumber(e.target.value);
+                  saveOrderPatch({ unitsPerPack: v && v > 0 ? v : 1 });
+                }}
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-white px-4 text-[15px] font-bold text-[#171717]"
+              />
+            </div>
+          </div>
+
+          {/* ТАБЛИЦА РАЗМЕРОВ S — 4XL (Один в один со Стр. 7 PDF: Размер | Наборов | Штук белья) */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-[14px]">
+              <thead>
+                <tr className="border-b border-[#E8E8E5] text-[13px] font-bold text-[#171717]">
+                  <th className="py-3 px-4">Размер</th>
+                  <th className="py-3 px-4">Наборов</th>
+                  <th className="py-3 px-4">Штук белья (× {unitsInOnePack} шт.)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E8E8E5]">
+                {SEVEN_SIZES.map((sz, idx) => {
+                  const packsCount = packsMap[sz] ?? 0;
+                  const piecesCount = packsCount * unitsInOnePack;
+                  return (
+                    <tr
+                      key={sz}
+                      className={idx % 2 === 0 ? 'bg-[#F7F7F5]/60' : 'bg-white'}
+                    >
+                      <td className="py-2.5 px-4 font-bold text-[#171717] w-1/3">
+                        {sz}
+                      </td>
+                      <td className="py-2 px-4 w-1/3">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          disabled={!canEdit}
+                          value={packsCount > 0 ? String(packsCount) : ''}
+                          onChange={(e) => {
+                            const nextVal = parseCleanNumber(e.target.value) ?? 0;
+                            saveOrderPatch({
+                              packsBySize: {
+                                ...packsMap,
+                                [sz]: nextVal,
+                              },
+                            });
+                          }}
+                          placeholder="0"
+                          className="w-32 h-9 rounded-lg border border-[#E8E8E5] bg-white px-3 font-semibold text-[#171717]"
+                        />
+                      </td>
+                      <td className="py-2.5 px-4 font-semibold text-[#171717] w-1/3">
+                        {piecesCount.toLocaleString('ru-RU')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-[#171717] text-[15px] font-bold text-[#171717] bg-[#F7F7F5]">
+                  <td className="py-3.5 px-4">ИТОГО</td>
+                  <td className="py-3.5 px-4">
+                    {totalPacks.toLocaleString('ru-RU')} наборов
+                  </td>
+                  <td className="py-3.5 px-4 text-[#D97745]">
+                    {totalPieces.toLocaleString('ru-RU')} штук белья · Сумма:{' '}
+                    {totalOrderSum.toLocaleString('ru-RU')} {currentOrder.currency}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        {/* БЛОК 2: ПРИМЕР ВЫГРУЗКИ PDF ДЛЯ ФАБРИКИ (RU / EN / ZH — Стр. 8 PDF и Сценарий №7) */}
+        <div className="rounded-3xl border border-[#E8E8E5] bg-white p-6 md:p-8 space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="text-[12px] font-bold uppercase tracking-widest text-[#737373]">
+                ПРИМЕР ВЫГРУЗКИ PDF ДЛЯ ФАБРИКИ (ОДИН ФАЙЛ — 3 ЯЗЫКОВЫЕ СЕКЦИИ)
+              </div>
+              <h4 className="text-[19px] font-bold text-[#171717] mt-0.5">
+                Единый заказ на русском, английском и китайском (RU / EN / ZH)
+              </h4>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportFactoryPdf}
+              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-[#111111] hover:bg-[#D97745] text-white text-[13px] font-bold transition cursor-pointer"
+            >
+              <Printer className="h-4 w-4" />
+              <span>Выгрузить PDF заказа (RU / EN / ZH)</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[12px]">
+            {/* RU */}
+            <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
+                RU
+              </span>
+              <div className="font-bold text-[14px] text-[#171717]">
+                ЗАКАЗ НА ПРОИЗВОДСТВО
+              </div>
+              <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
+                <div>Модель: <b>{concept.name}</b> ({currentOrder.approvedSampleVersion})</div>
+                <div>Фабрика: <b>{currentOrder.factoryName}</b></div>
+                <div>Состав: <b>{currentOrder.materialAndColors}</b></div>
+                <div>Комплект: <b>{currentOrder.packColorComposition}</b></div>
+                <div>Тираж: <b>{totalPacks.toLocaleString('ru-RU')} наб. / {totalPieces.toLocaleString('ru-RU')} шт.</b></div>
+                <div>Готовность: <b>{currentOrder.plannedReadyDate}</b></div>
+              </div>
+            </div>
+
+            {/* EN */}
+            <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
+                EN
+              </span>
+              <div className="font-bold text-[14px] text-[#171717]">
+                PRODUCTION ORDER
+              </div>
+              <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
+                <div>Style: <b>{concept.code} · {concept.name}</b></div>
+                <div>Factory: <b>{currentOrder.factoryName}</b></div>
+                <div>Fabric: <b>95% Cotton + 5% Elastane (180 GSM)</b></div>
+                <div>Pack Ratio: <b>{unitsInOnePack}-Pack Assorted Colors</b></div>
+                <div>Total Qty: <b>{totalPacks.toLocaleString('en-US')} packs / {totalPieces.toLocaleString('en-US')} pcs</b></div>
+                <div>Ready Date: <b>{currentOrder.plannedReadyDate}</b></div>
+              </div>
+            </div>
+
+            {/* ZH */}
+            <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
+              <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
+                ZH
+              </span>
+              <div className="font-bold text-[14px] text-[#171717]">
+                生产订单 (PRODUCTION ORDER)
+              </div>
+              <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
+                <div>款号: <b>{concept.code} ({currentOrder.approvedSampleVersion})</b></div>
+                <div>工厂: <b>{currentOrder.factoryName}</b></div>
+                <div>面料成分: <b>95% 棉 + 5% 氨纶 (180克重)</b></div>
+                <div>包装配比: <b>{unitsInOnePack}条装礼盒/袋装 (S–4XL)</b></div>
+                <div>订单总量: <b>{totalPacks} 盒 / 共 {totalPieces} 件</b></div>
+                <div>交货日期: <b>{currentOrder.plannedReadyDate}</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#E8E8E5] text-[13px]">
+            <label className="inline-flex items-center gap-2 font-semibold text-[#171717] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={currentOrder.chineseVerified ?? true}
+                onChange={(e) => saveOrderPatch({ chineseVerified: e.target.checked })}
+                className="h-4 w-4 accent-[#D97745]"
+              />
+              <span>
+                Китайские материалы и формулировки проверены перед отправкой. Числа и таблицы едины для всех трёх частей.
+              </span>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => onChangeStageWithGate(concept, 'LAUNCH')}
+              className="h-10 px-5 rounded-xl bg-[#111111] text-white font-bold cursor-pointer"
+            >
+              Перейти к Запуску (07 Запуск) →
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===========================================================================
+  // ЭТАП 07: ЗАПУСК (Стр. 8 PDF и Сценарий №8 — Только ссылка, дата старта и статус «В продаже»)
+  // ===========================================================================
+  if (activeTab === 'launch') {
+    const isInSale = concept.launchSalesStatus === 'in_sale';
+
+    return (
+      <div className="space-y-6 text-[15px]">
+        <div className="rounded-3xl border border-[#E8E8E5] bg-white p-6 md:p-8 space-y-6">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-[#FDF3EB] text-[#D97745] text-[12px] font-bold mb-2">
+              07 ЗАПУСК
+            </div>
+            <h3 className="text-[22px] font-bold text-[#171717]">
+              Завершение разработки и старт продаж
+            </h3>
+            <p className="text-[14px] text-[#737373] mt-0.5">
+              Только ссылка на карточку товара, дата фактического старта и статус «В продаже». Дополнительный комментарий — по желанию.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[14px]">
+            <div className="md:col-span-2">
+              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                Ссылка на карточку товара на маркетплейсе (Wildberries / Ozon)
+              </label>
+              <input
+                disabled={!canEdit}
+                value={
+                  concept.marketplaceProductUrl ||
+                  concept.referenceLinks?.[0] ||
+                  ''
+                }
+                onChange={(e) =>
+                  onUpdateConcept(concept.id, {
+                    marketplaceProductUrl: e.target.value,
+                  })
+                }
+                placeholder="https://www.wildberries.ru/catalog/..."
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5]/60 px-3.5 font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                Дата фактического старта продаж
+              </label>
+              <input
+                type="date"
+                disabled={!canEdit}
+                value={concept.actualLaunchDate || concept.targetLaunchDate || '2027-03-01'}
+                onChange={(e) =>
+                  onUpdateConcept(concept.id, {
+                    actualLaunchDate: e.target.value,
+                  })
+                }
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5]/60 px-3.5 font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                Статус запуска
+              </label>
+              <div className="flex h-11 rounded-xl bg-[#F7F7F5] p-1 border border-[#E8E8E5]">
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() =>
+                    onUpdateConcept(concept.id, { launchSalesStatus: 'prep' })
+                  }
+                  className={`flex-1 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    !isInSale ? 'bg-white text-[#171717] shadow-2xs' : 'text-[#737373]'
+                  }`}
+                >
+                  Подготовка
+                </button>
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() =>
+                    onUpdateConcept(concept.id, {
+                      launchSalesStatus: 'in_sale',
+                      stage: 'LAUNCH',
+                    })
+                  }
+                  className={`flex-1 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    isInSale
+                      ? 'bg-[#16805D] text-white shadow-2xs'
+                      : 'text-[#737373]'
+                  }`}
+                >
+                  В продаже ✓
+                </button>
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-[12px] font-semibold text-[#737373] mb-1">
+                Дополнительный комментарий (по желанию)
+              </label>
+              <input
+                disabled={!canEdit}
+                value={concept.launchNote || ''}
+                onChange={(e) =>
+                  onUpdateConcept(concept.id, { launchNote: e.target.value })
+                }
+                placeholder="Первая партия принята на склад Коледино, карточка активна..."
+                className="w-full h-11 rounded-xl border border-[#E8E8E5] bg-[#F7F7F5]/60 px-3.5"
+              />
+            </div>
+          </div>
+
+          {/* Зелёное правило со Стр. 8 PDF + Кнопка связи с Каталогом */}
+          <div className="rounded-2xl bg-[#E8F5E9]/70 border border-[#16805D]/30 p-5 flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-[14px] font-bold text-[#16805D]">
+                Результаты продаж — не здесь. После старта модель связывается с каталогом.
+              </div>
+              <div className="text-[13px] text-[#525252]">
+                {linkedProduct
+                  ? `✓ Модель связана с карточкой в Каталоге SKU (${linkedProduct.sku} · ${linkedProduct.name})`
+                  : 'Нажмите кнопку справа, чтобы зафиксировать старт продаж и связать модель с Каталогом.'}
+              </div>
             </div>
 
             {linkedProduct ? (
@@ -1139,441 +2183,51 @@ export function ProductLabCardBody({
                 onClick={() =>
                   onNavigateToSection('product-catalog', { productId: linkedProduct.id })
                 }
-                className="px-4 py-2 rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-bold text-[#171717] cursor-pointer"
+                className="h-11 px-6 rounded-xl bg-[#16805D] text-white text-[13px] font-bold cursor-pointer"
               >
-                Открыть в каталоге ({linkedProduct.sku}) →
+                Открыть модель в Каталоге ({linkedProduct.sku}) →
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => onCreateProductFromConcept(concept.id)}
-                className="px-4 py-2 rounded-xl bg-[#111111] text-white text-[13px] font-bold cursor-pointer"
+                onClick={() => {
+                  onUpdateConcept(concept.id, {
+                    launchSalesStatus: 'in_sale',
+                    stage: 'LAUNCH',
+                  });
+                  onCreateProductFromConcept(concept.id);
+                }}
+                className="h-11 px-6 rounded-xl bg-[#111111] hover:bg-[#16805D] text-white text-[13px] font-bold transition cursor-pointer"
               >
-                + Передать модель в Каталог SKU
+                Зафиксировать старт продаж и связать с Каталогом →
               </button>
             )}
           </div>
-
-          {/* Статус производства в 1 клик */}
-          {activeOrder && (
-            <div className="space-y-3 pt-2">
-              <div className="text-[13px] font-semibold text-[#737373]">
-                Статус партии ({activeOrder.orderNumber} · {activeOrder.factoryName} ·{' '}
-                {activeOrder.totalUnits} шт.):
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {PRODUCTION_INTERNAL_STATUSES.map((st) => {
-                  const isCurrent = activeOrder.internalStatus === st.code;
-                  return (
-                    <button
-                      key={st.code}
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() =>
-                        onUpdateConcept(concept.id, {
-                          productionOrders: orders.map((o, idx) =>
-                            idx === 0 ? { ...o, internalStatus: st.code } : o
-                          ),
-                        })
-                      }
-                      className={`px-3.5 py-2 rounded-xl text-[13px] font-bold border transition cursor-pointer ${
-                        isCurrent
-                          ? 'bg-[#111111] text-white border-[#111111]'
-                          : 'bg-[#F7F7F5] text-[#171717] border-[#E8E8E5] hover:border-[#D97745]'
-                      }`}
-                    >
-                      {st.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Простая форма параметров партии */}
-          {canEdit && (
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 pt-4 border-t border-[#E8E8E5] text-[13px]">
-              <input
-                value={poForm.factoryName}
-                onChange={(e) => setPoForm({ ...poForm, factoryName: e.target.value })}
-                placeholder="Фабрика"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={poForm.totalUnits}
-                onChange={(e) =>
-                  setPoForm({
-                    ...poForm,
-                    totalUnits: e.target.value.replace(/[^\d]/g, ''),
-                  })
-                }
-                placeholder="Тираж (шт.)"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <input
-                type="text"
-                inputMode="numeric"
-                value={poForm.unitPrice}
-                onChange={(e) =>
-                  setPoForm({
-                    ...poForm,
-                    unitPrice: e.target.value.replace(/[^\d]/g, ''),
-                  })
-                }
-                placeholder="Себестоимость (₽)"
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <input
-                type="date"
-                value={poForm.plannedReadyDate}
-                onChange={(e) =>
-                  setPoForm({ ...poForm, plannedReadyDate: e.target.value })
-                }
-                className="h-10 rounded-xl border border-[#E8E8E5] px-3"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const units = parseCleanNumber(poForm.totalUnits) || 1000;
-                  const price = parseCleanNumber(poForm.unitPrice) || 350;
-                  const newOrder = {
-                    id: `po-${Date.now()}`,
-                    orderNumber: `PO-${new Date().getFullYear()}-${orders.length + 1}`,
-                    approvedSampleVersion: concept.samples?.[0]?.versionCode || 'Образец №1',
-                    factoryName:
-                      poForm.factoryName.trim() || concept.supplierName || 'Фабрика',
-                    contactPerson: 'Производство',
-                    materialAndColors: (concept.colorCombinations || []).join(', '),
-                    sizeBreakdown: {
-                      S: 0,
-                      M: Math.round(units / 3),
-                      L: Math.round(units / 3),
-                      XL: units - 2 * Math.round(units / 3),
-                      XXL: 0,
-                    },
-                    packConfiguration: 'Стандарт',
-                    totalUnits: units,
-                    packagingDetails: 'Фирменный зип-пакет',
-                    unitPrice: price,
-                    currency: 'RUB' as const,
-                    plannedReadyDate: poForm.plannedReadyDate,
-                    qcNotes: 'Контроль пройден',
-                    logisticsTracking: '',
-                    internalStatus: 'in_production' as const,
-                    hasDelayRisk: false,
-                  };
-                  onUpdateConcept(concept.id, {
-                    supplierName: newOrder.factoryName,
-                    plannedUnitCost: price,
-                    productionOrders: [newOrder, ...orders],
-                  });
-                  notify('success', 'Партия сохранена');
-                }}
-                className="h-10 rounded-xl bg-[#111111] text-white font-semibold cursor-pointer px-4"
-              >
-                {activeOrder ? 'Обновить партию' : '+ Запустить партию'}
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
   }
 
   // ===========================================================================
-  // ЭТАП 07: ЗАПУСК (Удобная таблица 7 / 14 / 28 дней без бага ведущих нулей!)
-  // ===========================================================================
-  if (activeTab === 'launch') {
-    const cl: RnDLaunchChecklist = concept.launchChecklist || {
-      catalogCreated: false,
-      photosApproved: false,
-      descriptionsReady: false,
-      bundlesAndPricesConfirmed: false,
-      marketplaceCardsReady: false,
-      warehouseDistributed: false,
-      adsPrepared: false,
-      salesDateAndOwnerAssigned: false,
-    };
-
-    const toggleCheck = (key: keyof RnDLaunchChecklist) => {
-      if (!canEdit) return;
-      onUpdateConcept(concept.id, {
-        launchChecklist: { ...cl, [key]: !cl[key] },
-      });
-    };
-
-    const checkpoints: RnDPostLaunchCheckpoint[] =
-      concept.postLaunchMetrics && concept.postLaunchMetrics.length === 3
-        ? concept.postLaunchMetrics
-        : [
-            {
-              day: 7,
-              ordersUnits: null,
-              ordersRub: null,
-              buyoutsUnits: null,
-              buyoutsRub: null,
-              avgActualPriceRub: null,
-              adSpendRub: null,
-              stockLeftUnits: null,
-              reviewsSummary: '',
-              comparisonWithExpectations: '',
-              dataSource: 'МП',
-            },
-            {
-              day: 14,
-              ordersUnits: null,
-              ordersRub: null,
-              buyoutsUnits: null,
-              buyoutsRub: null,
-              avgActualPriceRub: null,
-              adSpendRub: null,
-              stockLeftUnits: null,
-              reviewsSummary: '',
-              comparisonWithExpectations: '',
-              dataSource: 'МП',
-            },
-            {
-              day: 28,
-              ordersUnits: null,
-              ordersRub: null,
-              buyoutsUnits: null,
-              buyoutsRub: null,
-              avgActualPriceRub: null,
-              adSpendRub: null,
-              stockLeftUnits: null,
-              reviewsSummary: '',
-              comparisonWithExpectations: '',
-              dataSource: 'МП',
-            },
-          ];
-
-    const updateCheckpointField = (
-      day: 7 | 14 | 28,
-      patch: Partial<RnDPostLaunchCheckpoint>
-    ) => {
-      const next = checkpoints.map((cp) =>
-        cp.day === day ? { ...cp, ...patch } : cp
-      );
-      onUpdateConcept(concept.id, { postLaunchMetrics: next });
-    };
-
-    return (
-      <div className="space-y-6 text-[15px]">
-        {/* Короткий чек-лист готовности к запуску (4 главные кнопки) */}
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-          <h3 className="text-[18px] font-bold text-[#171717]">
-            Готовность к старту продаж на маркетплейсе
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-[14px]">
-            {[
-              { key: 'photosApproved' as const, label: 'Фото и инфографика готовы' },
-              { key: 'marketplaceCardsReady' as const, label: 'Карточка на МП создана' },
-              { key: 'warehouseDistributed' as const, label: 'Товар принят на склад МП' },
-              { key: 'adsPrepared' as const, label: 'Цена и реклама включены' },
-            ].map((item) => {
-              const checked = cl[item.key];
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => toggleCheck(item.key)}
-                  className={`p-3.5 rounded-xl border text-left font-semibold flex items-center gap-2.5 cursor-pointer transition ${
-                    checked
-                      ? 'bg-[#16805D]/10 border-[#16805D] text-[#16805D]'
-                      : 'bg-[#F7F7F5] border-[#E8E8E5] text-[#171717]'
-                  }`}
-                >
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Удобная таблица первых продаж (7 / 14 / 28 дней) — всего 4 понятные колонки, без бага ведущих нулей! */}
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-          <div>
-            <h3 className="text-[18px] font-bold text-[#171717]">
-              Результаты продаж после запуска (7 / 14 / 28 дней)
-            </h3>
-            <p className="text-[13px] text-[#737373]">
-              Простая таблица для быстрой фиксации динамики продаж новинки:
-            </p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[14px]">
-              <thead>
-                <tr className="border-b border-[#E8E8E5] text-[12px] uppercase text-[#737373] bg-[#F7F7F5]">
-                  <th className="py-3 px-4 rounded-l-xl">Период</th>
-                  <th className="py-3 px-4">Заказы (шт.)</th>
-                  <th className="py-3 px-4">Заказы (₽)</th>
-                  <th className="py-3 px-4">Расход на рекламу (₽)</th>
-                  <th className="py-3 px-4 rounded-r-xl">Отзывы / Комментарий</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E8E8E5]">
-                {checkpoints.map((cp) => (
-                  <tr key={cp.day}>
-                    <td className="py-3.5 px-4 font-bold text-[#171717] whitespace-nowrap">
-                      {cp.day} дней
-                    </td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        disabled={!canEdit}
-                        value={
-                          cp.ordersUnits !== null && cp.ordersUnits !== undefined
-                            ? String(cp.ordersUnits)
-                            : ''
-                        }
-                        onChange={(e) =>
-                          updateCheckpointField(cp.day, {
-                            ordersUnits: parseCleanNumber(e.target.value),
-                          })
-                        }
-                        placeholder="0 шт."
-                        className="w-28 h-10 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        disabled={!canEdit}
-                        value={
-                          cp.ordersRub !== null && cp.ordersRub !== undefined
-                            ? String(cp.ordersRub)
-                            : ''
-                        }
-                        onChange={(e) =>
-                          updateCheckpointField(cp.day, {
-                            ordersRub: parseCleanNumber(e.target.value),
-                          })
-                        }
-                        placeholder="0 ₽"
-                        className="w-36 h-10 rounded-xl border border-[#E8E8E5] px-3 font-semibold bg-white"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        disabled={!canEdit}
-                        value={
-                          cp.adSpendRub !== null && cp.adSpendRub !== undefined
-                            ? String(cp.adSpendRub)
-                            : ''
-                        }
-                        onChange={(e) =>
-                          updateCheckpointField(cp.day, {
-                            adSpendRub: parseCleanNumber(e.target.value),
-                          })
-                        }
-                        placeholder="0 ₽"
-                        className="w-32 h-10 rounded-xl border border-[#E8E8E5] px-3 font-medium bg-white"
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <input
-                        type="text"
-                        disabled={!canEdit}
-                        value={cp.reviewsSummary || ''}
-                        onChange={(e) =>
-                          updateCheckpointField(cp.day, {
-                            reviewsSummary: e.target.value,
-                          })
-                        }
-                        placeholder="Оценка 4.9, жалоб нет..."
-                        className="w-full min-w-[200px] h-10 rounded-xl border border-[#E8E8E5] px-3 bg-white"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ===========================================================================
-  // КОММЕНТАРИИ (Быстрый чат внутри карточки)
-  // ===========================================================================
-  if (activeTab === 'files') {
-    return (
-      <div className="space-y-5 text-[15px]">
-        <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4">
-          <h3 className="text-[18px] font-bold text-[#171717]">
-            Комментарии команды по модели
-          </h3>
-          <div className="space-y-2.5">
-            {(concept.comments || []).map((c) => (
-              <div
-                key={c.id}
-                className="rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] p-3.5 text-[14px]"
-              >
-                <div className="flex items-center justify-between text-[12px] text-[#737373]">
-                  <b className="text-[#171717]">{c.authorName}</b>
-                  <span>{c.createdAt}</span>
-                </div>
-                <div className="mt-1 text-[#171717]">{c.text}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Написать комментарий..."
-              className="flex-1 h-10 rounded-xl border border-[#E8E8E5] px-3.5 text-[14px]"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                if (!commentText.trim()) return;
-                onUpdateConcept(concept.id, {
-                  comments: [
-                    ...(concept.comments || []),
-                    {
-                      id: `cm-${Date.now()}`,
-                      authorName: currentUser.fullName,
-                      authorRole: currentUser.role,
-                      text: commentText.trim(),
-                      createdAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
-                    },
-                  ],
-                });
-                setCommentText('');
-              }}
-              className="px-4 h-10 rounded-xl bg-[#111111] text-white text-[13px] font-semibold cursor-pointer"
-            >
-              Отправить
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ===========================================================================
-  // ИСТОРИЯ ЭТАПОВ
+  // ИСТОРИЯ КЛЮЧЕВЫХ РЕШЕНИЙ И ИЗМЕНЕНИЙ
   // ===========================================================================
   return (
-    <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-3 text-[14px]">
-      <h3 className="text-[18px] font-bold text-[#171717]">История движения карточки</h3>
+    <div className="rounded-2xl border border-[#E8E8E5] bg-white p-6 space-y-4 text-[14px]">
+      <div>
+        <h3 className="text-[18px] font-bold text-[#171717]">
+          История ключевых решений и переходов по этапам
+        </h3>
+        <p className="text-[13px] text-[#737373]">
+          Сохраняется отдельно от текущего статуса — кто, когда и почему принял решение
+        </p>
+      </div>
+
       <div className="divide-y divide-[#E8E8E5]">
         {(concept.stageHistory || []).map((h) => (
-          <div key={h.id} className="py-3 flex items-center justify-between gap-4">
+          <div key={h.id} className="py-3.5 flex items-center justify-between gap-4">
             <div>
               <div className="font-semibold text-[#171717]">{h.reason}</div>
-              <div className="text-[12px] text-[#737373]">{h.authorName}</div>
+              <div className="text-[12px] text-[#737373] mt-0.5">{h.authorName}</div>
             </div>
             <span className="text-[12px] text-[#737373] shrink-0">{h.timestamp}</span>
           </div>

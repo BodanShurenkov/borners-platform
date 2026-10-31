@@ -119,6 +119,8 @@ export interface RnDSampleItem {
   preliminaryScore: number; // 1–5
   comments: string;
   isSelectedForProduction: boolean;
+  compositionRows?: { material: string; pct: number }[];
+  deliveryCostRub?: number;
 }
 
 export interface RnDTestCriterionScore {
@@ -195,6 +197,13 @@ export interface RnDProductionOrder {
   qcNotes: string;
   logisticsTracking: string;
   hasDelayRisk?: boolean;
+  packColorComposition?: string;
+  unitsPerPack?: number;
+  packsBySize?: Record<'S' | 'M' | 'L' | 'XL' | '2XL' | '3XL' | '4XL', number>;
+  paymentTerms?: string;
+  orderVersion?: number;
+  approvedAt?: string;
+  chineseVerified?: boolean;
 }
 
 export interface RnDLaunchChecklist {
@@ -517,6 +526,26 @@ export interface ProductConcept {
   linkedLaunchId?: string;
   linkedCompetitorIds?: string[];
   linkedTaskIds?: string[];
+  galleryPhotos?: { id: string; url: string; caption?: string }[];
+  packUnitsCount?: number;
+  marketplaceProductUrl?: string;
+  actualLaunchDate?: string;
+  launchSalesStatus?: 'prep' | 'in_sale';
+  launchNote?: string;
+  fourChecksTest?: {
+    fitAndComfort: 'passed' | 'remarks' | 'failed' | 'untested';
+    fitAndComfortComment?: string;
+    fitAndComfortPhoto?: string;
+    waistbandAndSeams: 'passed' | 'remarks' | 'failed' | 'untested';
+    waistbandAndSeamsComment?: string;
+    waistbandAndSeamsPhoto?: string;
+    washShapeColor: 'passed' | 'remarks' | 'failed' | 'untested';
+    washShapeColorComment?: string;
+    washShapeColorPhoto?: string;
+    manufacturingQuality: 'passed' | 'remarks' | 'failed' | 'untested';
+    manufacturingQualityComment?: string;
+    manufacturingQualityPhoto?: string;
+  };
   isDemo: boolean;
   isArchived: boolean;
   createdAt: string;

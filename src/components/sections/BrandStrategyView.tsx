@@ -486,6 +486,26 @@ export function BrandStrategyView() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center h-10 bg-white p-1 rounded-xl border border-[#E8E8E5]">
+            {activeBrands.map((b) => {
+              const isSelected = b.code === activeBrand.code;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBrandFilter(b.code)}
+                  className={`h-8 px-3.5 rounded-lg text-[13px] font-bold transition cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#111111] text-white'
+                      : 'text-[#737373] hover:text-[#171717]'
+                  }`}
+                >
+                  {b.name}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             onClick={() => setPlatformMode('strategy')}
             className="h-10 px-4 rounded-xl bg-[#D97745] text-white text-[13px] font-bold hover:opacity-90 transition cursor-pointer"
