@@ -833,14 +833,14 @@ export function ProductLabCardBody({
                       receivedAt: new Date().toISOString().slice(0, 10),
                       materialAndComposition:
                         sampleForm.materialAndComposition.trim() || 'Базовое полотно',
-                      densityGsm: '160',
+                      densityGsm: 160,
                       sizeTested: 'M / L',
                       color: 'Базовый',
                       measurementsNote: 'В норме',
-                      sampleCostRub: null,
-                      estimatedUnitProductionPrice: parseCleanNumber(
-                        sampleForm.estimatedUnitProductionPrice
-                      ),
+                      sampleCostRub: 0,
+                      estimatedUnitProductionPrice:
+                        parseCleanNumber(sampleForm.estimatedUnitProductionPrice) || 0,
+                      currency: 'RUB',
                       photos: [],
                       preliminaryScore: 5,
                       comments: sampleForm.comments.trim() || 'Образец получен',
@@ -885,12 +885,12 @@ export function ProductLabCardBody({
         id: `tp-${Date.now()}`,
         sampleId: sample?.id || 'smp-default',
         sampleVersionLabel: sample?.versionCode || 'Образец №1',
-        testedAt: new Date().toISOString().slice(0, 10),
+        testDate: new Date().toISOString().slice(0, 10),
         testerName: currentUser.fullName,
-        criteriaScores: [],
+        criteria: latestProtocol?.criteria || [],
         washCyclesCount: 5,
-        washModeDescription: '40°C деликатная стирка',
-        measurementsBeforeAndAfterWash: latestProtocol?.measurementsBeforeAndAfterWash || 'Без усадки',
+        washTempAndMode: '40°C деликатная стирка',
+        measurementsBeforeAfter: latestProtocol?.measurementsBeforeAfter || 'Без усадки',
         verdict,
         summaryComment: latestProtocol?.summaryComment || '',
       };
@@ -964,13 +964,13 @@ export function ProductLabCardBody({
                     id: latestProtocol?.id || `tp-${Date.now()}`,
                     sampleId: sample?.id || 'smp-1',
                     sampleVersionLabel: sample?.versionCode || 'Образец №1',
-                    testedAt: new Date().toISOString().slice(0, 10),
+                    testDate: new Date().toISOString().slice(0, 10),
                     testerName: currentUser.fullName,
-                    criteriaScores: latestProtocol?.criteriaScores || [],
+                    criteria: latestProtocol?.criteria || [],
                     washCyclesCount: 5,
-                    washModeDescription: '40°C',
-                    measurementsBeforeAndAfterWash:
-                      latestProtocol?.measurementsBeforeAndAfterWash || '',
+                    washTempAndMode: '40°C',
+                    measurementsBeforeAfter:
+                      latestProtocol?.measurementsBeforeAfter || '',
                     verdict: latestProtocol?.verdict || 'passed',
                     summaryComment: text,
                   };
@@ -990,7 +990,7 @@ export function ProductLabCardBody({
               <textarea
                 rows={3}
                 disabled={!canEdit}
-                value={latestProtocol?.measurementsBeforeAndAfterWash || ''}
+                value={latestProtocol?.measurementsBeforeAfter || ''}
                 onChange={(e) => {
                   const text = e.target.value;
                   const sample = concept.samples?.[0];
@@ -998,12 +998,12 @@ export function ProductLabCardBody({
                     id: latestProtocol?.id || `tp-${Date.now()}`,
                     sampleId: sample?.id || 'smp-1',
                     sampleVersionLabel: sample?.versionCode || 'Образец №1',
-                    testedAt: new Date().toISOString().slice(0, 10),
+                    testDate: new Date().toISOString().slice(0, 10),
                     testerName: currentUser.fullName,
-                    criteriaScores: latestProtocol?.criteriaScores || [],
+                    criteria: latestProtocol?.criteria || [],
                     washCyclesCount: 5,
-                    washModeDescription: '40°C',
-                    measurementsBeforeAndAfterWash: text,
+                    washTempAndMode: '40°C',
+                    measurementsBeforeAfter: text,
                     verdict: latestProtocol?.verdict || 'passed',
                     summaryComment: latestProtocol?.summaryComment || '',
                   };
@@ -1025,7 +1025,7 @@ export function ProductLabCardBody({
   // ЭТАП 05: РЕШЕНИЕ (3 понятные кнопки в 1 клик)
   // ===========================================================================
   if (activeTab === 'decisions') {
-    const handleQuickDecision = (outcome: 'approve' | 'rework_sample' | 'reject') => {
+    const handleQuickDecision = (outcome: 'approve' | 'rework' | 'reject') => {
       if (outcome === 'approve' && !canApproveProd) {
         notify('error', 'Утвердить в производство может только руководитель');
         return;
@@ -1033,7 +1033,7 @@ export function ProductLabCardBody({
       const nextStage: ConceptStage =
         outcome === 'approve'
           ? 'PRODUCTION'
-          : outcome === 'rework_sample'
+          : outcome === 'rework'
           ? 'SAMPLE'
           : 'REJECTED';
 
@@ -1051,9 +1051,10 @@ export function ProductLabCardBody({
             justification:
               outcome === 'approve'
                 ? 'Утверждено в производство'
-                : outcome === 'rework_sample'
+                : outcome === 'rework'
                 ? 'Возвращено на доработку образца'
                 : 'Идея отклонена',
+            conditions: '',
           },
           ...(concept.approvalDecisions || []),
         ],
@@ -1087,7 +1088,7 @@ export function ProductLabCardBody({
 
             <button
               type="button"
-              onClick={() => handleQuickDecision('rework_sample')}
+              onClick={() => handleQuickDecision('rework')}
               className="p-5 rounded-2xl bg-[#F7F7F5] hover:border-[#171717] border border-[#E8E8E5] text-[#171717] text-left space-y-1.5 cursor-pointer transition"
             >
               <div className="text-[17px] font-bold">🔄 Вернуть на доработку образца</div>
@@ -1240,20 +1241,26 @@ export function ProductLabCardBody({
                   const newOrder = {
                     id: `po-${Date.now()}`,
                     orderNumber: `PO-${new Date().getFullYear()}-${orders.length + 1}`,
-                    approvedSampleId: concept.samples?.[0]?.id || 'smp-1',
+                    approvedSampleVersion: concept.samples?.[0]?.versionCode || 'Образец №1',
                     factoryName:
                       poForm.factoryName.trim() || concept.supplierName || 'Фабрика',
                     contactPerson: 'Производство',
-                    orderDate: new Date().toISOString().slice(0, 10),
                     materialAndColors: (concept.colorCombinations || []).join(', '),
-                    sizeBreakdown: [{ size: 'M-XL', qty: units }],
+                    sizeBreakdown: {
+                      S: 0,
+                      M: Math.round(units / 3),
+                      L: Math.round(units / 3),
+                      XL: units - 2 * Math.round(units / 3),
+                      XXL: 0,
+                    },
                     packConfiguration: 'Стандарт',
                     totalUnits: units,
                     packagingDetails: 'Фирменный зип-пакет',
                     unitPrice: price,
-                    totalOrderAmountRub: units * price,
+                    currency: 'RUB' as const,
                     plannedReadyDate: poForm.plannedReadyDate,
-                    plannedDeliveryDate: poForm.plannedReadyDate,
+                    qcNotes: 'Контроль пройден',
+                    logisticsTracking: '',
                     internalStatus: 'in_production' as const,
                     hasDelayRisk: false,
                   };
@@ -1280,15 +1287,14 @@ export function ProductLabCardBody({
   // ===========================================================================
   if (activeTab === 'launch') {
     const cl: RnDLaunchChecklist = concept.launchChecklist || {
-      photosReady: false,
-      videoReady: false,
-      infographicsReady: false,
-      seoDescriptionReady: false,
-      marketplaceCardCreated: false,
-      barcodeAndLabelsReady: false,
-      stockDeliveredToWarehouse: false,
-      priceAndDiscountSet: false,
-      initialPromoConfigured: false,
+      catalogCreated: false,
+      photosApproved: false,
+      descriptionsReady: false,
+      bundlesAndPricesConfirmed: false,
+      marketplaceCardsReady: false,
+      warehouseDistributed: false,
+      adsPrepared: false,
+      salesDateAndOwnerAssigned: false,
     };
 
     const toggleCheck = (key: keyof RnDLaunchChecklist) => {
@@ -1303,49 +1309,52 @@ export function ProductLabCardBody({
         ? concept.postLaunchCheckpoints
         : [
             {
-              dayMark: 7,
-              recordedAt: '',
+              day: 7,
               ordersUnits: null,
               ordersRub: null,
               buyoutsUnits: null,
               buyoutsRub: null,
-              averagePriceRub: null,
+              avgActualPriceRub: null,
               adSpendRub: null,
-              reviewsAndComplaintsNote: '',
-              dataSourceLabel: '',
+              stockLeftUnits: null,
+              reviewsSummary: '',
+              comparisonWithExpectations: '',
+              dataSource: 'МП',
             },
             {
-              dayMark: 14,
-              recordedAt: '',
+              day: 14,
               ordersUnits: null,
               ordersRub: null,
               buyoutsUnits: null,
               buyoutsRub: null,
-              averagePriceRub: null,
+              avgActualPriceRub: null,
               adSpendRub: null,
-              reviewsAndComplaintsNote: '',
-              dataSourceLabel: '',
+              stockLeftUnits: null,
+              reviewsSummary: '',
+              comparisonWithExpectations: '',
+              dataSource: 'МП',
             },
             {
-              dayMark: 28,
-              recordedAt: '',
+              day: 28,
               ordersUnits: null,
               ordersRub: null,
               buyoutsUnits: null,
               buyoutsRub: null,
-              averagePriceRub: null,
+              avgActualPriceRub: null,
               adSpendRub: null,
-              reviewsAndComplaintsNote: '',
-              dataSourceLabel: '',
+              stockLeftUnits: null,
+              reviewsSummary: '',
+              comparisonWithExpectations: '',
+              dataSource: 'МП',
             },
           ];
 
     const updateCheckpointField = (
-      dayMark: 7 | 14 | 28,
+      day: 7 | 14 | 28,
       patch: Partial<RnDPostLaunchCheckpoint>
     ) => {
       const next = checkpoints.map((cp) =>
-        cp.dayMark === dayMark ? { ...cp, ...patch } : cp
+        cp.day === day ? { ...cp, ...patch } : cp
       );
       onUpdateConcept(concept.id, { postLaunchCheckpoints: next });
     };
@@ -1359,10 +1368,10 @@ export function ProductLabCardBody({
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-[14px]">
             {[
-              { key: 'photosReady' as const, label: 'Фото и инфографика готовы' },
-              { key: 'marketplaceCardCreated' as const, label: 'Карточка на МП создана' },
-              { key: 'stockDeliveredToWarehouse' as const, label: 'Товар принят на склад МП' },
-              { key: 'initialPromoConfigured' as const, label: 'Цена и реклама включены' },
+              { key: 'photosApproved' as const, label: 'Фото и инфографика готовы' },
+              { key: 'marketplaceCardsReady' as const, label: 'Карточка на МП создана' },
+              { key: 'warehouseDistributed' as const, label: 'Товар принят на склад МП' },
+              { key: 'adsPrepared' as const, label: 'Цена и реклама включены' },
             ].map((item) => {
               const checked = cl[item.key];
               return (
@@ -1408,9 +1417,9 @@ export function ProductLabCardBody({
               </thead>
               <tbody className="divide-y divide-[#E8E8E5]">
                 {checkpoints.map((cp) => (
-                  <tr key={cp.dayMark}>
+                  <tr key={cp.day}>
                     <td className="py-3.5 px-4 font-bold text-[#171717] whitespace-nowrap">
-                      {cp.dayMark} дней
+                      {cp.day} дней
                     </td>
                     <td className="py-3 px-4">
                       <input
@@ -1423,7 +1432,7 @@ export function ProductLabCardBody({
                             : ''
                         }
                         onChange={(e) =>
-                          updateCheckpointField(cp.dayMark, {
+                          updateCheckpointField(cp.day, {
                             ordersUnits: parseCleanNumber(e.target.value),
                           })
                         }
@@ -1442,7 +1451,7 @@ export function ProductLabCardBody({
                             : ''
                         }
                         onChange={(e) =>
-                          updateCheckpointField(cp.dayMark, {
+                          updateCheckpointField(cp.day, {
                             ordersRub: parseCleanNumber(e.target.value),
                           })
                         }
@@ -1461,7 +1470,7 @@ export function ProductLabCardBody({
                             : ''
                         }
                         onChange={(e) =>
-                          updateCheckpointField(cp.dayMark, {
+                          updateCheckpointField(cp.day, {
                             adSpendRub: parseCleanNumber(e.target.value),
                           })
                         }
@@ -1473,10 +1482,10 @@ export function ProductLabCardBody({
                       <input
                         type="text"
                         disabled={!canEdit}
-                        value={cp.reviewsAndComplaintsNote || ''}
+                        value={cp.reviewsSummary || ''}
                         onChange={(e) =>
-                          updateCheckpointField(cp.dayMark, {
-                            reviewsAndComplaintsNote: e.target.value,
+                          updateCheckpointField(cp.day, {
+                            reviewsSummary: e.target.value,
                           })
                         }
                         placeholder="Оценка 4.9, жалоб нет..."
