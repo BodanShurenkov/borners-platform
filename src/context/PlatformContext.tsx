@@ -134,6 +134,7 @@ interface PlatformContextValue extends PersistedState {
   createConcept: (input: Partial<ProductConcept> & { name: string; brandId: string }) => ProductConcept;
   updateConcept: (id: string, patch: Partial<ProductConcept>) => void;
   updateConceptStage: (id: string, stage: ConceptStage, reason?: string) => void;
+  deleteConcept: (id: string) => void;
   createProductFromConcept: (conceptId: string) => Product | null;
   createProduct: (input: Partial<Product> & { name: string; sku: string; brandId: string }) => Product;
   updateProduct: (id: string, patch: Partial<Product>) => void;
@@ -210,8 +211,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string>('user-owner');
 
-  const [activeSection, setActiveSection] = useState<NavSectionId>('dashboard');
-  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['dashboard']);
+  const [activeSection, setActiveSection] = useState<NavSectionId>('product-lab');
+  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['product-lab']);
   const [brandFilter, setBrandFilter] = useState<BrandFilter>('ALL');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('2027');
   const [platformMode, setPlatformMode] = useState<PlatformMode>('management');
@@ -554,9 +555,27 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           ],
         };
       });
-      notify('success', 'Карточка разработки сохранена');
     },
-    [appendAudit, notify]
+    [appendAudit]
+  );
+
+  const deleteConcept = useCallback(
+    (id: string) => {
+      const target = state.concepts.find((c) => c.id === id);
+      setState((prev) => ({
+        ...prev,
+        concepts: prev.concepts.filter((c) => c.id !== id),
+        auditLog: [
+          appendAudit('concept', id, 'deleted', `Удалена карточка «${target?.code || id} · ${target?.name || ''}»`),
+          ...prev.auditLog,
+        ],
+      }));
+      if (selectedConceptId === id) {
+        setSelectedConceptId(null);
+      }
+      notify('warning', `Карточка «${target?.name || id}» удалена`);
+    },
+    [appendAudit, notify, selectedConceptId, state.concepts]
   );
 
   const updateConceptStage = useCallback(
@@ -1373,6 +1392,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       createConcept,
       updateConcept,
       updateConceptStage,
+      deleteConcept,
       createProductFromConcept,
       createProduct,
       updateProduct,
@@ -1423,6 +1443,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       createConcept,
       updateConcept,
       updateConceptStage,
+      deleteConcept,
       createProductFromConcept,
       createProduct,
       updateProduct,

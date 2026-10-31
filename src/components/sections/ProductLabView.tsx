@@ -16,6 +16,7 @@ import {
   Search,
   ShieldAlert,
   Table2,
+  Trash2,
   Upload,
   X,
 } from 'lucide-react';
@@ -74,6 +75,7 @@ export function ProductLabView() {
     createConcept,
     updateConcept,
     updateConceptStage,
+    deleteConcept,
     createProductFromConcept,
     createLaunch,
     createTask,
@@ -320,41 +322,69 @@ export function ProductLabView() {
     });
   }, [accessibleConcepts, quickIdeaForm.name, quickIdeaForm.referenceLink]);
 
-  // ---------------------------------------------------------------------------
-  // ПЕРЕХОД МЕЖДУ ЭТАПАМИ С ПРОВЕРКОЙ УСЛОВИЙ (П. 15 ТЗ)
-  // ---------------------------------------------------------------------------
+  const stageToTabId = (st: SevenKanbanStage): RnDCardTabId => {
+    switch (st) {
+      case 'IDEA':
+        return 'overview';
+      case 'ANALYSIS':
+        return 'analysis';
+      case 'SAMPLE':
+        return 'samples';
+      case 'TEST':
+        return 'testing';
+      case 'DECISION':
+        return 'decisions';
+      case 'PRODUCTION':
+        return 'production';
+      case 'LAUNCH':
+        return 'launch';
+    }
+  };
+
+  const tabIdToStage = (tab: RnDCardTabId): SevenKanbanStage | null => {
+    switch (tab) {
+      case 'overview':
+        return 'IDEA';
+      case 'analysis':
+        return 'ANALYSIS';
+      case 'samples':
+        return 'SAMPLE';
+      case 'testing':
+        return 'TEST';
+      case 'decisions':
+        return 'DECISION';
+      case 'production':
+        return 'PRODUCTION';
+      case 'launch':
+        return 'LAUNCH';
+      default:
+        return null;
+    }
+  };
+
+  // Переход между этапами: сразу переключает экран этапа и переводит карточку
   const attemptStageTransition = (concept: ProductConcept, targetStage: ConceptStage) => {
+    const norm = normalizeConceptStageToSeven(targetStage);
+    setActiveCardTab(stageToTabId(norm));
     if (isStrategyMode) return;
-    if (normalizeConceptStageToSeven(concept.stage) === normalizeConceptStageToSeven(targetStage)) {
+    if (normalizeConceptStageToSeven(concept.stage) === norm) {
       return;
     }
 
-    const check = validateRnDStageTransition(concept, targetStage, currentUser);
-    if (check.allowed) {
-      updateConceptStage(
-        concept.id,
-        targetStage,
-        `Переход выполнен: все контрольные условия этапа «${CONCEPT_STAGE_LABELS_RU[targetStage]}» соблюдены.`
+    if (norm === 'PRODUCTION' && !canUserApproveProduction(currentUser, concept.brandId)) {
+      notify(
+        'warning',
+        'Утвердить в производство может руководитель',
+        'Вкладка производства открыта для просмотра'
       );
       return;
     }
 
-    // Открываем диалоговое окно дозаполнения недостающих данных (п. 15 ТЗ)
-    setGateFillForm({
-      ownerId: concept.ownerId || currentUser.id,
-      whatAttracted: concept.whatAttracted || concept.ideaDescription || '',
-      hypothesis: concept.analysisReport?.whatWeCreate || concept.ideaDescription || '',
-      risks: concept.analysisReport?.openQuestionsAndRisks || '',
-      supplierName: concept.supplierName || '',
-      approvalJustification: '',
-      exceptionReason: '',
-    });
-    setStageGateModal({
-      concept,
+    updateConceptStage(
+      concept.id,
       targetStage,
-      missingFields: check.missingFields,
-      requiresManagerApproval: check.requiresManagerApproval,
-    });
+      `Переход на этап «${CONCEPT_STAGE_LABELS_RU[targetStage]}»`
+    );
   };
 
   const handleConfirmStageGateModal = () => {
@@ -985,9 +1015,24 @@ export function ProductLabView() {
                               >
                                 {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
                               </span>
-                              <span className="px-1.5 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5] text-[#171717]">
-                                {card.code}
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="px-1.5 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5] text-[#171717]">
+                                  {card.code}
+                                </span>
+                                {!isStrategyMode && (
+                                  <button
+                                    type="button"
+                                    title="Удалить карточку"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteConcept(card.id);
+                                    }}
+                                    className="p-1 rounded-md text-[#737373] hover:text-[#DC2626] hover:bg-[#DC2626]/10 cursor-pointer transition"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div className="text-[14px] font-bold text-[#171717] leading-snug mt-0.5 line-clamp-2">
                               {card.name}
@@ -1294,65 +1339,99 @@ export function ProductLabView() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSelectedConceptId(null)}
-                className="rounded-xl border border-[#E8E8E5] p-2.5 text-[#171717] hover:bg-[#111111] hover:text-white cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {!isStrategyMode && (
+                  <button
+                    type="button"
+                    onClick={() => deleteConcept(activeConcept.id)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-[#DC2626]/30 bg-[#DC2626]/10 hover:bg-[#DC2626] text-[#DC2626] hover:text-white px-3.5 py-2.5 text-[13px] font-bold transition cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Удалить карточку</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedConceptId(null)}
+                  className="rounded-xl border border-[#E8E8E5] p-2.5 text-[#171717] hover:bg-[#111111] hover:text-white cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Семиэтапная полоса жизненного цикла карточки с проверкой условий (Схема 1, п. 15 ТЗ) */}
-            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-3">
+            {/* Единая панель этапов и разделов карточки: клик сразу меняет экран и этап */}
+            <div className="rounded-2xl bg-[#F7F7F5] border border-[#E8E8E5] p-2 space-y-2">
               <div className="grid grid-cols-2 sm:grid-cols-7 gap-1.5">
                 {SEVEN_KANBAN_STAGES.map((st) => {
-                  const currentNorm = normalizeConceptStageToSeven(activeConcept.stage);
-                  const isCurrent = currentNorm === st;
+                  const tabForStage = stageToTabId(st);
+                  const isTabOpen = activeCardTab === tabForStage;
+                  const isCurrentStage =
+                    normalizeConceptStageToSeven(activeConcept.stage) === st;
                   const meta = STAGE_SUBTITLES[st];
 
                   return (
                     <button
                       key={st}
                       type="button"
-                      disabled={isStrategyMode}
-                      onClick={() => attemptStageTransition(activeConcept, st)}
-                      className={`p-2 rounded-xl text-left border transition cursor-pointer ${
-                        isCurrent
-                          ? 'bg-[#111111] text-white border-[#111111]'
-                          : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#D97745]'
+                      onClick={() => {
+                        setActiveCardTab(tabForStage);
+                        if (!isStrategyMode && !isCurrentStage) {
+                          attemptStageTransition(activeConcept, st);
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl text-left border transition cursor-pointer ${
+                        isTabOpen
+                          ? 'bg-[#111111] text-white border-[#111111] shadow-xs'
+                          : isCurrentStage
+                          ? 'bg-white text-[#171717] border-[#D97745]'
+                          : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#171717]'
                       }`}
                     >
-                      <div
-                        className={`text-[10px] font-bold ${
-                          isCurrent ? 'text-[#D97745]' : 'text-[#737373]'
-                        }`}
-                      >
-                        {meta.num}
+                      <div className="flex items-center justify-between gap-1">
+                        <span
+                          className={`text-[10px] font-bold ${
+                            isTabOpen || isCurrentStage ? 'text-[#D97745]' : 'text-[#737373]'
+                          }`}
+                        >
+                          {meta.num}
+                        </span>
+                        {isCurrentStage && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#D97745]" />
+                        )}
                       </div>
-                      <div className="text-[12px] font-bold truncate">{meta.title}</div>
+                      <div className="text-[12px] font-bold truncate mt-0.5">
+                        {meta.title}
+                      </div>
                     </button>
                   );
                 })}
               </div>
-            </div>
 
-            {/* 9 вкладок единой карточки разработки (п. 5 ТЗ — все вкладки доступны на любом этапе) */}
-            <div className="flex flex-wrap gap-1.5 bg-[#F7F7F5] p-1.5 rounded-2xl border border-[#E8E8E5]">
-              {RND_CARD_TABS.map((t) => (
+              <div className="flex items-center justify-end gap-2 pt-1">
                 <button
-                  key={t.id}
                   type="button"
-                  onClick={() => setActiveCardTab(t.id)}
-                  className={`px-3.5 py-2 rounded-xl text-[13px] font-bold transition cursor-pointer ${
-                    activeCardTab === t.id
-                      ? 'bg-white text-[#171717] shadow-2xs'
-                      : 'text-[#737373] hover:text-[#171717]'
+                  onClick={() => setActiveCardTab('files')}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
+                    activeCardTab === 'files'
+                      ? 'bg-[#111111] text-white'
+                      : 'bg-white border border-[#E8E8E5] text-[#737373] hover:text-[#171717]'
                   }`}
                 >
-                  {t.label}
+                  Комментарии ({activeConcept.comments?.length || 0})
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setActiveCardTab('history')}
+                  className={`px-3 py-1.5 rounded-lg text-[12px] font-bold cursor-pointer transition ${
+                    activeCardTab === 'history'
+                      ? 'bg-[#111111] text-white'
+                      : 'bg-white border border-[#E8E8E5] text-[#737373] hover:text-[#171717]'
+                  }`}
+                >
+                  История этапов
+                </button>
+              </div>
             </div>
 
             {/* Содержимое активной вкладки */}
