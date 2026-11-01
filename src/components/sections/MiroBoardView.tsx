@@ -580,12 +580,12 @@ export function MiroBoardView() {
     : null;
 
   return (
-    <div
-      data-tour="studio-canvas"
-      className="rounded-[16px] bg-white border-2 border-[#181715] overflow-hidden shadow-xs"
-    >
+    <div className="rounded-[16px] bg-white border-2 border-[#181715] overflow-hidden shadow-xs">
       {/* ПАНЕЛЬ ИНСТРУМЕНТОВ СТУДИИ ИДЕЙ (БЕСКОНЕЧНЫЙ ХОЛСТ) */}
-      <div className="px-5 py-4 bg-[#FAF8F5] border-b-2 border-[#181715] flex flex-wrap items-center justify-between gap-3">
+      <div
+        data-tour="studio-canvas"
+        className="px-5 py-4 bg-[#FAF8F5] border-b-2 border-[#181715] flex flex-wrap items-center justify-between gap-3"
+      >
         <div>
           <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-wider text-[#B85D35] font-semibold">
             <span>КРЕАТИВНАЯ СТУДИЯ · БЕСКОНЕЧНЫЙ ХОЛСТ И СВЯЗИ</span>

@@ -39,19 +39,19 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
     eyebrow: 'ГЛАВНОЕ ЧИСЛО И СЦЕНАРИИ',
     title: 'Начинайте со сценария выручки (100 / 150 / 200 млн ₽)',
     description:
-      'Переключайте 3 стратегических плана развития в один клик — годовой оборот (1,2–2,4 млрд ₽), объём продаж в штуках и инвестиции пересчитываются автоматически.',
+      'Переключайте 3 стратегических плана развития в один клик — годовой оборот, объём продаж в штуках и инвестиции пересчитываются автоматически.',
     icon: 'scenarios',
-    preferredPlacement: 'top',
+    preferredPlacement: 'bottom',
   },
   {
     targetSelector: '[data-tour="model-passport"]',
     section: 'dashboard',
     eyebrow: 'ПАСПОРТ МОДЕЛИ И PDF',
-    title: 'Тех. спецификация, резинка BORNERS и Конструктор PDF',
+    title: 'Карточка модели, план продаж и Конструктор PDF',
     description:
-      'В карточке мультипака собраны юнит-экономика, чертёж посадки, состав ткани, цвета Pantone и кнопка «Конструктор PDF» для выбора блоков перед отправкой на фабрику.',
+      'Нажмите на карточку модели, чтобы открыть её паспорт (Экран №2), цветовую палитру Pantone, Конструктор PDF и помесячный план продаж (Экран №3).',
     icon: 'passport',
-    preferredPlacement: 'top',
+    preferredPlacement: 'right',
   },
   {
     targetSelector: '[data-tour="studio-canvas"]',
@@ -61,7 +61,7 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
     description:
       'Зажмите пустое место для бесконечного перемещения по холсту, тяните стрелочки от кружка ● на краю одного стикера к другому и записывайте голосовые заметки.',
     icon: 'studio',
-    preferredPlacement: 'top',
+    preferredPlacement: 'bottom',
   },
   {
     targetSelector: '[data-tour="sidebar-nav"]',
@@ -177,38 +177,57 @@ export function PeaklySpotlightTour({
 
   // Отступ вокруг подсвечиваемого блока
   const pad = 8;
-  const boxTop = rect ? Math.max(6, rect.top - pad) : 120;
-  const boxLeft = rect ? Math.max(6, rect.left - pad) : 120;
-  const boxWidth = rect ? rect.width + pad * 2 : 340;
-  const boxHeight = rect ? Math.min(window.innerHeight - 32, rect.height + pad * 2) : 90;
-
-  // Вычисляем позицию всплывающей карточки Peakly рядом с подсвеченным элементом
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const cardWidth = Math.min(376, vw - 28);
-  const cardHeightEst = 248;
 
-  let cardTop = boxTop + boxHeight + 16;
-  let cardLeft = boxLeft;
+  const boxTop = rect ? Math.max(8, rect.top - pad) : 120;
+  const boxLeft = rect ? Math.max(8, rect.left - pad) : 80;
+  const boxWidth = rect ? Math.min(vw - boxLeft - 12, rect.width + pad * 2) : 280;
+  const boxHeight = rect
+    ? Math.min(vh - 48, rect.height + pad * 2)
+    : 120;
 
-  if (currentStep.preferredPlacement === 'right' && boxLeft + boxWidth + cardWidth + 24 < vw) {
-    cardLeft = boxLeft + boxWidth + 18;
-    cardTop = Math.max(20, Math.min(vh - cardHeightEst - 20, boxTop + 12));
-  } else if (
-    currentStep.preferredPlacement === 'top' ||
-    boxTop + boxHeight + cardHeightEst + 24 > vh
-  ) {
-    if (boxTop - cardHeightEst - 16 > 12) {
-      cardTop = boxTop - cardHeightEst - 16;
-    } else {
-      cardTop = Math.max(16, Math.min(vh - cardHeightEst - 16, boxTop + 16));
-    }
-    cardLeft = Math.max(
-      16,
-      Math.min(vw - cardWidth - 16, boxLeft + boxWidth / 2 - cardWidth / 2)
-    );
+  // Вычисляем позицию всплывающей карточки Peakly строго СНАРУЖИ подсвеченного элемента (без наложения!)
+  const cardWidth = Math.min(384, vw - 32);
+  const cardHeightEst = 256;
+  const gap = 20;
+
+  const clampX = (x: number) => Math.max(16, Math.min(vw - cardWidth - 16, x));
+  const clampY = (y: number) => Math.max(16, Math.min(vh - cardHeightEst - 16, y));
+
+  const canFitRight = boxLeft + boxWidth + gap + cardWidth <= vw - 12;
+  const canFitBottom = boxTop + boxHeight + gap + cardHeightEst <= vh - 12;
+  const canFitTop = boxTop - gap - cardHeightEst >= 12;
+  const canFitLeft = boxLeft - gap - cardWidth >= 12;
+
+  let cardTop = clampY(boxTop + boxHeight + gap);
+  let cardLeft = clampX(boxLeft);
+
+  if (currentStep.preferredPlacement === 'right' && canFitRight) {
+    cardLeft = boxLeft + boxWidth + gap;
+    cardTop = clampY(boxTop);
+  } else if (currentStep.preferredPlacement === 'bottom' && canFitBottom) {
+    cardTop = boxTop + boxHeight + gap;
+    cardLeft = clampX(boxLeft);
+  } else if (currentStep.preferredPlacement === 'top' && canFitTop) {
+    cardTop = boxTop - cardHeightEst - gap;
+    cardLeft = clampX(boxLeft);
+  } else if (canFitRight) {
+    cardLeft = boxLeft + boxWidth + gap;
+    cardTop = clampY(boxTop);
+  } else if (canFitBottom) {
+    cardTop = boxTop + boxHeight + gap;
+    cardLeft = clampX(boxLeft);
+  } else if (canFitTop) {
+    cardTop = boxTop - cardHeightEst - gap;
+    cardLeft = clampX(boxLeft);
+  } else if (canFitLeft) {
+    cardLeft = boxLeft - cardWidth - gap;
+    cardTop = clampY(boxTop);
   } else {
-    cardLeft = Math.max(16, Math.min(vw - cardWidth - 16, boxLeft));
+    // Если блок широкий и высокий — ставим карточку в правый нижний угол экрана с отступом
+    cardLeft = vw - cardWidth - 24;
+    cardTop = vh - cardHeightEst - 24;
   }
 
   const StepIcon =

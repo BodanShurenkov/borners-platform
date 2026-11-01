@@ -364,7 +364,7 @@ export function GrowthScenariosShowcase() {
   );
 
   return (
-    <div data-tour="growth-scenarios" className="space-y-6">
+    <div className="space-y-6">
       {/* НАВИГАЦИОННАЯ ПАНЕЛЬ БЫСТРОГО ПЕРЕКЛЮЧЕНИЯ 3 ЭКРАНОВ ТЗ */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] bg-white border border-[#E6E0D4] px-4 py-2.5 shadow-2xs">
         <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
@@ -469,7 +469,10 @@ export function GrowthScenariosShowcase() {
           </div>
 
           {/* B. Выбор сценария (ряд из карточек — макет Стр. 13) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          <div
+            data-tour="growth-scenarios"
+            className="grid grid-cols-1 md:grid-cols-3 gap-3.5"
+          >
             {scenarios.map((sc) => {
               const isSelected = sc.id === currentScenario.id;
               const agg = scenarioAggregates[sc.id];
@@ -644,7 +647,7 @@ export function GrowthScenariosShowcase() {
 
             {/* Сетка карточек моделей (показываем ТОЛЬКО разрешённые в п. 3.2 D поля) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filteredModels.map((mod) => {
+              {filteredModels.map((mod, modIdx) => {
                 const met = computeModelScenarioMetrics(mod, currentScenario);
                 const mainGallery =
                   mod.gallery.find((g) => g.isMain) || mod.gallery[0];
@@ -654,6 +657,7 @@ export function GrowthScenariosShowcase() {
                   <button
                     key={mod.id}
                     type="button"
+                    data-tour={modIdx === 0 ? 'model-passport' : undefined}
                     onClick={() => {
                       setSelectedModelId(mod.id);
                       setScreen('model');
