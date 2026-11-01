@@ -344,136 +344,136 @@ export function StrategyPresentationDeck({
     const slide = PRESENTATION_SLIDES[slideIndex];
 
     // =========================================================================
-    // СЛАЙД 01: МАНИФЕСТ И АРХИТЕКТУРА ПОРТФЕЛЯ ГРУППЫ
+    // СЛАЙД 01: МАНИФЕСТ И АРХИТЕКТУРА ПОРТФЕЛЯ ГРУППЫ (СВЕТЛЫЙ ЖУРНАЛЬНЫЙ РАЗВОРОТ)
     // =========================================================================
     if (slide.id === 'manifesto') {
       return (
         <div className="space-y-6">
-          {/* Редакционный разворот с живыми студийными фотографиями */}
-          <div className="rounded-[8px] bg-[#161615] text-[#F8F6F2] border border-[#2C2B29] overflow-hidden">
+          {/* Светлый редакционный разворот со студийными кадрами на травертине и льне */}
+          <div className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-12">
-              <div className="lg:col-span-7 p-8 md:p-11 flex flex-col justify-between space-y-8">
-                <div className="space-y-4">
-                  <div className="font-mono text-[10.5px] uppercase tracking-[0.2em] text-[#B89F86]">
-                    BORNERS GROUP · EXECUTIVE STRATEGY DECK 2026 / 2027
+              <div className="lg:col-span-7 p-8 md:p-10 flex flex-col justify-between space-y-8">
+                <div className="space-y-3.5">
+                  <div className="text-[12.5px] font-medium text-[#8C867E]">
+                    Стратегия развития портфеля · 2026–2027
                   </div>
-                  <h1 className="font-serif-editorial text-[36px] md:text-[50px] font-normal tracking-[-0.01em] leading-[1.06] text-white">
-                    Новое поколение бельевых брендов на базе инженерной дисциплины продукта
+                  <h1 className="font-serif-editorial text-[34px] md:text-[46px] font-normal tracking-[-0.01em] leading-[1.08] text-[#181715]">
+                    Новое поколение бельевых брендов на базе дисциплины продукта
                   </h1>
-                  <p className="text-[15px] text-[#C8C3B9] leading-relaxed max-w-2xl">
+                  <p className="text-[15px] text-[#5C5852] leading-relaxed max-w-2xl">
                     Мы объединили стратегию портфеля, визуальную лабораторию разработки{' '}
-                    <span className="text-white font-medium">Product Lab R&amp;D</span>, матрицу
-                    себестоимости и календарь релизов в единую операционную систему. Каждое решение о
+                    <span className="text-[#181715] font-medium">Product Lab R&amp;D</span>, расчёт
+                    себестоимости и календарь релизов в единую систему. Каждое решение о
                     запуске тиража опирается на проверенный рыночный спрос, тест стирки и точную
                     экономику комплекта.
                   </p>
                 </div>
 
-                {/* 3 ключевых столпа стратегии */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-white/12">
+                {/* 3 ключевых принципа без кричащего капслока */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-6 border-t border-[#EAE6DF]">
                   <div>
-                    <div className="font-mono text-[10px] text-[#B89F86] uppercase tracking-wider">
-                      01 / ПОРТФЕЛЬ
+                    <div className="text-[11.5px] font-medium text-[#8C867E]">
+                      Портфель без конкуренции
                     </div>
-                    <div className="text-[14px] font-medium text-white mt-1">
-                      Разделение ДНК без каннибализации
+                    <div className="text-[14px] font-medium text-[#181715] mt-1">
+                      Чёткое разделение ДНК
                     </div>
-                    <div className="text-[12px] text-[#9E988E] mt-0.5">
-                      BORNERS (масс-маркет+) и НА ТЕЛЕ (премиум вторая кожа)
+                    <div className="text-[12.5px] text-[#6E6A63] mt-0.5 leading-snug">
+                      BORNERS (масс-маркет+) и НА ТЕЛЕ (премиум «вторая кожа»)
                     </div>
                   </div>
                   <div>
-                    <div className="font-mono text-[10px] text-[#B89F86] uppercase tracking-wider">
-                      02 / PRODUCT LAB
+                    <div className="text-[11.5px] font-medium text-[#8C867E]">
+                      Лаборатория R&amp;D
                     </div>
-                    <div className="text-[14px] font-medium text-white mt-1">
-                      1 карточка = 7 этапов R&amp;D
+                    <div className="text-[14px] font-medium text-[#181715] mt-1">
+                      Отбор через 7 этапов
                     </div>
-                    <div className="text-[12px] text-[#9E988E] mt-0.5">
-                      Защита капитала до размещения заказа на фабрике
+                    <div className="text-[12.5px] text-[#6E6A63] mt-0.5 leading-snug">
+                      Защита оборотного капитала до размещения заказа фабрике
                     </div>
                   </div>
                   <div>
-                    <div className="font-mono text-[10px] text-[#B89F86] uppercase tracking-wider">
-                      03 / МАТРИЦА 70/30
+                    <div className="text-[11.5px] font-medium text-[#8C867E]">
+                      Товарная матрица
                     </div>
-                    <div className="text-[14px] font-medium text-white mt-1">
-                      70% регулярная база + 30% дропы
+                    <div className="text-[14px] font-medium text-[#181715] mt-1">
+                      70% база и 30% капсулы
                     </div>
-                    <div className="text-[12px] text-[#9E988E] mt-0.5">
-                      Высокий LTV базовых комплектов + сезонные пики
+                    <div className="text-[12.5px] text-[#6E6A63] mt-0.5 leading-snug">
+                      Высокий повторный спрос на комплекты + сезонные дропы
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Правая колонка: коллаж реальных студийных фотографий + опорные цифры */}
-              <div className="lg:col-span-5 bg-[#1F1E1C] border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col justify-between">
-                <div className="grid grid-cols-2 border-b border-white/10 h-60">
-                  <div className="border-r border-white/10 overflow-hidden relative">
+              {/* Правая колонка: студийный диптих + 4 опорные цифры на тёплом льняном фоне */}
+              <div className="lg:col-span-5 bg-[#FAF8F5] border-t lg:border-t-0 lg:border-l border-[#EAE6DF] flex flex-col justify-between">
+                <div className="grid grid-cols-2 border-b border-[#EAE6DF] h-56">
+                  <div className="border-r border-[#EAE6DF] overflow-hidden relative">
                     <img
-                      src="images/products/rnd-print-family.png"
+                      src="images/products/borners-editorial-hero.jpg"
                       alt="BORNERS"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-[3px] bg-black/75 font-mono text-[10px] text-white uppercase tracking-wider">
+                    <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-[6px] bg-white/90 backdrop-blur-xs text-[11px] font-medium text-[#181715]">
                       BORNERS
                     </span>
                   </div>
                   <div className="overflow-hidden relative">
                     <img
-                      src="images/products/rnd-seamless-hero.png"
+                      src="images/products/natele-editorial-hero.jpg"
                       alt="НА ТЕЛЕ"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded-[3px] bg-black/75 font-mono text-[10px] text-white uppercase tracking-wider">
+                    <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-[6px] bg-white/90 backdrop-blur-xs text-[11px] font-medium text-[#181715]">
                       НА ТЕЛЕ
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 divide-x divide-y divide-white/10">
+                <div className="grid grid-cols-2 divide-x divide-y divide-[#EAE6DF]">
                   <div className="p-5">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#9E988E]">
-                      Целевая выручка 2027
+                    <div className="text-[11.5px] text-[#7A756D]">
+                      План выручки 2027
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-semibold text-white mt-1 leading-none">
+                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
                       {hasFinance ? formatCompactRub(totalPlanYearRub) : 'Скрыто'}
                     </div>
-                    <div className="text-[11.5px] text-[#B89F86] mt-1.5">
+                    <div className="text-[11.5px] text-[#8C867E] mt-1.5">
                       Сценарий: {SCENARIO_LABELS_RU[financialScenario]}
                     </div>
                   </div>
                   <div className="p-5">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#9E988E]">
+                    <div className="text-[11.5px] text-[#7A756D]">
                       Операционная прибыль
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-semibold text-white mt-1 leading-none">
+                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
                       {hasFinance ? formatCompactRub(totalPlanProfitYearRub) : 'Скрыто'}
                     </div>
-                    <div className="text-[11.5px] text-[#9E988E] mt-1.5">
-                      Валовая маржа SKU ≈ {avgMarginPct}%
+                    <div className="text-[11.5px] text-[#2A6F53] mt-1.5">
+                      Средняя маржа SKU: {avgMarginPct}%
                     </div>
                   </div>
                   <div className="p-5">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#9E988E]">
-                      Моделей в R&amp;D воронке
+                    <div className="text-[11.5px] text-[#7A756D]">
+                      Моделей в R&amp;D
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-semibold text-white mt-1 leading-none">
-                      {filteredConcepts.length} проектов
+                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
+                      {filteredConcepts.length} моделей
                     </div>
-                    <div className="text-[11.5px] text-[#9E988E] mt-1.5">
-                      На 7 этапах от идеи до запуска
+                    <div className="text-[11.5px] text-[#8C867E] mt-1.5">
+                      В проработке на 7 этапах
                     </div>
                   </div>
                   <div className="p-5">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#9E988E]">
-                      Структура портфеля
+                    <div className="text-[11.5px] text-[#7A756D]">
+                      Состав портфеля
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-semibold text-white mt-1 leading-none">
+                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
                       2 + 2 бренда
                     </div>
-                    <div className="text-[11.5px] text-[#9E988E] mt-1.5">
+                    <div className="text-[11.5px] text-[#8C867E] mt-1.5">
                       2 активных + Акуша и Liskani
                     </div>
                   </div>
@@ -482,10 +482,9 @@ export function StrategyPresentationDeck({
             </div>
           </div>
 
-          {/* Карточки брендов портфеля в паспортной рамке Tech-Pack */}
+          {/* Карточки брендов портфеля со студийной съёмкой без технических штампов */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {activeBrands.map((b) => {
-              const isBorners = b.code === 'BORNERS';
               const bProducts = products.filter(
                 (p) => !p.isArchived && (p.brandId === b.code || p.brandId === b.id)
               );
@@ -499,66 +498,52 @@ export function StrategyPresentationDeck({
               return (
                 <div
                   key={b.id}
-                  className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden grid grid-cols-1 sm:grid-cols-12"
+                  className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden flex flex-col justify-between"
                 >
-                  <div className="sm:col-span-5 p-4 bg-[#F3EFE8] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] flex flex-col justify-between gap-2.5">
-                    <div className="flex items-center justify-between font-mono text-[9.5px] uppercase tracking-[0.14em] text-[#7A756D]">
-                      <span>{isBorners ? 'SPECIMEN #BRN-01' : 'SPECIMEN #NTL-01'}</span>
-                      <span>LAB ARCHIVE</span>
-                    </div>
-                    <div className="h-44 w-full rounded-[4px] bg-white border border-[#E5E0D8] overflow-hidden p-1.5">
-                      <img
-                        src={b.heroImage}
-                        alt={b.name}
-                        className="h-full w-full object-cover rounded-[2px]"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between font-mono text-[9.5px] text-[#6E6A63] pt-0.5">
-                      <span>
-                        {isBorners ? 'Modal 92% · 190 г/м²' : 'Polyamide 78% · Free-Cut'}
-                      </span>
-                      <span className="text-[#161615] font-medium">
-                        {isBorners ? 'Core + Print' : '6 Skin Tones'}
-                      </span>
-                    </div>
+                  <div className="h-56 w-full bg-[#F3EFE8] border-b border-[#EAE6DF] overflow-hidden">
+                    <img
+                      src={b.heroImage}
+                      alt={b.name}
+                      className="h-full w-full object-cover object-center"
+                    />
                   </div>
-                  <div className="sm:col-span-7 p-6 flex flex-col justify-between space-y-4">
+                  <div className="p-6 flex flex-col justify-between space-y-5 flex-1">
                     <div className="space-y-2">
-                      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#7A756D]">
+                      <div className="text-[12px] font-medium text-[#7A756D]">
                         {b.segment}
                       </div>
-                      <h3 className="font-serif-editorial text-[30px] font-semibold text-[#161615] leading-none">
+                      <h3 className="font-serif-editorial text-[32px] font-medium text-[#181715] leading-none">
                         {b.name}
                       </h3>
-                      <p className="text-[13.5px] font-medium text-[#161615]">{b.tagline}</p>
-                      <p className="text-[13px] text-[#6E6A63] leading-relaxed">
+                      <p className="text-[14px] font-medium text-[#181715]">{b.tagline}</p>
+                      <p className="text-[13.5px] text-[#6E6A63] leading-relaxed">
                         {b.description}
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#E5E0D8]">
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#EAE6DF]">
                       <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                        <div className="text-[11.5px] text-[#8C867E]">
                           План 2027
                         </div>
-                        <div className="text-[16px] font-semibold text-[#161615] mt-0.5">
+                        <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
                           {hasFinance ? formatCompactRub(b.plannedRevenue2027Rub) : 'Скрыто'}
                         </div>
                       </div>
                       <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                        <div className="text-[11.5px] text-[#8C867E]">
                           Целевая маржа
                         </div>
-                        <div className="text-[16px] font-semibold text-[#161615] mt-0.5">
+                        <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
                           {hasFinance ? `${b.targetMarginPct}%` : 'Скрыто'}
                         </div>
                       </div>
                       <div>
-                        <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                        <div className="text-[11.5px] text-[#8C867E]">
                           Матрица / R&amp;D
                         </div>
-                        <div className="text-[16px] font-semibold text-[#161615] mt-0.5">
-                          {bProducts.length} SKU · {bConcepts.length} R&amp;D
+                        <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
+                          {bProducts.length} SKU · {bConcepts.length} мод.
                         </div>
                       </div>
                     </div>
@@ -570,33 +555,33 @@ export function StrategyPresentationDeck({
 
           {/* Бренды портфеля в разработке (без пометки «Новое направление») */}
           {upcomingBrands.length > 0 && (
-            <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E0D8] pb-3">
-                <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#7A756D]">
-                  БРЕНДЫ BORNERS GROUP В РАЗРАБОТКЕ (2026–2027)
+            <div className="rounded-[12px] bg-white border border-[#EAE6DF] p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAE6DF] pb-3">
+                <div className="text-[13px] font-medium text-[#181715]">
+                  Бренды портфеля в разработке (2026–2027)
                 </div>
-                <span className="font-mono text-[10.5px] text-[#6E6A63]">
-                  Этап: исследование ниши, подбор фабрик и расчёт экономики
+                <span className="text-[12.5px] text-[#7A756D]">
+                  Исследование ниши, подбор фабрик и расчёт экономики
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {upcomingBrands.map((ub) => (
                   <div
                     key={ub.id}
-                    className="rounded-[6px] bg-[#F8F6F2] border border-[#E5E0D8] p-4 flex items-start justify-between gap-4"
+                    className="rounded-[10px] bg-[#FAF8F5] border border-[#EAE6DF] p-5 flex items-start justify-between gap-4"
                   >
                     <div className="space-y-1">
-                      <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                        В ПРОРАБОТКЕ СТРАТЕГИИ
+                      <div className="text-[11.5px] text-[#8C867E]">
+                        В проработке стратегии
                       </div>
-                      <div className="font-serif-editorial text-[24px] font-semibold text-[#161615] leading-none">
+                      <div className="font-serif-editorial text-[26px] font-medium text-[#181715] leading-none">
                         {ub.name}
                       </div>
                       <p className="text-[13px] text-[#6E6A63] leading-relaxed pt-1">
                         {ub.description}
                       </p>
                     </div>
-                    <span className="shrink-0 px-2.5 py-1 rounded-[4px] bg-white border border-[#E5E0D8] font-mono text-[10px] uppercase text-[#6E6A63]">
+                    <span className="shrink-0 px-2.5 py-1 rounded-[6px] bg-white border border-[#EAE6DF] text-[11px] font-medium text-[#6E6A63]">
                       В разработке
                     </span>
                   </div>
@@ -1622,88 +1607,57 @@ export function StrategyPresentationDeck({
           : 'space-y-6 pb-20'
       }
     >
-      {/* ВЕРХНЯЯ ПАНЕЛЬ УПРАВЛЕНИЯ ПРЕЗЕНТАЦИЕЙ (АРХИТЕКТУРНЫЙ ДЕК, z-20 чтобы не перекрывать выпадающие меню шапки z-50) */}
+      {/* СПОКОЙНАЯ ПАНЕЛЬ НАВИГАЦИИ ПО ГЛАВАМ ПРЕЗЕНТАЦИИ (БЕЗ ДУБЛИРОВАНИЯ ФИЛЬТРА БРЕНДОВ И ЧЁРНЫХ ПЛАШЕК) */}
       <div
         className={`${
           isFullscreen ? 'sticky top-2 z-20' : 'sticky top-[64px] z-20'
-        } rounded-[8px] bg-[#FDFCFA]/95 backdrop-blur-md border border-[#E5E0D8] overflow-hidden shadow-xs`}
+        } rounded-[12px] bg-white/95 backdrop-blur-md border border-[#EAE6DF] overflow-hidden`}
       >
-        <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-          {/* Левая часть: индекс слайда и фильтр бренда */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-[4px] bg-[#161615] text-white font-mono text-[10.5px] uppercase tracking-[0.14em]">
-              <span>BORNERS GROUP · DECK 2027</span>
-            </div>
-
-            <div className="flex items-center bg-[#F2EFE9] p-0.5 rounded-[5px] border border-[#E5E0D8] text-[12px]">
-              <button
-                type="button"
-                onClick={() => setBrandFilter('ALL')}
-                className={`px-2.5 py-1 rounded-[4px] font-medium cursor-pointer ${
-                  brandFilter === 'ALL'
-                    ? 'bg-white text-[#161615] shadow-2xs'
-                    : 'text-[#6E6A63]'
-                }`}
-              >
-                Все бренды
-              </button>
-              <button
-                type="button"
-                onClick={() => setBrandFilter('BORNERS')}
-                className={`px-2.5 py-1 rounded-[4px] font-medium cursor-pointer ${
-                  brandFilter === 'BORNERS'
-                    ? 'bg-[#161615] text-white'
-                    : 'text-[#6E6A63]'
-                }`}
-              >
-                BORNERS
-              </button>
-              <button
-                type="button"
-                onClick={() => setBrandFilter('NA_TELE')}
-                className={`px-2.5 py-1 rounded-[4px] font-medium cursor-pointer ${
-                  brandFilter === 'NA_TELE'
-                    ? 'bg-[#161615] text-white'
-                    : 'text-[#6E6A63]'
-                }`}
-              >
-                НА ТЕЛЕ
-              </button>
-            </div>
+        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+          {/* Оглавление 8 глав в одну спокойную строку */}
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {PRESENTATION_SLIDES.map((s, idx) => {
+              const active = viewLayout === 'slides' && idx === activeSlideIdx;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    setViewLayout('slides');
+                    setActiveSlideIdx(idx);
+                  }}
+                  className={`px-3 py-1.5 rounded-[8px] text-[12.5px] whitespace-nowrap cursor-pointer transition ${
+                    active
+                      ? 'bg-[#EFECE6] text-[#181715] font-medium'
+                      : 'text-[#6E6A63] hover:text-[#181715] hover:bg-[#FAF8F5]'
+                  }`}
+                >
+                  <span className="text-[11px] text-[#9E988E] mr-1.5">{s.num}</span>
+                  <span>{s.shortTitle}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Правая часть: режим просмотра, печать, полный экран, выход */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center bg-[#F2EFE9] p-0.5 rounded-[5px] border border-[#E5E0D8] text-[12px]">
-              <button
-                type="button"
-                onClick={() => setViewLayout('slides')}
-                className={`px-3 py-1 rounded-[4px] font-medium cursor-pointer ${
-                  viewLayout === 'slides'
-                    ? 'bg-[#161615] text-white'
-                    : 'text-[#6E6A63] hover:text-[#161615]'
-                }`}
-              >
-                Слайд-дек ({activeSlideIdx + 1}/8)
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewLayout('all')}
-                className={`px-3 py-1 rounded-[4px] font-medium cursor-pointer ${
-                  viewLayout === 'all'
-                    ? 'bg-[#161615] text-white'
-                    : 'text-[#6E6A63] hover:text-[#161615]'
-                }`}
-              >
-                Полный меморандум
-              </button>
-            </div>
+          {/* Правая группа: Полный текст | PDF | Экран */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewLayout(viewLayout === 'slides' ? 'all' : 'slides')}
+              className={`h-8 px-3 rounded-[8px] border text-[12px] font-medium cursor-pointer transition ${
+                viewLayout === 'all'
+                  ? 'bg-[#EFECE6] border-[#DCD6CC] text-[#181715]'
+                  : 'bg-white border-[#EAE6DF] text-[#5C5852] hover:text-[#181715]'
+              }`}
+            >
+              {viewLayout === 'all' ? 'По слайдам (1–8)' : 'Единый документ'}
+            </button>
 
             <button
               type="button"
               onClick={() => window.print()}
               title="Печать или сохранение в PDF"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[5px] bg-white border border-[#E5E0D8] text-[12px] font-medium text-[#161615] hover:border-[#161615] cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-white border border-[#EAE6DF] text-[12px] font-medium text-[#5C5852] hover:text-[#181715] cursor-pointer"
             >
               <Printer className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">PDF</span>
@@ -1712,68 +1666,47 @@ export function StrategyPresentationDeck({
             <button
               type="button"
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[5px] bg-white border border-[#E5E0D8] text-[12px] font-medium text-[#161615] hover:border-[#161615] cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-white border border-[#EAE6DF] text-[12px] font-medium text-[#5C5852] hover:text-[#181715] cursor-pointer"
             >
               {isFullscreen ? (
                 <>
                   <Minimize2 className="h-3.5 w-3.5" />
-                  <span>Обычное окно</span>
+                  <span>Свернуть</span>
                 </>
               ) : (
                 <>
                   <Expand className="h-3.5 w-3.5" />
-                  <span>На весь экран</span>
+                  <span className="hidden sm:inline">На весь экран</span>
                 </>
               )}
             </button>
-
-            {onExitPresentation && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsFullscreen(false);
-                  onExitPresentation();
-                }}
-                className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[5px] bg-[#161615] text-white text-[12px] font-medium hover:bg-[#2C2B29] cursor-pointer"
-              >
-                <span>В рабочую систему</span>
-              </button>
-            )}
           </div>
         </div>
+      </div>
 
-        {/* Оглавление 8 слайдов */}
-        {viewLayout === 'slides' && (
-          <div className="px-4 py-2 border-t border-[#E5E0D8] bg-[#F8F6F2] flex items-center justify-between gap-3 overflow-x-auto">
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {PRESENTATION_SLIDES.map((s, idx) => {
-                const active = idx === activeSlideIdx;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setActiveSlideIdx(idx)}
-                    className={`px-2.5 py-1 rounded-[4px] text-[12px] whitespace-nowrap cursor-pointer transition ${
-                      active
-                        ? 'bg-[#161615] text-white font-medium'
-                        : 'text-[#6E6A63] hover:text-[#161615] hover:bg-white'
-                    }`}
-                  >
-                    <span className="font-mono text-[10.5px] opacity-65 mr-1.5">{s.num}</span>
-                    <span>{s.shortTitle}</span>
-                  </button>
-                );
-              })}
+      {/* СОДЕРЖИМОЕ ПРЕЗЕНТАЦИИ */}
+      {viewLayout === 'slides' ? (
+        <div className="space-y-6">
+          {/* Редакционный заголовок текущего слайда */}
+          <div className="border-b border-[#EAE6DF] pb-5 flex flex-wrap items-end justify-between gap-4">
+            <div className="space-y-1">
+              <div className="text-[12px] font-medium text-[#8C867E]">
+                Глава {currentSlide.num} из 08 · {currentSlide.kicker}
+              </div>
+              <h2 className="font-serif-editorial text-[32px] md:text-[40px] font-medium tracking-[-0.01em] text-[#181715] leading-tight">
+                {currentSlide.title}
+              </h2>
+              <p className="text-[14.5px] text-[#5C5852] max-w-3xl">{currentSlide.subtitle}</p>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 disabled={activeSlideIdx === 0}
                 onClick={() => setActiveSlideIdx((i) => Math.max(0, i - 1))}
-                className="h-7 px-2.5 rounded-[4px] border border-[#E5E0D8] bg-white text-[11.5px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-1"
+                className="h-9 px-3.5 rounded-[8px] border border-[#EAE6DF] bg-white text-[12.5px] font-medium text-[#181715] disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 hover:bg-[#FAF8F5]"
               >
-                <ArrowLeft className="h-3 w-3" />
+                <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Назад</span>
               </button>
               <button
@@ -1782,48 +1715,30 @@ export function StrategyPresentationDeck({
                 onClick={() =>
                   setActiveSlideIdx((i) => Math.min(PRESENTATION_SLIDES.length - 1, i + 1))
                 }
-                className="h-7 px-2.5 rounded-[4px] bg-[#161615] text-white text-[11.5px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-1"
+                className="h-9 px-4 rounded-[8px] bg-[#181715] text-white text-[12.5px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 hover:bg-[#2C2B29]"
               >
                 <span>Далее</span>
-                <ArrowRight className="h-3 w-3" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* СОДЕРЖИМОЕ ПРЕЗЕНТАЦИИ */}
-      {viewLayout === 'slides' ? (
-        <div className="space-y-6">
-          {/* Редакционный заголовок текущего слайда */}
-          <div className="border-b border-[#E5E0D8] pb-5 flex flex-wrap items-end justify-between gap-4">
-            <div className="space-y-1">
-              <div className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-[#7A756D]">
-                СЛАЙД {currentSlide.num} / 08 · {currentSlide.kicker}
-              </div>
-              <h2 className="font-serif-editorial text-[32px] md:text-[40px] font-medium tracking-[-0.01em] text-[#161615] leading-tight">
-                {currentSlide.title}
-              </h2>
-              <p className="text-[14.5px] text-[#5C5852] max-w-3xl">{currentSlide.subtitle}</p>
             </div>
           </div>
 
           {renderSlideContent(activeSlideIdx)}
 
           {/* Нижняя навигация по слайдам */}
-          <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] px-5 py-3.5 flex items-center justify-between">
+          <div className="rounded-[12px] bg-white border border-[#EAE6DF] px-5 py-3.5 flex items-center justify-between">
             <button
               type="button"
               disabled={activeSlideIdx === 0}
               onClick={() => setActiveSlideIdx((i) => Math.max(0, i - 1))}
-              className="h-9 px-4 rounded-[6px] border border-[#E5E0D8] bg-white text-[13px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-2 hover:border-[#161615]"
+              className="h-9 px-4 rounded-[8px] border border-[#EAE6DF] bg-white text-[13px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-2 hover:bg-[#FAF8F5]"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Предыдущий слайд</span>
+              <span>Предыдущая глава</span>
             </button>
 
-            <div className="font-mono text-[11px] text-[#7A756D]">
-              СЛАЙД {String(activeSlideIdx + 1).padStart(2, '0')} / 08 · КЛАВИШИ ← →
+            <div className="text-[12px] text-[#8C867E]">
+              Глава {activeSlideIdx + 1} из 8
             </div>
 
             <button
@@ -1832,26 +1747,26 @@ export function StrategyPresentationDeck({
               onClick={() =>
                 setActiveSlideIdx((i) => Math.min(PRESENTATION_SLIDES.length - 1, i + 1))
               }
-              className="h-9 px-5 rounded-[6px] bg-[#161615] text-white text-[13px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-2 hover:bg-[#2C2B29]"
+              className="h-9 px-5 rounded-[8px] bg-[#181715] text-white text-[13px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-2 hover:bg-[#2C2B29]"
             >
-              <span>Следующий слайд</span>
+              <span>Следующая глава</span>
               <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
       ) : (
-        /* РЕЖИМ ПОЛНОГО МЕМОРАНДУМА: ВСЕ 8 СЛАЙДОВ ПОДРЯД */
+        /* РЕЖИМ ЕДИНОГО ДОКУМЕНТА: ВСЕ 8 ГЛАВ ПОДРЯД */
         <div className="space-y-12">
           {PRESENTATION_SLIDES.map((s, idx) => (
             <section
               key={s.id}
-              className="space-y-5 pt-8 border-t border-[#E5E0D8] first:border-t-0 first:pt-0"
+              className="space-y-5 pt-8 border-t border-[#EAE6DF] first:border-t-0 first:pt-0"
             >
               <div className="space-y-1">
-                <div className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-[#7A756D]">
-                  РАЗДЕЛ {s.num} / 08 · {s.kicker}
+                <div className="text-[12px] font-medium text-[#8C867E]">
+                  Глава {s.num} из 08 · {s.kicker}
                 </div>
-                <h2 className="font-serif-editorial text-[32px] md:text-[38px] font-medium text-[#161615] leading-tight">
+                <h2 className="font-serif-editorial text-[32px] md:text-[38px] font-medium text-[#181715] leading-tight">
                   {s.title}
                 </h2>
                 <p className="text-[14.5px] text-[#5C5852] max-w-3xl">{s.subtitle}</p>

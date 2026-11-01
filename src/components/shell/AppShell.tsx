@@ -380,43 +380,39 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР: швейцарская архитектурная колонка с живой телеметрией разделов и пульсом портфеля */}
+        {/* ЛЕВЫЙ САЙДБАР: спокойная тактильная навигация без рамок вокруг каждого счётчика и без капслок-штампов */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[276px] bg-[#FDFCFA] dark:bg-zinc-900 border-r border-[#E5E0D8] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[264px] bg-[#FAF8F5] dark:bg-zinc-900 border-r border-[#EAE6DF] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
           <div className="overflow-y-auto flex-1">
-            {/* Архитектурный логотип группы (ровно в высоту верхнего хедера h-14 для идеального совпадения линий) */}
-            <div className="h-14 px-5 border-b border-[#E5E0D8] dark:border-zinc-800 flex items-center justify-between">
+            {/* Чистый логотип группы в высоту верхнего хедера h-14 */}
+            <div className="h-14 px-6 border-b border-[#EAE6DF] dark:border-zinc-800 flex items-center justify-between">
               <button
                 onClick={() => {
                   setPlatformMode('management');
                   navigateTo('dashboard');
                 }}
-                className="text-left cursor-pointer flex items-baseline gap-2.5 group"
+                className="text-left cursor-pointer flex items-baseline gap-2 group"
               >
-                <span className="font-serif-editorial text-[22px] font-semibold tracking-[0.03em] text-[#161615] dark:text-white leading-none">
-                  BORNERS
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[#7A756D]">
-                  GROUP · 27
+                <span className="font-serif-editorial text-[22px] font-semibold tracking-[0.02em] text-[#181715] dark:text-white leading-none">
+                  Borners Group
                 </span>
               </button>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="lg:hidden p-1 text-[#7A756D] hover:text-[#161615]"
+                className="lg:hidden p-1 text-[#7A756D] hover:text-[#181715]"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* КОНТУР I: Ключевые разделы с живыми счётчиками и описанием роли */}
-            <nav className="p-3.5 space-y-4">
-              <div className="space-y-1.5">
-                <div className="px-2 pb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-[#8C867E]">
-                  <span>I · Ядро системы</span>
-                  <span>01—06</span>
+            <nav className="p-4 space-y-6">
+              {/* Основные разделы: мягкая подсветка активного пункта, тихие цифры без рамок */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1.5 text-[11.5px] font-medium text-[#8C867E]">
+                  Основные разделы
                 </div>
 
                 {SIMPLE_NAV_ITEMS.filter((item) =>
@@ -428,18 +424,18 @@ export function AppShell() {
                   const activeProductsCount = products.filter((p) => !p.isArchived).length;
                   const activeLaunchesCount = launches.filter((l) => !l.isArchived).length;
 
-                  const badgeText =
+                  const countLabel =
                     item.id === 'dashboard'
-                      ? 'Сводка'
+                      ? ''
                       : item.id === 'product-lab'
-                      ? `${activeConceptsCount} мод.`
+                      ? `${activeConceptsCount}`
                       : item.id === 'brand-strategy'
-                      ? '28 бл.'
+                      ? '14'
                       : item.id === 'product-catalog'
-                      ? `${activeProductsCount} SKU`
+                      ? `${activeProductsCount}`
                       : item.id === 'launch-calendar'
-                      ? `${activeLaunchesCount} рел.`
-                      : '3 сцен.';
+                      ? `${activeLaunchesCount}`
+                      : '2027';
 
                   return (
                     <button
@@ -449,40 +445,38 @@ export function AppShell() {
                         navigateTo(item.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full rounded-[6px] px-3 py-2.5 text-left transition-all cursor-pointer border ${
+                      className={`w-full rounded-[10px] px-3 py-2.5 text-left transition-colors cursor-pointer ${
                         isActive
-                          ? 'bg-[#161615] text-[#F8F6F2] border-[#161615]'
-                          : 'bg-[#FDFCFA] text-[#161615] border-transparent hover:bg-[#F3EFE8] hover:border-[#E5E0D8]'
+                          ? 'bg-[#EFECE6] text-[#181715]'
+                          : 'text-[#4A4742] hover:bg-[#F3F0EA] hover:text-[#181715]'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <span
-                            className={`font-mono text-[10px] uppercase tracking-[0.12em] shrink-0 ${
-                              isActive ? 'text-[#A39E93]' : 'text-[#8C867E]'
+                            className={`h-1.5 w-1.5 rounded-full shrink-0 transition-opacity ${
+                              isActive ? 'bg-[#181715] opacity-100' : 'bg-[#8C867E] opacity-0'
+                            }`}
+                          />
+                          <span
+                            className={`text-[13.5px] tracking-[-0.01em] truncate ${
+                              isActive ? 'font-medium text-[#181715]' : 'font-normal'
                             }`}
                           >
-                            {item.step}
-                          </span>
-                          <span className="text-[13px] font-medium tracking-[-0.01em] truncate">
                             {item.label}
                           </span>
                         </div>
-                        <span
-                          className={`px-1.5 py-0.5 rounded-[4px] font-mono text-[10px] shrink-0 ${
-                            isActive
-                              ? 'bg-white/12 text-[#E5E0D8]'
-                              : 'bg-[#F2EFE9] text-[#6E6A63] border border-[#E5E0D8]'
-                          }`}
-                        >
-                          {badgeText}
-                        </span>
+                        {countLabel && (
+                          <span
+                            className={`text-[12px] tabular-nums shrink-0 ${
+                              isActive ? 'text-[#5C5852] font-medium' : 'text-[#9E988E]'
+                            }`}
+                          >
+                            {countLabel}
+                          </span>
+                        )}
                       </div>
-                      <div
-                        className={`text-[11px] mt-0.5 pl-[22px] truncate ${
-                          isActive ? 'text-[#B8B2A8]' : 'text-[#7A756D]'
-                        }`}
-                      >
+                      <div className="text-[11.5px] text-[#8C867E] mt-0.5 pl-4 truncate">
                         {item.subtitle}
                       </div>
                     </button>
@@ -490,11 +484,10 @@ export function AppShell() {
                 })}
               </div>
 
-              {/* КОНТУР II: Операционное управление и аналитика (всегда на виду, чтобы не было пустоты) */}
-              <div className="pt-3 border-t border-[#E5E0D8] space-y-1">
-                <div className="px-2 pb-1 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-[#8C867E]">
-                  <span>II · Операции и штаб</span>
-                  <span>07—13</span>
+              {/* Управление и аналитика */}
+              <div className="pt-4 border-t border-[#EAE6DF] space-y-0.5">
+                <div className="px-3 pb-1.5 text-[11.5px] font-medium text-[#8C867E]">
+                  Управление и аналитика
                 </div>
 
                 {OPERATIONAL_NAV_ITEMS.filter((item) =>
@@ -510,114 +503,98 @@ export function AppShell() {
                         navigateTo(item.id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full h-8 rounded-[6px] px-2.5 flex items-center justify-between text-left text-[12.5px] transition-colors cursor-pointer ${
+                      className={`w-full h-8 rounded-[8px] px-3 flex items-center justify-between text-left text-[13px] transition-colors cursor-pointer ${
                         isActive
-                          ? 'bg-[#161615] text-[#F8F6F2] font-medium'
-                          : 'text-[#5C5852] hover:text-[#161615] hover:bg-[#F3EFE8]'
+                          ? 'bg-[#EFECE6] text-[#181715] font-medium'
+                          : 'text-[#5C5852] hover:text-[#181715] hover:bg-[#F3F0EA]'
                       }`}
                     >
                       <span className="truncate">{item.label}</span>
-                      <span
-                        className={`font-mono text-[10px] shrink-0 ${
-                          isActive ? 'text-[#A39E93]' : 'text-[#9E988E]'
-                        }`}
-                      >
-                        {item.step}
-                      </span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* КОНТУР III: Пульс брендов в сайдбаре (быстрый фильтр + сводка портфеля) */}
-              <div className="pt-3 border-t border-[#E5E0D8] space-y-2">
-                <div className="px-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-[#8C867E]">
-                  <span>III · Фокус портфеля</span>
-                  <span>{brandFilter === 'ALL' ? 'ГРУППА' : brandFilter}</span>
+              {/* Быстрый фильтр по брендам (спокойный список без лишних рамок) */}
+              <div className="pt-4 border-t border-[#EAE6DF] space-y-1">
+                <div className="px-3 pb-1 text-[11.5px] font-medium text-[#8C867E]">
+                  Бренды портфеля
                 </div>
 
-                <div className="rounded-[6px] border border-[#E5E0D8] bg-[#F8F6F2] p-2.5 space-y-2">
-                  {[
-                    {
-                      code: 'ALL' as const,
-                      title: 'Все бренды группы',
-                      meta: `${products.filter((p) => !p.isArchived).length} SKU · ${
-                        concepts.filter((c) => !c.isArchived).length
-                      } R&D`,
-                      dot: '#161615',
-                    },
-                    {
-                      code: 'BORNERS' as const,
-                      title: 'BORNERS',
-                      meta: `${
-                        products.filter((p) => !p.isArchived && p.brandId === 'BORNERS').length
-                      } SKU · ${
-                        concepts.filter((c) => !c.isArchived && c.brandId === 'BORNERS').length
-                      } R&D`,
-                      dot: '#B85D35',
-                    },
-                    {
-                      code: 'NA_TELE' as const,
-                      title: 'НА ТЕЛЕ',
-                      meta: `${
-                        products.filter((p) => !p.isArchived && p.brandId === 'NA_TELE').length
-                      } SKU · ${
-                        concepts.filter((c) => !c.isArchived && c.brandId === 'NA_TELE').length
-                      } R&D`,
-                      dot: '#7D7268',
-                    },
-                  ].map((b) => {
-                    const selected = brandFilter === b.code;
-                    return (
-                      <button
-                        key={b.code}
-                        type="button"
-                        onClick={() => setBrandFilter(b.code)}
-                        className={`w-full px-2.5 py-1.5 rounded-[4px] flex items-center justify-between text-left transition cursor-pointer ${
-                          selected
-                            ? 'bg-[#FDFCFA] border border-[#161615] text-[#161615] font-medium'
-                            : 'hover:bg-[#FDFCFA] text-[#5C5852] border border-transparent'
-                        }`}
-                      >
-                        <span className="inline-flex items-center gap-2 text-[12px] truncate">
-                          <span
-                            className="h-2 w-2 rounded-full shrink-0"
-                            style={{ backgroundColor: b.dot }}
-                          />
-                          <span className="truncate">{b.title}</span>
-                        </span>
-                        <span className="font-mono text-[10px] text-[#7A756D] shrink-0">
-                          {b.meta}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                {[
+                  {
+                    code: 'ALL' as const,
+                    title: 'Все бренды',
+                    meta: `${products.filter((p) => !p.isArchived).length} моделей`,
+                    dot: '#181715',
+                  },
+                  {
+                    code: 'BORNERS' as const,
+                    title: 'BORNERS',
+                    meta: `${
+                      concepts.filter((c) => !c.isArchived && c.brandId === 'BORNERS').length
+                    } в R&D`,
+                    dot: '#B85D35',
+                  },
+                  {
+                    code: 'NA_TELE' as const,
+                    title: 'НА ТЕЛЕ',
+                    meta: `${
+                      concepts.filter((c) => !c.isArchived && c.brandId === 'NA_TELE').length
+                    } в R&D`,
+                    dot: '#8C7A6B',
+                  },
+                ].map((b) => {
+                  const selected = brandFilter === b.code;
+                  return (
+                    <button
+                      key={b.code}
+                      type="button"
+                      onClick={() => setBrandFilter(b.code)}
+                      className={`w-full h-8 px-3 rounded-[8px] flex items-center justify-between text-left transition cursor-pointer ${
+                        selected
+                          ? 'bg-[#EFECE6] text-[#181715] font-medium'
+                          : 'hover:bg-[#F3F0EA] text-[#5C5852]'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2 text-[13px] truncate">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: b.dot }}
+                        />
+                        <span className="truncate">{b.title}</span>
+                      </span>
+                      <span className="text-[11.5px] text-[#8C867E] shrink-0">
+                        {b.meta}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </nav>
           </div>
 
-          {/* Нижняя карточка сайдбара: Быстрый вход в Презентацию совета директоров */}
-          <div className="p-3.5 border-t border-[#E5E0D8] dark:border-zinc-800 bg-[#F8F6F2]/70">
+          {/* Нижняя карточка сайдбара: Мягкая тёплая плашка презентации без резкого чёрного пятна */}
+          <div className="p-4 border-t border-[#EAE6DF] dark:border-zinc-800">
             <button
               type="button"
               onClick={() =>
                 setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy')
               }
-              className={`w-full rounded-[6px] p-3 text-left transition cursor-pointer border ${
+              className={`w-full rounded-[10px] p-3.5 text-left transition cursor-pointer border ${
                 platformMode === 'strategy'
-                  ? 'bg-[#161615] text-[#F8F6F2] border-[#161615]'
-                  : 'bg-[#FDFCFA] hover:bg-[#161615] text-[#161615] hover:text-[#F8F6F2] border-[#E5E0D8] group'
+                  ? 'bg-[#EFECE6] text-[#181715] border-[#DCD6CC]'
+                  : 'bg-[#F3EFE8] hover:bg-[#EAE5DC] text-[#181715] border-[#E6E1D6]'
               }`}
             >
-              <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] opacity-75">
-                <span>BOARDROOM DECK</span>
-                <span>08 СЛАЙДОВ ↗</span>
+              <div className="flex items-center justify-between text-[11px] text-[#7A756D]">
+                <span>Презентация · 8 глав</span>
+                <span>→</span>
               </div>
-              <div className="font-serif-editorial text-[17px] font-medium mt-0.5 leading-snug">
+              <div className="font-serif-editorial text-[17px] font-medium text-[#181715] mt-0.5 leading-snug">
                 {platformMode === 'strategy'
-                  ? 'Вернуться в рабочую систему'
-                  : 'Презентация стратегии 2027'}
+                  ? 'Вернуться в систему'
+                  : 'Стратегия развития 2027'}
               </div>
             </button>
           </div>
