@@ -210,6 +210,7 @@ export function AppShell() {
   const [trashModalOpen, setTrashModalOpen] = useState(false);
   const [tourModalOpen, setTourModalOpen] = useState(false);
   const [tourStepIdx, setTourStepIdx] = useState(0);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
 
   const trashItems = useMemo(() => {
     const items: {
@@ -955,102 +956,143 @@ export function AppShell() {
               </div>
             </div>
 
-            {/* Правая группа: строгая симметрия h-9 без эмодзи */}
+            {/* Правая группа: разгруженная панель (Поиск + единый выпадающий список «Инструменты» + Профиль) */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Быстрый переход в CRM с задачами и проектами из любой точки сервиса */}
-              <button
-                type="button"
-                onClick={() => {
-                  setPlatformMode('management');
-                  navigateTo('roadmap-tasks');
-                }}
-                title="Открыть CRM · Задачи и проекты"
-                className={`inline-flex items-center gap-2 h-9 px-3.5 rounded-[6px] border-[1.5px] text-[12.5px] font-medium transition cursor-pointer ${
-                  platformMode === 'management' && activeSection === 'roadmap-tasks'
-                    ? 'bg-[#161615] text-white border-[#161615]'
-                    : 'bg-white text-[#161615] border-[#D4CDC2] hover:border-[#161615]'
-                }`}
-              >
-                <span className="h-2 w-2 rounded-full bg-[#B85D35] shrink-0" />
-                <span>CRM · Задачи</span>
-                <span
-                  className={`font-mono text-[10.5px] px-1.5 py-0.2 rounded-[4px] ${
-                    platformMode === 'management' && activeSection === 'roadmap-tasks'
-                      ? 'bg-white/20 text-white'
-                      : 'bg-[#F2EFE9] text-[#5C5852]'
-                  }`}
-                >
-                  {tasks.filter((t) => !t.isArchived && t.status !== 'Done').length}
-                </span>
-              </button>
-
-              {/* Переключатель: Платформа vs Презентация */}
-              <div className="flex items-center h-9 bg-[#F2EFE9] p-0.5 rounded-[6px] border-[1.5px] border-[#D4CDC2]">
-                <button
-                  onClick={() => setPlatformMode('management')}
-                  className={`h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
-                    platformMode === 'management'
-                      ? 'bg-white text-[#161615] shadow-2xs'
-                      : 'text-[#6E6A63] hover:text-[#161615]'
-                  }`}
-                >
-                  Рабочая система
-                </button>
-                <button
-                  onClick={() => setPlatformMode('strategy')}
-                  className={`h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
-                    platformMode === 'strategy'
-                      ? 'bg-[#161615] text-white'
-                      : 'text-[#6E6A63] hover:text-[#161615]'
-                  }`}
-                >
-                  Презентация стратегии
-                </button>
-              </div>
-
-              {/* Обучение с подсветкой этапов (как в Peakly) */}
-              <button
-                type="button"
-                onClick={() => {
-                  setTourStepIdx(0);
-                  setTourModalOpen(true);
-                }}
-                title="Интерактивное обучение с подсветкой этапов"
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] bg-[#FAF8F5] border-[1.5px] border-[#D4CDC2] hover:border-[#161615] text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-[#B85D35]" />
-                <span className="hidden xl:inline">Обучение</span>
-              </button>
-
-              {/* Корзина удалений (восстановление удалённых карточек) */}
-              <button
-                type="button"
-                onClick={() => setTrashModalOpen(true)}
-                title="Корзина удалений — восстановить случайно удалённые карточки"
-                className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] border-[1.5px] text-[12.5px] font-medium transition cursor-pointer ${
-                  trashItems.length > 0
-                    ? 'bg-[#FAF8F5] border-[#B85D35] text-[#181715]'
-                    : 'bg-white border-[#D4CDC2] hover:border-[#161615] text-[#161615]'
-                }`}
-              >
-                <Trash2 className="h-3.5 w-3.5 text-[#6E6A63]" />
-                <span className="hidden md:inline">Корзина</span>
-                <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded-[4px] bg-[#F2EFE9] text-[#5C5852]">
-                  {trashItems.length}
-                </span>
-              </button>
-
               {/* Поиск */}
               <button
+                type="button"
                 onClick={() => setSearchModalOpen(true)}
-                className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] hover:border-[#161615] px-3 text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
+                className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-white border border-[#E5E0D8] hover:border-[#161615] px-3 text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
               >
                 <Search className="h-3.5 w-3.5 text-[#6E6A63]" />
                 <span className="hidden sm:inline">Поиск</span>
-                <span className="hidden md:inline font-mono text-[10px] text-[#8C867E] border border-[#D4CDC2] rounded-[3px] px-1">
+                <span className="hidden md:inline font-mono text-[10px] text-[#8C867E] border border-[#E5E0D8] rounded-[4px] px-1">
                   ⌘K
                 </span>
               </button>
+
+              {/* ЕДИНЫЙ ВЫПАДАЮЩИЙ СПИСОК: Режим системы, CRM · Задачи, Обучение и Корзина */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setToolsMenuOpen((v) => !v)}
+                  className="inline-flex items-center gap-2 h-9 px-3.5 rounded-[8px] bg-white border border-[#E5E0D8] hover:border-[#161615] text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
+                >
+                  <span className="h-2 w-2 rounded-full bg-[#B85D35] shrink-0" />
+                  <span>Инструменты</span>
+                  <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded-[4px] bg-[#F2EFE9] text-[#5C5852]">
+                    {tasks.filter((t) => !t.isArchived && t.status !== 'Done').length}
+                  </span>
+                  <ChevronDown className="h-3.5 w-3.5 text-[#8C867E]" />
+                </button>
+
+                {toolsMenuOpen && (
+                  <>
+                    <div
+                      onClick={() => setToolsMenuOpen(false)}
+                      className="fixed inset-0 z-40"
+                    />
+                    <div className="absolute right-0 mt-1.5 w-72 rounded-[14px] bg-white border border-[#E5E0D8] shadow-[0_14px_34px_rgba(24,23,21,0.12)] p-2 z-50 text-[13px] space-y-1">
+                      {/* Переключатель режима: Рабочая система vs Презентация */}
+                      <div className="p-1.5 rounded-[10px] bg-[#F6F3EC] border border-[#EAE4D8]">
+                        <div className="px-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[#7A756C]">
+                          Режим отображения
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlatformMode('management');
+                              setToolsMenuOpen(false);
+                            }}
+                            className={`h-7 px-2 rounded-[7px] text-[11.5px] font-semibold transition cursor-pointer ${
+                              platformMode === 'management'
+                                ? 'bg-white text-[#1D1D1F] shadow-2xs'
+                                : 'text-[#6E6A63] hover:text-[#1D1D1F]'
+                            }`}
+                          >
+                            Рабочая система
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlatformMode('strategy');
+                              setToolsMenuOpen(false);
+                            }}
+                            className={`h-7 px-2 rounded-[7px] text-[11.5px] font-semibold transition cursor-pointer ${
+                              platformMode === 'strategy'
+                                ? 'bg-[#1D1D1F] text-white shadow-2xs'
+                                : 'text-[#6E6A63] hover:text-[#1D1D1F]'
+                            }`}
+                          >
+                            Презентация
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* CRM · Задачи */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPlatformMode('management');
+                          navigateTo('roadmap-tasks');
+                          setToolsMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
+                      >
+                        <span className="inline-flex items-center gap-2.5 font-medium">
+                          <span className="h-2 w-2 rounded-full bg-[#B85D35]" />
+                          <span>CRM · Задачи и поручения</span>
+                        </span>
+                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-[6px] bg-[#F2EFE9] text-[#1D1D1F] font-semibold">
+                          {tasks.filter((t) => !t.isArchived && t.status !== 'Done').length}
+                        </span>
+                      </button>
+
+                      {/* Интерактивное обучение */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolsMenuOpen(false);
+                          setTourStepIdx(0);
+                          setTourModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
+                      >
+                        <span className="inline-flex items-center gap-2.5 font-medium">
+                          <Sparkles className="h-3.5 w-3.5 text-[#B85D35]" />
+                          <span>Обучение (Гид по системе)</span>
+                        </span>
+                        <span className="text-[11px] text-[#8C867E]">5 шагов</span>
+                      </button>
+
+                      {/* Корзина удалений */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolsMenuOpen(false);
+                          setTrashModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
+                      >
+                        <span className="inline-flex items-center gap-2.5 font-medium">
+                          <Trash2 className="h-3.5 w-3.5 text-[#6E6A63]" />
+                          <span>Корзина удалений</span>
+                        </span>
+                        <span
+                          className={`font-mono text-[11px] px-2 py-0.5 rounded-[6px] font-semibold ${
+                            trashItems.length > 0
+                              ? 'bg-[#FCE8E5] text-[#B83224]'
+                              : 'bg-[#F2EFE9] text-[#6E6A63]'
+                          }`}
+                        >
+                          {trashItems.length}
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Профиль */}
               <div className="relative">
