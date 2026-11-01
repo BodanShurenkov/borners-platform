@@ -32,6 +32,7 @@ import {
   exportDocumentAsPdf,
 } from '@/lib/document-export';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { DRAFT_MODULES_META, useDraftModules } from '@/lib/draftModules';
 
 // =============================================================================
 // РЫНОК И КОНКУРЕНТЫ (п. 11 ТЗ)
@@ -2222,18 +2223,134 @@ export function SettingsView() {
     financialPlans,
     updateBrandPalette,
     resetToDemoDefaults,
+    navigateTo,
+    setPlatformMode,
     notify,
   } = usePlatform();
+
+  const {
+    draftModules,
+    toggleDraftModule,
+    setAllDraftModules,
+    enabledCount,
+    totalCount,
+  } = useDraftModules();
 
   return (
     <div className="space-y-10 pb-20">
       <div className="border-b border-[#EAE6DF] pb-6">
         <div className="text-[12px] font-medium text-[#8C867E] mb-1.5">
-          Конфигурация системы, корпоративный домен и резервное копирование
+          Конфигурация системы, черновик скрытых инструментов и резервное копирование
         </div>
         <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-normal tracking-[-0.015em] text-[#181715]">
           Настройки системы · BORNERS GROUP
         </h1>
+      </div>
+
+      {/* АДМИНКА: ЧЕРНОВИК РАЗДЕЛОВ И ИНСТРУМЕНТОВ */}
+      <div className="bg-white rounded-[16px] border-[1.5px] border-[#CFC8BC] p-6 md:p-7 space-y-5 shadow-xs">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#EAE6DF] pb-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.14em] text-[#B85D35] font-bold">
+              <span>АДМИНКА · ЧЕРНОВИК ИНСТРУМЕНТОВ ({enabledCount} из {totalCount} включено)</span>
+            </div>
+            <h2 className="text-[22px] font-bold text-[#181715]">
+              Скрытые разделы в черновике (управление видимостью меню)
+            </h2>
+            <p className="text-[13.5px] text-[#5C5852] max-w-3xl">
+              В основном рабочем меню оставлены только 7 ключевых разделов («Главная», «Сценарии роста», «Модели (SKU)», «План продаж», «Производство», «Закупки», «Документы»). Любой дополнительный инструмент из черновика можно вернуть в меню или открыть в 1 клик.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAllDraftModules(true);
+                notify('success', 'Все разделы из черновика возвращены в меню');
+              }}
+              className="h-9 px-3.5 rounded-[9px] bg-[#181715] text-white text-[12.5px] font-semibold hover:bg-[#2C2B29] transition cursor-pointer"
+            >
+              Вернуть все ({totalCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAllDraftModules(false);
+                notify('success', 'Дополнительные разделы скрыты в черновик (оставлены 7 базовых)');
+              }}
+              className="h-9 px-3.5 rounded-[9px] border border-[#D4CDC2] bg-[#FAF8F5] text-[#181715] text-[12.5px] font-semibold hover:border-[#181715] transition cursor-pointer"
+            >
+              Оставить только 7 базовых
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          {DRAFT_MODULES_META.map((item) => {
+            const isEnabled = draftModules[item.key];
+            return (
+              <div
+                key={item.key}
+                className={`rounded-[12px] border p-4 flex items-start justify-between gap-4 transition ${
+                  isEnabled
+                    ? 'bg-[#F4F9F6] border-[#1F6E50]/40'
+                    : 'bg-[#FAF8F5] border-[#E5E0D8]'
+                }`}
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[14.5px] font-bold text-[#181715]">
+                      {item.title}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
+                        isEnabled
+                          ? 'bg-[#1F6E50] text-white'
+                          : 'bg-[#EAE4D8] text-[#6E6A63]'
+                      }`}
+                    >
+                      {isEnabled ? 'В меню' : 'В черновике'}
+                    </span>
+                  </div>
+                  <p className="text-[12.5px] text-[#5C5852] leading-snug">
+                    {item.subtitle}
+                  </p>
+                  {item.sectionId && (
+                    <button
+                      type="button"
+                      onClick={() => navigateTo(item.sectionId!)}
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#B85D35] hover:underline pt-1 cursor-pointer"
+                    >
+                      <span>Открыть раздел без включения в меню →</span>
+                    </button>
+                  )}
+                  {item.key === 'strategyPresentationCard' && (
+                    <button
+                      type="button"
+                      onClick={() => setPlatformMode('strategy')}
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#B85D35] hover:underline pt-1 cursor-pointer"
+                    >
+                      <span>Открыть презентацию 16 слайдов →</span>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => toggleDraftModule(item.key)}
+                  className={`shrink-0 h-8 px-3 rounded-[8px] text-[12px] font-semibold transition cursor-pointer ${
+                    isEnabled
+                      ? 'bg-[#1F6E50] text-white hover:bg-[#17563E]'
+                      : 'bg-white border border-[#CFC8BC] text-[#181715] hover:border-[#181715]'
+                  }`}
+                >
+                  {isEnabled ? 'Скрыть' : 'Вернуть'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Корпоративный домен BORNERS GROUP */}

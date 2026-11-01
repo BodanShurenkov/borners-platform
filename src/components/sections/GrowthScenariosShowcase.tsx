@@ -24,22 +24,52 @@ import { ScenarioModelCardScreen } from '@/components/sections/ScenarioModelCard
 import { ScenarioSalesPlanScreen } from '@/components/sections/ScenarioSalesPlanScreen';
 import { PdfConstructorModal } from '@/components/sections/PdfConstructorModal';
 
-const STORAGE_KEY_SCENARIOS = 'borners_tz_scenarios_v1';
-const STORAGE_KEY_MODELS = 'borners_tz_models_v1';
+export const STORAGE_KEY_SCENARIOS = 'borners_tz_scenarios_v1';
+export const STORAGE_KEY_MODELS = 'borners_tz_models_v1';
 
-export function GrowthScenariosShowcase() {
-  const { concepts, notify } = usePlatform();
+interface GrowthScenariosShowcaseProps {
+  initialScreen?: 'scenarios' | 'model' | 'sales-plan';
+  initialModelId?: string;
+}
+
+export function GrowthScenariosShowcase({
+  initialScreen = 'scenarios',
+  initialModelId,
+}: GrowthScenariosShowcaseProps = {}) {
+  const { concepts, createProduct, notify } = usePlatform();
 
   // Архитектура из 3 экранов (п. 02 ТЗ):
   // 'scenarios' (Экран №1) -> 'model' (Экран №2) -> 'sales-plan' (Экран №3)
   const [screen, setScreen] = useState<'scenarios' | 'model' | 'sales-plan'>(
-    'scenarios'
+    initialScreen
   );
 
   const [scenarios, setScenarios] = useState<GrowthScenarioDef[]>(INITIAL_SCENARIOS);
   const [models, setModels] = useState<ScenarioModelSpec[]>(INITIAL_SCENARIO_MODELS);
   const [selectedScenarioId, setSelectedScenarioId] = useState<number>(1);
-  const [selectedModelId, setSelectedModelId] = useState<string>('scen-model-001');
+  const [selectedModelId, setSelectedModelId] = useState<string>(
+    initialModelId || 'scen-model-001'
+  );
+
+  useEffect(() => {
+    setScreen(initialScreen);
+  }, [initialScreen]);
+
+  useEffect(() => {
+    if (initialModelId) {
+      setSelectedModelId(initialModelId);
+    }
+    try {
+      const pendingModelId = sessionStorage.getItem('borners_open_scenario_model_id');
+      if (pendingModelId) {
+        sessionStorage.removeItem('borners_open_scenario_model_id');
+        setSelectedModelId(pendingModelId);
+        setScreen('model');
+      }
+    } catch {
+      // ignore
+    }
+  }, [initialModelId]);
 
   // Фильтры каталога на Экране №1
   const [searchQuery, setSearchQuery] = useState('');
@@ -97,6 +127,7 @@ export function GrowthScenariosShowcase() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_MODELS, JSON.stringify(models));
+      window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
     } catch {
       // ignore
     }
@@ -292,11 +323,42 @@ export function GrowthScenariosShowcase() {
     setSelectedModelId(created.id);
     setNewModelModalOpen(false);
     setDraftTitle('');
+
+    // Автоматически синхронизируем созданную модель с разделом «Модели (SKU)»
+    createProduct({
+      sku: `${draftBrand === 'NA_TELE' ? 'NT' : 'BRN'}-${created.code.replace('№', '')}`,
+      name: created.title,
+      brandId: draftBrand,
+      category: 'Боксеры',
+      productType: 'Базовая коллекция',
+      priceSegment: 'Middle+',
+      collection: `${draftBrand === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} 2027`,
+      materials: created.fabric.composition,
+      fitType: `${created.subtitle} · резинка ${created.waistband.width}`,
+      economics: {
+        currency: 'RUB',
+        plannedRetailPrice: created.retailPriceRub,
+        actualRetailPrice: created.retailPriceRub,
+        discountPct: 0,
+        vatPct: 20,
+        returnRatePct: 3.5,
+        unitCostPrice: created.unitCostRub,
+        marketplaceCommissionRub: Math.round(
+          (created.retailPriceRub * created.marketplaceFeePct) / 100
+        ),
+        logisticsRub: created.logisticsRub,
+        advertisingRub: Math.round(
+          (created.retailPriceRub * created.adsPct) / 100
+        ),
+        otherVariableRub: 0,
+      },
+    });
+
     // Сразу открываем карточку новой модели на Экране №2 (п. 7.1 ТЗ)
     setScreen('model');
     notify(
       'success',
-      `Модель ${created.code} / ${created.title} создана`,
+      `Модель ${created.code} / ${created.title} создана и добавлена в «Модели (SKU)»`,
       'Незаполненные параметры можно уточнить в карточке модели по мере готовности.'
     );
   };

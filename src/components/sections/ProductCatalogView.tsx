@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Archive,
   ArrowUpRight,
@@ -23,6 +23,9 @@ import {
   canUserViewFinance,
   formatCurrencyRub,
 } from '@/lib/finance';
+import { INITIAL_SCENARIO_MODELS, ScenarioModelSpec } from '@/lib/scenarioData';
+import { BoxerPackStackSvg } from '@/components/sections/ScenarioVisualParts';
+import { STORAGE_KEY_MODELS } from '@/components/sections/GrowthScenariosShowcase';
 
 const STATUS_META: Record<ProductStatus, { label: string; dotColor: string }> = {
   in_development: {
@@ -85,6 +88,32 @@ export function ProductCatalogView() {
   const [productTypeFilter, setProductTypeFilter] = useState<string>('ALL');
   const [priceSegmentFilter, setPriceSegmentFilter] = useState<string>('ALL');
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [scenarioModels, setScenarioModels] = useState<ScenarioModelSpec[]>(
+    INITIAL_SCENARIO_MODELS
+  );
+
+  useEffect(() => {
+    const loadModels = () => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_MODELS);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setScenarioModels(parsed);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadModels();
+    window.addEventListener('borners-scenario-models-changed', loadModels);
+    window.addEventListener('storage', loadModels);
+    return () => {
+      window.removeEventListener('borners-scenario-models-changed', loadModels);
+      window.removeEventListener('storage', loadModels);
+    };
+  }, []);
 
   const [drawerTab, setDrawerTab] = useState<
     'passport' | 'variants' | 'economics' | 'relations'
@@ -327,6 +356,93 @@ export function ProductCatalogView() {
               <span>Добавить модель</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* СИНХРОНИЗИРОВАННЫЕ МОДЕЛИ ИЗ СЦЕНАРИЕВ РОСТА (автоматическая связка Сценарии роста ↔ Модели SKU) */}
+      <div className="rounded-[20px] bg-white border border-[#E5DEC9] p-5 md:p-6 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#B85D35]">
+              <span className="h-2 w-2 rounded-full bg-[#B85D35]" />
+              <span>Синхронизировано со «Сценариями роста»</span>
+            </div>
+            <h2 className="text-[20px] font-bold text-[#1D1D1F] mt-0.5">
+              Модели в сценариях развития ({scenarioModels.filter((m) => m.launchStatus !== 'В архиве' && (brandFilter === 'ALL' || m.brandId === brandFilter)).length} SKU)
+            </h2>
+            <p className="text-[12.5px] text-[#6E6E73]">
+              Любая модель, добавленная в «Сценариях роста», автоматически появляется здесь. Нажмите на модель, чтобы провалиться в её подробную карточку (5 вкладок: Обзор, План продаж, Производство, Экономика, Спецификация).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigateTo('brand-strategy')}
+            className="h-9 px-4 rounded-[10px] bg-[#FAF8F4] hover:bg-[#EFECE6] border border-[#DFD8CA] text-[12.5px] font-semibold text-[#1D1D1F] transition cursor-pointer"
+          >
+            Все сценарии роста →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {scenarioModels
+            .filter(
+              (m) =>
+                m.launchStatus !== 'В архиве' &&
+                (brandFilter === 'ALL' || m.brandId === brandFilter)
+            )
+            .map((m) => {
+              const activePal = m.palettes[0];
+              const colors = activePal ? activePal.colors : [];
+              return (
+                <div
+                  key={m.id}
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem('borners_open_scenario_model_id', m.id);
+                    } catch {
+                      // ignore
+                    }
+                    navigateTo('brand-strategy');
+                  }}
+                  className="group rounded-[16px] bg-[#FAF8F4] hover:bg-white border border-[#E6E0D4] hover:border-[#1D1D1F] p-4 transition-all cursor-pointer flex flex-col justify-between gap-3 shadow-2xs"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
+                      <span className="text-[#6E6E73]">
+                        {m.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · {m.code}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-white border border-[#E2DBD0] text-[10.5px] text-[#1D1D1F]">
+                        {m.launchStatus}
+                      </span>
+                    </div>
+                    <div className="h-24 my-2 rounded-[12px] bg-white border border-[#EFECE6] flex items-center justify-center p-2">
+                      <BoxerPackStackSvg
+                        colors={colors}
+                        brandLabel={m.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
+                      />
+                    </div>
+                    <div className="text-[14px] font-extrabold text-[#1D1D1F] leading-snug">
+                      {m.title}
+                    </div>
+                    <div className="text-[11.5px] text-[#6E6E73] mt-0.5 truncate">
+                      {m.subtitle}
+                    </div>
+                  </div>
+
+                  <div className="pt-2.5 border-t border-[#E6E0D4] flex items-center justify-between text-[12px]">
+                    <div>
+                      <span className="text-[#7A756C]">Розница: </span>
+                      <span className="font-bold text-[#1D1D1F]">
+                        {m.retailPriceRub.toLocaleString('ru-RU')} ₽
+                      </span>
+                    </div>
+                    <span className="font-semibold text-[#B85D35] group-hover:translate-x-0.5 transition-transform">
+                      В карточку →
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
         </div>
       </div>
 

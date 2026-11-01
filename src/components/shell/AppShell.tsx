@@ -52,6 +52,8 @@ import {
   TeamView,
 } from '@/components/sections/ManagementAndSystemViews';
 import { PeaklySpotlightTour } from '@/components/shell/PeaklySpotlightTour';
+import { GrowthScenariosShowcase } from '@/components/sections/GrowthScenariosShowcase';
+import { DRAFT_MODULES_META, useDraftModules } from '@/lib/draftModules';
 
 interface NavGroup {
   groupTitle: string;
@@ -211,6 +213,18 @@ export function AppShell() {
   const [tourModalOpen, setTourModalOpen] = useState(false);
   const [tourStepIdx, setTourStepIdx] = useState(0);
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const [draftAdminModalOpen, setDraftAdminModalOpen] = useState(false);
+  const [salesPlanSubTab, setSalesPlanSubTab] = useState<
+    'sales-plan' | 'legacy-calendar'
+  >('sales-plan');
+
+  const {
+    draftModules,
+    toggleDraftModule,
+    setAllDraftModules,
+    enabledCount: enabledDraftCount,
+    totalCount: totalDraftCount,
+  } = useDraftModules();
 
   const trashItems = useMemo(() => {
     const items: {
@@ -744,29 +758,8 @@ export function AppShell() {
                   ),
                 },
                 {
-                  id: 'finance' as NavSectionId,
-                  label: 'Финансы',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2.2" y="3.5" width="11.6" height="9" rx="1.8" />
-                      <path d="M2.2 6.8H13.8" />
-                      <path d="M5 10H7.5" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'marketing-growth' as NavSectionId,
-                  label: 'Маркетинг',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
-                      <circle cx="8" cy="8" r="5.5" />
-                      <circle cx="8" cy="8" r="2.2" />
-                    </svg>
-                  ),
-                },
-                {
                   id: 'documents' as NavSectionId,
-                  label: 'Отчёты',
+                  label: 'Документы',
                   renderGlyph: () => (
                     <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="2.2" width="10" height="11.6" rx="1.6" />
@@ -817,49 +810,108 @@ export function AppShell() {
                   );
                 })}
 
-              {/* Компактные дополнительные разделы внизу */}
-              <div className="pt-3.5 mt-3.5 border-t border-white/14 space-y-0.5">
-                {[
-                  { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
-                  { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' },
-                  { id: 'settings' as NavSectionId, label: 'Настройки · borners-group.ru' },
-                ]
-                  .filter((item) => canUserAccessSection(currentUser, item.id))
-                  .map((item) => {
-                    const isActive =
-                      platformMode === 'management' && activeSection === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setPlatformMode('management');
-                          navigateTo(item.id);
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full h-8 rounded-[10px] px-3 flex items-center justify-between text-left text-[12px] transition-colors cursor-pointer outline-none ${
-                          isActive
-                            ? 'bg-white/18 text-white font-semibold border border-white/22'
-                            : 'text-[#B8C7D9] hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        <span className="truncate">{item.label}</span>
-                      </button>
-                    );
-                  })}
-              </div>
+              {/* РАЗДЕЛЫ ИЗ ЧЕРНОВИКА (появляются только если включены в Админке) */}
+              {(() => {
+                const draftNavItems = [
+                  draftModules.finance
+                    ? { id: 'finance' as NavSectionId, label: 'Финансы (P&L)' }
+                    : null,
+                  draftModules.marketing
+                    ? { id: 'marketing-growth' as NavSectionId, label: 'Маркетинг' }
+                    : null,
+                  draftModules.brandPortfolio
+                    ? { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' }
+                    : null,
+                  draftModules.marketIntelligence
+                    ? { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' }
+                    : null,
+                  draftModules.settingsSection
+                    ? { id: 'settings' as NavSectionId, label: 'Настройки · borners-group.ru' }
+                    : null,
+                ].filter(
+                  (item): item is { id: NavSectionId; label: string } =>
+                    item !== null && canUserAccessSection(currentUser, item.id)
+                );
+
+                if (draftNavItems.length === 0) return null;
+
+                return (
+                  <div className="pt-3.5 mt-3.5 border-t border-white/14 space-y-1">
+                    <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#F3DAB6]/80 flex items-center justify-between">
+                      <span>Черновик (Админка)</span>
+                      <span>{draftNavItems.length}</span>
+                    </div>
+                    {draftNavItems.map((item) => {
+                      const isActive =
+                        platformMode === 'management' && activeSection === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setPlatformMode('management');
+                            navigateTo(item.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full h-8 rounded-[10px] px-3 flex items-center justify-between text-left text-[12.5px] transition-colors cursor-pointer outline-none ${
+                            isActive
+                              ? 'bg-white/18 text-white font-semibold border border-white/22'
+                              : 'text-[#C8D6E5] hover:text-white hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="truncate">{item.label}</span>
+                          <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-white/10 text-[#F3DAB6] shrink-0">
+                            черновик
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </nav>
           </div>
 
-          {/* Нижняя карточка сайдбара: Переход в презентацию стратегии */}
+          {/* Нижняя зона сайдбара: Кнопка админки черновика (+ карточка презентации, если включена в черновике) */}
           <div
             onClick={() => {
               if (sidebarBlurred) setSidebarBlurred(false);
             }}
-            className={`p-3.5 border-t border-white/14 transition-all duration-300 ${
+            className={`p-3.5 border-t border-white/14 space-y-2 transition-all duration-300 ${
               sidebarBlurred ? 'blur-[6px] opacity-30 select-none cursor-pointer' : ''
             }`}
           >
+            {draftModules.strategyPresentationCard && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (sidebarBlurred) {
+                    e.stopPropagation();
+                    setSidebarBlurred(false);
+                    return;
+                  }
+                  setPlatformMode(
+                    platformMode === 'strategy' ? 'management' : 'strategy'
+                  );
+                }}
+                className={`w-full rounded-[14px] p-3 text-left transition cursor-pointer border outline-none ${
+                  platformMode === 'strategy'
+                    ? 'bg-[#EAD3B3] text-[#243547] border-[#EAD3B3] shadow-sm'
+                    : 'bg-white/12 hover:bg-white/18 text-white border-white/18'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[11px] opacity-80">
+                  <span>Презентация · 16 слайдов</span>
+                  <span>→</span>
+                </div>
+                <div className="text-[13px] font-semibold mt-0.5 leading-snug">
+                  {platformMode === 'strategy'
+                    ? 'Вернуться в систему'
+                    : 'Стратегия развития 2027'}
+                </div>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={(e) => {
@@ -868,23 +920,17 @@ export function AppShell() {
                   setSidebarBlurred(false);
                   return;
                 }
-                setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy');
+                setDraftAdminModalOpen(true);
               }}
-              className={`w-full rounded-[14px] p-3 text-left transition cursor-pointer border outline-none ${
-                platformMode === 'strategy'
-                  ? 'bg-[#EAD3B3] text-[#243547] border-[#EAD3B3] shadow-sm'
-                  : 'bg-white/12 hover:bg-white/18 text-white border-white/18'
-              }`}
+              className="w-full h-9 rounded-[11px] px-3 bg-white/8 hover:bg-white/15 border border-white/14 text-[#DCE5F0] hover:text-white flex items-center justify-between text-[12px] font-medium transition cursor-pointer outline-none"
             >
-              <div className="flex items-center justify-between text-[11px] opacity-80">
-                <span>Презентация · 16 слайдов</span>
-                <span>→</span>
-              </div>
-              <div className="text-[13px] font-semibold mt-0.5 leading-snug">
-                {platformMode === 'strategy'
-                  ? 'Вернуться в систему'
-                  : 'Стратегия развития 2027'}
-              </div>
+              <span className="inline-flex items-center gap-2 truncate">
+                <Settings className="h-3.5 w-3.5 text-[#F3DAB6] shrink-0" />
+                <span className="truncate">Черновик в админке</span>
+              </span>
+              <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded-[5px] bg-white/12 text-[#F3DAB6] shrink-0">
+                {enabledDraftCount}/{totalDraftCount}
+              </span>
             </button>
           </div>
         </aside>
@@ -1165,6 +1211,24 @@ export function AppShell() {
                         <span className="text-[11px] text-[#8C867E]">5 шагов</span>
                       </button>
 
+                      {/* Админка: Черновик разделов и инструментов */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolsMenuOpen(false);
+                          setDraftAdminModalOpen(true);
+                        }}
+                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
+                      >
+                        <span className="inline-flex items-center gap-2.5 font-medium">
+                          <Settings className="h-3.5 w-3.5 text-[#B85D35]" />
+                          <span>Черновик разделов (Админка)</span>
+                        </span>
+                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-[6px] bg-[#F2EFE9] text-[#1D1D1F] font-semibold">
+                          {enabledDraftCount}/{totalDraftCount}
+                        </span>
+                      </button>
+
                       {/* Корзина удалений */}
                       <button
                         type="button"
@@ -1262,6 +1326,30 @@ export function AppShell() {
                       </button>
                     </div>
 
+                    {/* Админка: Черновик разделов и инструментов */}
+                    <div className="pt-3 border-t border-[#E8E8E5]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          setDraftAdminModalOpen(true);
+                        }}
+                        className="w-full rounded-xl bg-[#FAF8F4] hover:bg-[#F2EFE9] border border-[#DFD8CA] px-3.5 py-2.5 flex items-center justify-between text-left transition cursor-pointer"
+                      >
+                        <div>
+                          <div className="text-[13px] font-bold text-[#181715]">
+                            Админка · Черновик разделов
+                          </div>
+                          <div className="text-[11.5px] text-[#6E6A63]">
+                            Вернуть или скрыть доп. инструменты
+                          </div>
+                        </div>
+                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-white border border-[#DFD8CA] font-bold text-[#B85D35] shrink-0">
+                          {enabledDraftCount}/{totalDraftCount}
+                        </span>
+                      </button>
+                    </div>
+
                     {/* Проверка прав доступа (смена роли) */}
                     <div className="pt-3 border-t border-[#E8E8E5] space-y-1">
                       <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373] mb-2">
@@ -1327,7 +1415,45 @@ export function AppShell() {
                 {activeSection === 'product-catalog' && <ProductCatalogView />}
                 {activeSection === 'product-lab' && <ProductLabView />}
                 {activeSection === 'marketing-growth' && <MarketingGrowthView />}
-                {activeSection === 'launch-calendar' && <LaunchCalendarView />}
+                {activeSection === 'launch-calendar' && (
+                  <div className="space-y-5">
+                    {draftModules.legacyReleaseCalendar && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] bg-white border border-[#E6E0D4] px-4 py-2.5">
+                        <div className="inline-flex rounded-[10px] bg-[#FAF8F4] p-1 border border-[#E6E0D4]">
+                          <button
+                            type="button"
+                            onClick={() => setSalesPlanSubTab('sales-plan')}
+                            className={`h-8 px-3.5 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer ${
+                              salesPlanSubTab === 'sales-plan'
+                                ? 'bg-[#1D1D1F] text-white'
+                                : 'text-[#5A564F] hover:text-[#1D1D1F]'
+                            }`}
+                          >
+                            План продаж и производства (по моделям 2027)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSalesPlanSubTab('legacy-calendar')}
+                            className={`h-8 px-3.5 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer ${
+                              salesPlanSubTab === 'legacy-calendar'
+                                ? 'bg-[#1D1D1F] text-white'
+                                : 'text-[#5A564F] hover:text-[#1D1D1F]'
+                            }`}
+                          >
+                            Календарь релизов и чек-листов (Черновик)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {salesPlanSubTab === 'legacy-calendar' &&
+                    draftModules.legacyReleaseCalendar ? (
+                      <LaunchCalendarView />
+                    ) : (
+                      <GrowthScenariosShowcase initialScreen="sales-plan" />
+                    )}
+                  </div>
+                )}
                 {activeSection === 'finance' && <FinanceView />}
                 {activeSection === 'roadmap-tasks' && <RoadmapTasksView />}
                 {activeSection === 'documents' && <DocumentsView />}
@@ -1545,6 +1671,161 @@ export function AppShell() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* МОДАЛЬНОЕ ОКНО АДМИНКИ: ЧЕРНОВИК РАЗДЕЛОВ И ИНСТРУМЕНТОВ */}
+        {draftAdminModalOpen && (
+          <div
+            onClick={() => setDraftAdminModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl bg-white rounded-2xl border-[1.5px] border-[#181715] shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+            >
+              <div className="px-6 py-4 border-b-2 border-[#181715] bg-[#FAF8F5] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[#3D546C] text-[#F3DAB6] flex items-center justify-center shrink-0">
+                    <Settings className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-[#B85D35]">
+                      АДМИНКА · УПРАВЛЕНИЕ ВИДИМОСТЬЮ ({enabledDraftCount} ИЗ {totalDraftCount} ВКЛЮЧЕНО)
+                    </div>
+                    <h3 className="text-[19px] font-bold text-[#181715]">
+                      Черновик разделов и дополнительных инструментов
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDraftAdminModalOpen(false)}
+                  className="h-9 px-3.5 rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-white hover:border-[#181715] text-[12.5px] font-semibold text-[#181715] cursor-pointer"
+                >
+                  Готово
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="rounded-xl bg-[#F6F3EC] border border-[#E5DEC9] p-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-0.5 max-w-xl">
+                    <div className="text-[13.5px] font-bold text-[#181715]">
+                      Чистый рабочий режим: 7 ключевых разделов по умолчанию
+                    </div>
+                    <div className="text-[12.5px] text-[#5C5852]">
+                      Оставлены: Главная, Сценарии роста, Модели (SKU), План продаж, Производство, Закупки и Документы. Скрытые разделы ниже находятся в черновике — их можно вернуть в боковое меню или открыть в 1 клик.
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllDraftModules(true);
+                        notify('success', 'Все инструменты из черновика возвращены в меню');
+                      }}
+                      className="h-8 px-3 rounded-[8px] bg-[#181715] text-white text-[12px] font-semibold hover:bg-[#2C2B29] transition cursor-pointer"
+                    >
+                      Вернуть все ({totalDraftCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAllDraftModules(false);
+                        notify('success', 'Дополнительные инструменты скрыты обратно в черновик');
+                      }}
+                      className="h-8 px-3 rounded-[8px] bg-white border border-[#CFC8BC] text-[#181715] text-[12px] font-semibold hover:border-[#181715] transition cursor-pointer"
+                    >
+                      Скрыть всё в черновик
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {DRAFT_MODULES_META.map((item) => {
+                    const isEnabled = draftModules[item.key];
+                    return (
+                      <div
+                        key={item.key}
+                        className={`rounded-xl border p-4 flex flex-col justify-between gap-3 transition ${
+                          isEnabled
+                            ? 'bg-[#F4F9F6] border-[#1F6E50]/45'
+                            : 'bg-[#FAF8F5] border-[#E2DBD0]'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white border border-[#DED8CD] text-[#6E6A63] font-semibold">
+                              {item.badge}
+                            </span>
+                            <span
+                              className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full ${
+                                isEnabled
+                                  ? 'bg-[#1F6E50] text-white'
+                                  : 'bg-[#EAE4D8] text-[#6E6A63]'
+                              }`}
+                            >
+                              {isEnabled ? 'Включено в меню' : 'Скрыто в черновике'}
+                            </span>
+                          </div>
+                          <div className="text-[14.5px] font-bold text-[#181715]">
+                            {item.title}
+                          </div>
+                          <div className="text-[12px] text-[#5C5852] leading-snug">
+                            {item.subtitle}
+                          </div>
+                        </div>
+
+                        <div className="pt-2.5 border-t border-[#E6E0D4] flex items-center justify-between gap-2">
+                          {item.sectionId ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPlatformMode('management');
+                                if (item.key === 'legacyReleaseCalendar') {
+                                  toggleDraftModule('legacyReleaseCalendar');
+                                  setSalesPlanSubTab('legacy-calendar');
+                                }
+                                navigateTo(item.sectionId!);
+                                setDraftAdminModalOpen(false);
+                              }}
+                              className="text-[12px] font-semibold text-[#B85D35] hover:underline cursor-pointer"
+                            >
+                              Открыть сейчас →
+                            </button>
+                          ) : item.key === 'strategyPresentationCard' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPlatformMode('strategy');
+                                setDraftAdminModalOpen(false);
+                              }}
+                              className="text-[12px] font-semibold text-[#B85D35] hover:underline cursor-pointer"
+                            >
+                              Запустить слайды →
+                            </button>
+                          ) : (
+                            <span />
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => toggleDraftModule(item.key)}
+                            className={`h-8 px-3.5 rounded-[8px] text-[12px] font-semibold transition cursor-pointer ${
+                              isEnabled
+                                ? 'bg-[#1F6E50] text-white hover:bg-[#17563E]'
+                                : 'bg-white border border-[#CFC8BC] text-[#181715] hover:border-[#181715]'
+                            }`}
+                          >
+                            {isEnabled ? 'Убрать в черновик' : 'Вернуть в меню'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
