@@ -315,7 +315,7 @@ export function ProductLabView() {
   };
 
   // Быстрое создание новой идеи (Сценарий №1 и №2 со Стр. 10 PDF)
-  const handleQuickCreateIdea = () => {
+  const handleQuickCreateIdea = (openAfterSave = true) => {
     if (!quickIdeaForm.name.trim() && !quickIdeaForm.comment.trim()) {
       notify('warning', 'Укажите название или короткую суть идеи');
       return;
@@ -362,7 +362,12 @@ export function ProductLabView() {
       targetLaunchDate: '2027-01-15',
       images: [],
     });
-    openConceptCard(created, 'overview');
+    if (openAfterSave) {
+      openConceptCard(created, 'overview');
+    } else {
+      setSelectedConceptId(null);
+    }
+    notify('success', `✓ Карточка «${created.code} · ${created.name}» сохранена`);
   };
 
   const activeConcept: ProductConcept | null = useMemo(
@@ -572,8 +577,11 @@ export function ProductLabView() {
             ФОТОДОСКА KANBAN (Крупные карточки 256px, фото 60% высоты, 3 строки текста без зажатия)
         =================================================================== */}
         {viewMode === 'kanban' && (
-          <div className="space-y-3">
-            <div className="flex gap-3.5 overflow-x-auto pb-3 pt-1">
+          <div className="space-y-3" data-no-swipe-nav="true">
+            <div
+              data-no-swipe-nav="true"
+              className="flex gap-3.5 overflow-x-auto overscroll-x-contain pb-3 pt-1"
+            >
               {SEVEN_KANBAN_STAGES.map((stage, stageIdx) => {
                 const stageItems = filteredConcepts.filter(
                   (c) => normalizeConceptStageToSeven(c.stage) === stage
@@ -645,9 +653,9 @@ export function ProductLabView() {
                                 deleteConcept(concept.id);
                               }}
                               title="Удалить карточку"
-                              className="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 z-10 h-6 w-6 rounded-[6px] bg-white/90 border border-[#EAE6DF] flex items-center justify-center text-[#7A756D] hover:text-[#B83E3E] hover:border-[#B83E3E] transition cursor-pointer"
+                              className="opacity-85 group-hover:opacity-100 absolute top-2.5 right-2.5 z-10 h-7 w-7 rounded-[7px] bg-white/95 border border-[#DCD6CC] flex items-center justify-center text-[#7A756D] hover:text-[#B83E3E] hover:border-[#B83E3E] shadow-2xs transition cursor-pointer"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </button>
 
                             {/* Крупное изображение (~60% высоты карточки) */}
@@ -764,8 +772,19 @@ export function ProductLabView() {
                 <div
                   key={concept.id}
                   onClick={() => openConceptCard(concept)}
-                  className="bg-white rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-4 space-y-3 cursor-pointer transition shadow-2xs"
+                  className="group relative bg-white rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-4 space-y-3 cursor-pointer transition shadow-2xs"
                 >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteConcept(concept.id);
+                    }}
+                    title="Удалить карточку"
+                    className=" absolute top-6 right-6 z-10 h-7 w-7 rounded-lg bg-white/95 border border-[#DCD6CC] flex items-center justify-center text-[#737373] hover:text-[#DC2626] hover:border-[#DC2626] shadow-2xs transition cursor-pointer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                   <div className="h-56 w-full rounded-xl bg-[#EFECE8] border border-[#E8E8E5] flex items-center justify-center p-3">
                     {concept.imageUrl ? (
                       <img
@@ -839,10 +858,25 @@ export function ProductLabView() {
                         normalizeConceptStageToSeven(activeConcept.stage)
                       ].toUpperCase()}
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E8F5E9] text-[#16805D] text-[11px] font-bold normal-case">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateConcept(activeConcept.id, {
+                          name: activeConcept.name,
+                          whatAttracted: activeConcept.whatAttracted,
+                          ideaDescription: activeConcept.ideaDescription,
+                        });
+                        notify(
+                          'success',
+                          '✓ Карточка сохранена',
+                          `${activeConcept.code} · ${activeConcept.name}`
+                        );
+                      }}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E8F5E9] hover:bg-[#D1EBD5] text-[#16805D] text-[11px] font-bold normal-case transition cursor-pointer"
+                    >
                       <Check className="h-3 w-3" />
                       Сохранено
-                    </span>
+                    </button>
                   </div>
 
                   {/* Крупный редактируемый заголовок модели */}
@@ -857,6 +891,26 @@ export function ProductLabView() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateConcept(activeConcept.id, {
+                        name: activeConcept.name,
+                        whatAttracted: activeConcept.whatAttracted,
+                        ideaDescription: activeConcept.ideaDescription,
+                      });
+                      notify(
+                        'success',
+                        '✓ Карточка сохранена',
+                        `${activeConcept.code} · ${activeConcept.name}`
+                      );
+                    }}
+                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[13px] font-bold transition cursor-pointer shadow-2xs"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Сохранить карточку</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setPdfConstructorOpen(true)}
@@ -876,7 +930,7 @@ export function ProductLabView() {
                     className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-[#E8E8E5] text-[#737373] hover:text-[#DC2626] hover:border-[#DC2626] text-[13px] font-semibold transition cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
-                    <span>В корзину</span>
+                    <span>Удалить</span>
                   </button>
 
                   <button
@@ -910,14 +964,11 @@ export function ProductLabView() {
                       f.type.startsWith('image/')
                     );
                     if (files.length === 0) return;
-                    files.forEach((file) => {
-                      const r = new FileReader();
-                      r.onload = () => {
-                        if (typeof r.result === 'string') {
-                          appendPhotosToActiveConcept([r.result]);
-                        }
-                      };
-                      r.readAsDataURL(file);
+                    Promise.all(
+                      files.map((file) => compressImageFileToDataUrl(file, 720, 0.78))
+                    ).then((urls) => {
+                      const valid = urls.filter(Boolean);
+                      if (valid.length > 0) appendPhotosToActiveConcept(valid);
                     });
                   }}
                   className={`lg:col-span-7 space-y-3 rounded-2xl transition ${
@@ -1059,15 +1110,14 @@ export function ProductLabView() {
                           className="hidden"
                           onChange={(e) => {
                             const files = Array.from(e.target.files || []);
-                            files.forEach((f) => {
-                              const r = new FileReader();
-                              r.onload = () => {
-                                if (typeof r.result === 'string') {
-                                  appendPhotosToActiveConcept([r.result]);
-                                }
-                              };
-                              r.readAsDataURL(f);
+                            if (files.length === 0) return;
+                            Promise.all(
+                              files.map((f) => compressImageFileToDataUrl(f, 720, 0.78))
+                            ).then((urls) => {
+                              const valid = urls.filter(Boolean);
+                              if (valid.length > 0) appendPhotosToActiveConcept(valid);
                             });
+                            e.target.value = '';
                           }}
                         />
                       </label>
@@ -1309,6 +1359,63 @@ export function ProductLabView() {
               }}
               notify={notify}
             />
+
+            {/* НИЖНЯЯ ПАНЕЛЬ СОХРАНЕНИЯ И УДАЛЕНИЯ КАРТОЧКИ */}
+            <div className="rounded-2xl bg-white border-[1.5px] border-[#CFC8BC] p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  const idToRemove = activeConcept.id;
+                  setSelectedConceptId(null);
+                  deleteConcept(idToRemove);
+                }}
+                className="inline-flex items-center gap-2 h-10 px-4 rounded-xl border border-[#E8E8E5] text-[#737373] hover:text-[#DC2626] hover:border-[#DC2626] text-[13px] font-semibold transition cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Удалить карточку</span>
+              </button>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateConcept(activeConcept.id, {
+                      name: activeConcept.name,
+                      whatAttracted: activeConcept.whatAttracted,
+                      ideaDescription: activeConcept.ideaDescription,
+                    });
+                    notify(
+                      'success',
+                      '✓ Карточка сохранена',
+                      `${activeConcept.code} · ${activeConcept.name}`
+                    );
+                  }}
+                  className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[13.5px] font-bold transition cursor-pointer shadow-xs"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Сохранить карточку</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateConcept(activeConcept.id, {
+                      name: activeConcept.name,
+                      whatAttracted: activeConcept.whatAttracted,
+                      ideaDescription: activeConcept.ideaDescription,
+                    });
+                    notify(
+                      'success',
+                      '✓ Карточка сохранена',
+                      `${activeConcept.code} · ${activeConcept.name}`
+                    );
+                    setSelectedConceptId(null);
+                  }}
+                  className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-[#111111] hover:opacity-90 text-white text-[13.5px] font-bold transition cursor-pointer"
+                >
+                  <span>Сохранить и закрыть</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1330,17 +1437,15 @@ export function ProductLabView() {
                 if (item.type.startsWith('image/')) {
                   const file = item.getAsFile();
                   if (!file) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    if (typeof reader.result === 'string') {
+                  compressImageFileToDataUrl(file, 720, 0.78).then((url) => {
+                    if (url) {
                       setQuickIdeaForm((prev) => ({
                         ...prev,
-                        images: [...prev.images, reader.result as string],
+                        images: [...prev.images, url],
                       }));
                       notify('success', 'Скриншот из буфера добавлен в галерею');
                     }
-                  };
-                  reader.readAsDataURL(file);
+                  });
                 }
               });
             }}
@@ -1350,17 +1455,16 @@ export function ProductLabView() {
               const files = Array.from(e.dataTransfer.files || []).filter((f) =>
                 f.type.startsWith('image/')
               );
-              files.forEach((file) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    setQuickIdeaForm((prev) => ({
-                      ...prev,
-                      images: [...prev.images, reader.result as string],
-                    }));
-                  }
-                };
-                reader.readAsDataURL(file);
+              Promise.all(
+                files.map((file) => compressImageFileToDataUrl(file, 720, 0.78))
+              ).then((urls) => {
+                const valid = urls.filter(Boolean);
+                if (valid.length > 0) {
+                  setQuickIdeaForm((prev) => ({
+                    ...prev,
+                    images: [...prev.images, ...valid],
+                  }));
+                }
               });
             }}
             className="w-full max-w-2xl bg-white rounded-3xl border border-[#E8E8E5] p-7 md:p-8 space-y-5 shadow-2xl max-h-[92vh] overflow-y-auto"
@@ -1377,10 +1481,11 @@ export function ProductLabView() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleQuickCreateIdea}
-                  className="h-10 px-5 rounded-full bg-[#D97745] hover:bg-[#C26535] text-white text-[13px] font-bold uppercase tracking-wider cursor-pointer"
+                  onClick={() => handleQuickCreateIdea(true)}
+                  className="h-10 px-5 rounded-full bg-[#16805D] hover:bg-[#116649] text-white text-[13px] font-bold inline-flex items-center gap-1.5 cursor-pointer transition"
                 >
-                  Сохранить идею
+                  <Check className="h-4 w-4" />
+                  <span>Сохранить карточку</span>
                 </button>
                 <button
                   type="button"
@@ -1536,18 +1641,19 @@ export function ProductLabView() {
                     className="hidden"
                     onChange={(e) => {
                       const files = Array.from(e.target.files || []);
-                      files.forEach((f) => {
-                        const r = new FileReader();
-                        r.onload = () => {
-                          if (typeof r.result === 'string') {
-                            setQuickIdeaForm((prev) => ({
-                              ...prev,
-                              images: [...prev.images, r.result as string],
-                            }));
-                          }
-                        };
-                        r.readAsDataURL(f);
+                      if (files.length === 0) return;
+                      Promise.all(
+                        files.map((f) => compressImageFileToDataUrl(f, 720, 0.78))
+                      ).then((urls) => {
+                        const valid = urls.filter(Boolean);
+                        if (valid.length > 0) {
+                          setQuickIdeaForm((prev) => ({
+                            ...prev,
+                            images: [...prev.images, ...valid],
+                          }));
+                        }
                       });
+                      e.target.value = '';
                     }}
                   />
                 </label>
@@ -1601,6 +1707,32 @@ export function ProductLabView() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Кнопки сохранения карточки внизу модального окна */}
+              <div className="flex flex-wrap items-center justify-end gap-2.5 pt-4 border-t border-[#E8E8E5]">
+                <button
+                  type="button"
+                  onClick={() => setQuickIdeaOpen(false)}
+                  className="h-11 px-5 rounded-xl border border-[#E8E8E5] text-[13.5px] font-semibold text-[#525252] hover:text-[#171717] cursor-pointer"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickCreateIdea(false)}
+                  className="h-11 px-5 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[13.5px] font-bold inline-flex items-center gap-2 cursor-pointer transition shadow-2xs"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Сохранить карточку</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickCreateIdea(true)}
+                  className="h-11 px-5 rounded-xl bg-[#111111] hover:opacity-90 text-white text-[13.5px] font-bold cursor-pointer transition"
+                >
+                  <span>Сохранить и открыть →</span>
+                </button>
               </div>
             </div>
           </div>

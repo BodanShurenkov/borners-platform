@@ -229,14 +229,30 @@ export function ScenarioSalesPlanScreen({
             }
             className={`h-9 px-4 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${
               displayMode === 'table'
-                ? 'bg-[#2E6B4E] text-white shadow-xs'
+                ? 'bg-[#FAF4EC] text-[#8B6F47] border border-[#C8A97E]'
                 : 'bg-[#1D1D1F] hover:bg-[#323236] text-white shadow-xs'
             }`}
           >
             <Edit3 className="h-3.5 w-3.5" />
             <span>
-              {displayMode === 'table' ? 'Готово (к графику)' : 'Редактировать план'}
+              {displayMode === 'table' ? 'К графику' : 'Редактировать план'}
             </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onUpdateModel({ ...model });
+              notify(
+                'success',
+                '✓ План продаж и карточка сохранены',
+                `${model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ${model.code} · Сценарий №${scenario.id}`
+              );
+            }}
+            className="h-9 px-4 rounded-[10px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>Сохранить</span>
           </button>
         </div>
       </div>

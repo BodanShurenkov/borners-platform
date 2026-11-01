@@ -27,6 +27,7 @@ import {
   BoxerPackStackSvg,
   TechnicalFlatDrawingSvg,
 } from '@/components/sections/ScenarioVisualParts';
+import { compressImageFileToDataUrl } from '@/lib/document-export';
 
 interface ScenarioModelCardScreenProps {
   model: ScenarioModelSpec;
@@ -85,34 +86,46 @@ export function ScenarioModelCardScreen({
     notify('success', 'Главное фото карточки модели обновлено и сохранено');
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    files.forEach((file, idx) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = typeof reader.result === 'string' ? reader.result : '';
-        if (!dataUrl) return;
-        const newItemId = `g-upload-${Date.now()}-${idx}`;
-        const nextGallery = [
-          ...model.gallery,
-          {
-            id: newItemId,
-            category: 'pack' as const,
-            label: file.name.slice(0, 18),
-            url: dataUrl,
-            isMain: false,
-          },
-        ];
-        onUpdateModel({
-          ...model,
-          gallery: nextGallery,
+    const uploadedItems: ScenarioModelSpec['gallery'] = [];
+    for (let idx = 0; idx < files.length; idx++) {
+      const file = files[idx];
+      try {
+        const dataUrl = await compressImageFileToDataUrl(file, 680, 0.78);
+        if (!dataUrl) continue;
+        uploadedItems.push({
+          id: `g-upload-${Date.now()}-${idx}`,
+          category: 'pack' as const,
+          label: file.name.slice(0, 18),
+          url: dataUrl,
+          isMain: false,
         });
-        setSelectedGalleryId(newItemId);
-      };
-      reader.readAsDataURL(file);
-    });
-    notify('success', `Загружено фото: ${files.length} шт.`);
+      } catch {
+        // ignore broken image
+      }
+    }
+    if (uploadedItems.length > 0) {
+      const nextGallery = [...model.gallery, ...uploadedItems];
+      onUpdateModel({
+        ...model,
+        gallery: nextGallery,
+      });
+      setSelectedGalleryId(uploadedItems[uploadedItems.length - 1].id);
+      notify('success', `Загружено и сохранено фото: ${uploadedItems.length} шт.`);
+    }
+    e.target.value = '';
+  };
+
+  const handleExplicitSave = () => {
+    onUpdateModel({ ...model });
+    setIsEditing(false);
+    notify(
+      'success',
+      '✓ Карточка модели сохранена',
+      `${model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ${model.code} / ${model.title}`
+    );
   };
 
   const togglePaletteExpand = (id: string) => {
@@ -181,15 +194,34 @@ export function ScenarioModelCardScreen({
             onClick={() => setIsEditing((v) => !v)}
             className={`h-9 px-3.5 rounded-[10px] border text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${
               isEditing
-                ? 'bg-[#2E6B4E] text-white border-[#2E6B4E]'
+                ? 'bg-[#FAF4EC] text-[#8B6F47] border-[#C8A97E]'
                 : 'bg-white hover:bg-[#F3F0E8] text-[#1D1D1F] border-[#DED8CC]'
             }`}
           >
             <Edit3 className="h-3.5 w-3.5" />
-            <span>{isEditing ? 'Сохранить' : 'Редактировать'}</span>
+            <span>{isEditing ? 'Режим правки' : 'Редактировать'}</span>
           </button>
 
-          {/* Меню «⋯» (Дублировать, Экспортировать ТЗ в PDF, Архивировать/Удалить) */}
+          <button
+            type="button"
+            onClick={handleExplicitSave}
+            className="h-9 px-4 rounded-[10px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span>Сохранить карточку</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onDeleteOrArchiveModel(model)}
+            title="Удалить карточку модели"
+            className="h-9 px-3 rounded-[10px] bg-white hover:bg-[#FFF4F2] border border-[#DED8CC] hover:border-[#F0C7C2] text-[#C93B2B] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Удалить</span>
+          </button>
+
+          {/* Меню «⋯» (Дублировать, Экспортировать ТЗ в PDF, Удалить) */}
           <div className="relative">
             <button
               type="button"
@@ -232,17 +264,8 @@ export function ScenarioModelCardScreen({
                   }}
                   className="w-full px-3.5 py-2 text-left hover:bg-[#FFF4F2] flex items-center gap-2.5 text-[#C93B2B] cursor-pointer"
                 >
-                  {model.hasActualSalesOrPurchases ? (
-                    <>
-                      <Archive className="h-3.5 w-3.5" />
-                      <span>Перенести в архив</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Удалить модель</span>
-                    </>
-                  )}
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Удалить модель</span>
                 </button>
               </div>
             )}
@@ -1115,6 +1138,36 @@ export function ScenarioModelCardScreen({
           </div>
         </div>
       )}
+
+      {/* Нижняя панель действий карточки модели */}
+      <div className="pt-4 border-t border-[#E6E0D4] flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onDeleteOrArchiveModel(model)}
+          className="h-10 px-4 rounded-[11px] bg-white hover:bg-[#FFF4F2] border border-[#DED8CC] hover:border-[#F0C7C2] text-[#C93B2B] text-[12.5px] font-semibold inline-flex items-center gap-2 transition cursor-pointer"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>Удалить карточку модели</span>
+        </button>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onBackToScenarios}
+            className="h-10 px-4 rounded-[11px] bg-white hover:bg-[#F3F0E8] border border-[#DED8CC] text-[#1D1D1F] text-[12.5px] font-semibold transition cursor-pointer"
+          >
+            К списку моделей
+          </button>
+          <button
+            type="button"
+            onClick={handleExplicitSave}
+            className="h-10 px-5 rounded-[11px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[13px] font-bold inline-flex items-center gap-2 transition cursor-pointer shadow-xs"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            <span>Сохранить карточку</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

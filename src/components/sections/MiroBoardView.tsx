@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
+  Check,
   Plus,
   Image as ImageIcon,
   Mic,
@@ -448,18 +449,26 @@ export function MiroBoardView() {
   };
 
   // Колесо мыши / тачпад: с Ctrl/Cmd масштабирует, без — свободно двигает бесконечный холст
-  const handleWheelViewport = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (e.ctrlKey || e.metaKey) {
+  // и блокирует случайный жест Назад/Вперёд в браузере или между этапами
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onNativeWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.08 : -0.08;
-      setZoom((z) => Math.max(0.5, Math.min(1.5, Number((z + delta).toFixed(2)))));
-    } else {
-      setPan((prev) => ({
-        x: prev.x - e.deltaX,
-        y: prev.y - e.deltaY,
-      }));
-    }
-  };
+      e.stopPropagation();
+      if (e.ctrlKey || e.metaKey) {
+        const delta = e.deltaY < 0 ? 0.08 : -0.08;
+        setZoom((z) => Math.max(0.5, Math.min(1.5, Number((z + delta).toFixed(2)))));
+      } else {
+        setPan((prev) => ({
+          x: prev.x - e.deltaX,
+          y: prev.y - e.deltaY,
+        }));
+      }
+    };
+    el.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onNativeWheel);
+  }, []);
 
   // Нажатие на карточку: либо завершает проведение стрелки, либо начинает перетаскивание карточки
   const handleMouseDownCard = (e: React.MouseEvent, item: MiroBoardItem) => {
@@ -580,7 +589,10 @@ export function MiroBoardView() {
     : null;
 
   return (
-    <div className="rounded-[16px] bg-white border-2 border-[#181715] overflow-hidden shadow-xs">
+    <div
+      data-no-swipe-nav="true"
+      className="rounded-[16px] bg-white border-2 border-[#181715] overflow-hidden shadow-xs overscroll-contain"
+    >
       {/* ПАНЕЛЬ ИНСТРУМЕНТОВ СТУДИИ ИДЕЙ (БЕСКОНЕЧНЫЙ ХОЛСТ) */}
       <div
         data-tour="studio-canvas"
@@ -703,6 +715,21 @@ export function MiroBoardView() {
               <span>Центр</span>
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              notify(
+                'success',
+                '✓ Все карточки и связи на доске сохранены',
+                `Карточек на холсте: ${visibleItems.length} · Связей: ${arrowLinks.length}`
+              )
+            }
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-[8px] bg-[#16805D] hover:bg-[#116649] text-white text-[12.5px] font-semibold transition cursor-pointer shadow-2xs"
+          >
+            <Check className="h-3.5 w-3.5" />
+            <span>Сохранить доску</span>
+          </button>
         </div>
       </div>
 
@@ -739,18 +766,18 @@ export function MiroBoardView() {
       <div
         ref={viewportRef}
         data-canvas-bg="true"
+        data-no-swipe-nav="true"
         onMouseDown={handleMouseDownViewport}
         onMouseMove={handleMouseMoveViewport}
         onMouseUp={handleMouseUpViewport}
         onMouseLeave={handleMouseUpViewport}
-        onWheel={handleWheelViewport}
         style={{
           backgroundImage:
             'radial-gradient(circle, #BDB5A6 1.35px, transparent 1.35px)',
           backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
           backgroundPosition: `${pan.x}px ${pan.y}px`,
         }}
-        className={`relative w-full h-[680px] overflow-hidden bg-[#F4F1EA] select-none ${
+        className={`relative w-full h-[680px] overflow-hidden overscroll-contain bg-[#F4F1EA] select-none ${
           isPanning
             ? 'cursor-grabbing'
             : connectingSourceId || draggingArrowFromId
@@ -1103,9 +1130,25 @@ export function MiroBoardView() {
                   </button>
                 )}
 
-                <div className="flex items-center justify-between text-[10.5px] text-[#6E6A63] pt-1 border-t border-black/10">
-                  <span>{item.authorName}</span>
-                  <span>{item.createdAt}</span>
+                <div className="flex items-center justify-between text-[10.5px] text-[#6E6A63] pt-1.5 border-t border-black/10">
+                  <span>
+                    {item.authorName} · {item.createdAt}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateMiroItem(item.id, {
+                        title: item.title,
+                        content: item.content,
+                      });
+                      notify('success', `✓ Карточка «${item.title}» сохранена`);
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] bg-[#16805D] hover:bg-[#116649] text-white text-[10.5px] font-semibold transition cursor-pointer"
+                  >
+                    <Check className="h-2.5 w-2.5" />
+                    <span>Сохранить</span>
+                  </button>
                 </div>
               </div>
             );

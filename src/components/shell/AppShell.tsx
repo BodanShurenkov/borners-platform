@@ -371,6 +371,14 @@ export function AppShell() {
     };
 
     const onWheel = (e: WheelEvent) => {
+      const targetEl = e.target as HTMLElement | null;
+      if (
+        targetEl?.closest('[data-no-swipe-nav="true"], [data-canvas-bg="true"]')
+      ) {
+        accX = 0;
+        return;
+      }
+
       const now = Date.now();
       if (now - lastNavAt < 580) return;
 
@@ -1392,26 +1400,6 @@ export function AppShell() {
                           {trashItems.length}
                         </span>
                       </button>
-
-                      {/* Скачать оригинальный PNG логотип BORNERS со львом */}
-                      <a
-                        href="./images/products/borners-logo-full.png"
-                        download="BORNERS-lion-logo.png"
-                        onClick={() => setToolsMenuOpen(false)}
-                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer border-t border-[#EFECE4] mt-1 pt-2.5"
-                      >
-                        <span className="inline-flex items-center gap-2.5 font-medium">
-                          <img
-                            src="./images/products/borners-lion-emblem.png"
-                            alt=""
-                            className="h-4 w-4 object-contain"
-                          />
-                          <span>Скачать лого BORNERS (PNG)</span>
-                        </span>
-                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#F2EFE9] text-[#5C5852]">
-                          PNG
-                        </span>
-                      </a>
                     </div>
                   </>
                 )}

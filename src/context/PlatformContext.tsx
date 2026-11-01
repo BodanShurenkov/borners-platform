@@ -53,6 +53,11 @@ import {
   TASK_STATUS_LABELS_RU,
   shiftDateString,
 } from '@/lib/finance';
+import {
+  cleanupLegacyStorageKeys,
+  safeSetStorageJson,
+  stripOversizedDataUrls,
+} from '@/lib/safeStorage';
 
 const STORAGE_KEY = 'borners_group_platform_state_ru_v9_editorial';
 const AUTH_STORAGE_KEY = 'borners_group_auth_session_ru_v4';
@@ -334,13 +339,18 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   // Восстановление состояния из localStorage без потери данных при перезагрузке и выходе/входе
   useEffect(() => {
     try {
+      cleanupLegacyStorageKeys();
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
         let normalized = saved.replaceAll('"/images/products/', '"images/products/');
         for (const base of ['rnd-seamless-hero', 'rnd-print-family', 'rnd-seamless-base', 'rnd-soft-boxers']) {
           normalized = normalized.replaceAll(`images/products/${base}.png`, `images/products/${base}.jpg`);
         }
-        const parsed = JSON.parse(normalized) as Partial<PersistedState>;
+        const rawParsed = JSON.parse(normalized) as Partial<PersistedState>;
+        const parsed =
+          normalized.length > 1_500_000
+            ? stripOversizedDataUrls(rawParsed, 70_000)
+            : rawParsed;
         setState((prev) => ({
           ...prev,
           ...parsed,
@@ -355,7 +365,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             ...s,
             deadline: s.deadline || INITIAL_STRATEGIES[idx]?.deadline || '2027-01-15',
           })),
-          miroItems: parsed.miroItems?.length
+          miroItems: parsed.miroItems !== undefined
             ? parsed.miroItems.map((m) => {
                 if (m.connectedToIds) return m;
                 const fallback = INITIAL_MIRO_ITEMS.find((init) => init.id === m.id);
@@ -384,14 +394,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    const timer = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (err) {
-        console.error('Failed to persist state:', err);
-      }
-    }, 280);
-    return () => window.clearTimeout(timer);
+    safeSetStorageJson(STORAGE_KEY, state);
   }, [state, hydrated]);
 
   useEffect(() => {

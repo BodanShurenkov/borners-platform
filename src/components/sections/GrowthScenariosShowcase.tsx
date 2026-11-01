@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   Plus,
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Sparkles,
   Calendar,
+  Trash2,
   X,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
@@ -23,6 +24,7 @@ import { BoxerPackStackSvg } from '@/components/sections/ScenarioVisualParts';
 import { ScenarioModelCardScreen } from '@/components/sections/ScenarioModelCardScreen';
 import { ScenarioSalesPlanScreen } from '@/components/sections/ScenarioSalesPlanScreen';
 import { PdfConstructorModal } from '@/components/sections/PdfConstructorModal';
+import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
 
 export const STORAGE_KEY_SCENARIOS = 'borners_tz_scenarios_v1';
 export const STORAGE_KEY_MODELS = 'borners_tz_models_v1';
@@ -36,7 +38,8 @@ export function GrowthScenariosShowcase({
   initialScreen = 'scenarios',
   initialModelId,
 }: GrowthScenariosShowcaseProps = {}) {
-  const { concepts, createProduct, pushScenarioStep, notify } = usePlatform();
+  const { concepts, products, createProduct, archiveEntity, pushScenarioStep, notify } =
+    usePlatform();
 
   // Архитектура из 3 экранов (п. 02 ТЗ):
   // 'scenarios' (Экран №1) -> 'model' (Экран №2) -> 'sales-plan' (Экран №3)
@@ -125,47 +128,70 @@ export function GrowthScenariosShowcase({
   const [draftScenScope, setDraftScenScope] = useState<'BORNERS' | 'GROUP'>('GROUP');
   const [draftCopyFromScenarioId, setDraftCopyFromScenarioId] = useState<number>(2);
 
-  // Загрузка сохранённых данных из localStorage
+  const hydratedRef = useRef(false);
+
+  const commitModels = useCallback(
+    (updater: ScenarioModelSpec[] | ((prev: ScenarioModelSpec[]) => ScenarioModelSpec[])) => {
+      setModels((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        safeSetStorageJson(STORAGE_KEY_MODELS, next);
+        if (typeof window !== 'undefined') {
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+          }, 0);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const commitScenarios = useCallback(
+    (updater: GrowthScenarioDef[] | ((prev: GrowthScenarioDef[]) => GrowthScenarioDef[])) => {
+      setScenarios((prev) => {
+        const next = typeof updater === 'function' ? updater(prev) : updater;
+        safeSetStorageJson(STORAGE_KEY_SCENARIOS, next);
+        if (typeof window !== 'undefined') {
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('borners-scenarios-changed'));
+          }, 0);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  // Загрузка сохранённых данных из localStorage и синхронизация между вкладками/разделами
   useEffect(() => {
-    try {
-      const rawScen = localStorage.getItem(STORAGE_KEY_SCENARIOS);
-      if (rawScen) {
-        const parsed = JSON.parse(rawScen);
-        if (Array.isArray(parsed) && parsed.length > 0) setScenarios(parsed);
+    const syncFromStorage = () => {
+      const parsedScen = safeGetStorageJson<GrowthScenarioDef[]>(STORAGE_KEY_SCENARIOS);
+      if (Array.isArray(parsedScen) && parsedScen.length > 0) {
+        setScenarios(parsedScen);
       }
-      const rawModels = localStorage.getItem(STORAGE_KEY_MODELS);
-      if (rawModels) {
-        const parsed = JSON.parse(rawModels);
-        if (Array.isArray(parsed) && parsed.length > 0) setModels(parsed);
+      const parsedModels = safeGetStorageJson<ScenarioModelSpec[]>(STORAGE_KEY_MODELS);
+      if (Array.isArray(parsedModels)) {
+        setModels(parsedModels);
       }
-    } catch {
-      // ignore storage errors
-    }
+      hydratedRef.current = true;
+    };
+
+    syncFromStorage();
+    window.addEventListener('borners-scenario-models-changed', syncFromStorage);
+    window.addEventListener('borners-scenarios-changed', syncFromStorage);
+    window.addEventListener('storage', syncFromStorage);
+    return () => {
+      window.removeEventListener('borners-scenario-models-changed', syncFromStorage);
+      window.removeEventListener('borners-scenarios-changed', syncFromStorage);
+      window.removeEventListener('storage', syncFromStorage);
+    };
   }, []);
 
-  // Автосохранение в localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_SCENARIOS, JSON.stringify(scenarios));
-    } catch {
-      // ignore
-    }
-  }, [scenarios]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_MODELS, JSON.stringify(models));
-      window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
-    } catch {
-      // ignore
-    }
-  }, [models]);
-
   const currentScenario =
-    scenarios.find((s) => s.id === selectedScenarioId) || scenarios[0];
+    scenarios.find((s) => s.id === selectedScenarioId) || scenarios[0] || INITIAL_SCENARIOS[0];
 
   const activeModel =
-    models.find((m) => m.id === selectedModelId) || models[0];
+    models.find((m) => m.id === selectedModelId) || models[0] || INITIAL_SCENARIO_MODELS[0];
 
   // Расчёт показателей каждого сценария снизу вверх из планов моделей (п. 8 ТЗ)
   const scenarioAggregates = useMemo(() => {
@@ -270,7 +296,7 @@ export function GrowthScenariosShowcase({
   }, [models, currentScenario, brandFilterLocal, statusFilterLocal, searchQuery]);
 
   const handleUpdateModel = (updated: ScenarioModelSpec) => {
-    setModels((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    commitModels((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
   };
 
   // Дублирование модели (п. 4.1)
@@ -284,31 +310,40 @@ export function GrowthScenariosShowcase({
       launchStatus: 'В плане',
       hasActualSalesOrPurchases: false,
     };
-    setModels((prev) => [...prev, copy]);
+    commitModels((prev) => [...prev, copy]);
     setSelectedModelId(copy.id);
-    notify('success', `Создана копия модели ${copy.code} · ${copy.title}`);
+    notify('success', `Создана и сохранена копия модели ${copy.code} · ${copy.title}`);
   };
 
-  // Архивация / удаление модели с проверкой связанных закупок и продаж (п. 7.2)
+  // Полное удаление модели с немедленным сохранением в localStorage
   const handleDeleteOrArchiveModel = (target: ScenarioModelSpec) => {
-    if (target.hasActualSalesOrPurchases) {
-      handleUpdateModel({ ...target, launchStatus: 'В архиве' });
-      setScreen('scenarios');
-      notify(
-        'warning',
-        `Модель ${target.code} перенесена в архив`,
-        'У модели есть связанные закупки и продажи — полное удаление запрещено по ТЗ (п. 7.2).'
-      );
-    } else {
-      setModels((prev) => prev.filter((m) => m.id !== target.id));
-      setScreen('scenarios');
-      notify('success', `Модель ${target.code} удалена из сценария`);
+    commitModels((prev) => {
+      const remaining = prev.filter((m) => m.id !== target.id);
+      if (selectedModelId === target.id && remaining[0]) {
+        setSelectedModelId(remaining[0].id);
+      }
+      return remaining;
+    });
+    // Также архивируем одноимённый SKU в каталоге, если он был создан автоматически
+    const matchingProduct = products.find(
+      (p) =>
+        !p.isArchived &&
+        (p.name.toUpperCase() === target.title.toUpperCase() ||
+          p.sku.endsWith(target.code.replace('№', '')))
+    );
+    if (matchingProduct) {
+      archiveEntity('product', matchingProduct.id);
     }
+    setScreen('scenarios');
+    notify(
+      'success',
+      `Карточка модели ${target.code} · ${target.title} удалена`,
+      'Изменения надёжно сохранены.'
+    );
   };
 
   // Создание новой модели через короткую форму (п. 7.1, Тест 11)
-  const handleCreateNewModel = (e: React.FormEvent) => {
-    e.preventDefault();
+  const createAndSaveModel = (openCardAfterSave: boolean) => {
     const nextNum = String(models.length + 1).padStart(3, '0');
     const cleanTitle = draftTitle.trim() || `НОВАЯ МОДЕЛЬ ${draftUnitsInPack} PACK`;
     const newId = `scen-model-${Date.now()}`;
@@ -347,7 +382,7 @@ export function GrowthScenariosShowcase({
       plansByScenario,
     };
 
-    setModels((prev) => [...prev, created]);
+    commitModels((prev) => [...prev, created]);
     setSelectedModelId(created.id);
     setNewModelModalOpen(false);
     setDraftTitle('');
@@ -382,13 +417,19 @@ export function GrowthScenariosShowcase({
       },
     });
 
-    // Сразу открываем карточку новой модели на Экране №2 (п. 7.1 ТЗ)
-    setScreen('model');
+    if (openCardAfterSave) {
+      navigateScreen('model', created.id);
+    }
     notify(
       'success',
-      `Модель ${created.code} / ${created.title} создана и добавлена в «Модели (SKU)»`,
-      'Незаполненные параметры можно уточнить в карточке модели по мере готовности.'
+      `✓ Карточка ${created.code} / ${created.title} сохранена`,
+      'Модель сохранена в Сценариях роста и автоматически добавлена в «Модели (SKU)».'
     );
+  };
+
+  const handleCreateNewModel = (e: React.FormEvent) => {
+    e.preventDefault();
+    createAndSaveModel(true);
   };
 
   // Создание нового сценария (п. 7.3 ТЗ: без дублирования товаров, копируются только коммерческие планы)
@@ -415,7 +456,7 @@ export function GrowthScenariosShowcase({
     };
 
     // Копируем коммерческие планы моделей под новый сценарий без дублирования самих моделей
-    setModels((prev) =>
+    commitModels((prev) =>
       prev.map((m) => {
         const srcPlan =
           m.plansByScenario[sourceScen.id] || m.plansByScenario[1];
@@ -436,13 +477,13 @@ export function GrowthScenariosShowcase({
       })
     );
 
-    setScenarios((prev) => [...prev, newScen]);
+    commitScenarios((prev) => [...prev, newScen]);
     setSelectedScenarioId(newScenId);
     setNewScenarioModalOpen(false);
     setDraftScenTitle('');
     notify(
       'success',
-      `${newScen.title} (${newScen.monthlyTargetMln} млн ₽/мес) создан`,
+      `${newScen.title} (${newScen.monthlyTargetMln} млн ₽/мес) создан и сохранён`,
       'Товары остались едиными, скопированы и масштабированы только планы продаж.'
     );
   };
@@ -744,14 +785,13 @@ export function GrowthScenariosShowcase({
                 const colors = mod.palettes[0]?.colors || [];
 
                 return (
-                  <button
+                  <div
                     key={mod.id}
-                    type="button"
                     data-tour={modIdx === 0 ? 'model-passport' : undefined}
                     onClick={() => {
                       navigateScreen('model', mod.id);
                     }}
-                    className="group rounded-[20px] bg-white hover:bg-[#FDFCFA] border border-[#E6E0D4] hover:border-[#C8A97E] p-4 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs hover:shadow-[0_10px_26px_rgba(24,23,21,0.08)]"
+                    className="group relative rounded-[20px] bg-white hover:bg-[#FDFCFA] border border-[#E6E0D4] hover:border-[#C8A97E] p-4 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs hover:shadow-[0_10px_26px_rgba(24,23,21,0.08)]"
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2.5">
@@ -759,17 +799,30 @@ export function GrowthScenariosShowcase({
                           {mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}{' '}
                           {mod.code}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            mod.launchStatus === 'Утверждено'
-                              ? 'bg-[#2E6B4E]/12 text-[#2E6B4E]'
-                              : mod.launchStatus === 'В разработке'
-                              ? 'bg-[#D97706]/15 text-[#B45309]'
-                              : 'bg-[#EFECE4] text-[#5A564F]'
-                          }`}
-                        >
-                          {mod.launchStatus}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              mod.launchStatus === 'Утверждено'
+                                ? 'bg-[#2E6B4E]/12 text-[#2E6B4E]'
+                                : mod.launchStatus === 'В разработке'
+                                ? 'bg-[#D97706]/15 text-[#B45309]'
+                                : 'bg-[#EFECE4] text-[#5A564F]'
+                            }`}
+                          >
+                            {mod.launchStatus}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteOrArchiveModel(mod);
+                            }}
+                            title={`Удалить карточку ${mod.code} ${mod.title}`}
+                            className="h-6 w-6 rounded-full bg-[#FAF8F4] hover:bg-[#FFF0EE] border border-[#E6E0D4] hover:border-[#C93B2B] flex items-center justify-center text-[#8C867E] hover:text-[#C93B2B] transition cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="rounded-[14px] bg-gradient-to-b from-[#FAF7F0] to-[#F2ECE1] border border-[#EAE3D5] p-2 mb-3">
@@ -816,7 +869,7 @@ export function GrowthScenariosShowcase({
                         {met.goalSharePct.toFixed(1).replace('.', ',')}% цели
                       </span>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
 
@@ -1042,19 +1095,27 @@ export function GrowthScenariosShowcase({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setNewModelModalOpen(false)}
-                className="h-9 px-4 rounded-[10px] border border-[#DED8CC] text-[12.5px] font-semibold cursor-pointer"
+                className="h-9 px-3.5 rounded-[10px] border border-[#DED8CC] text-[12.5px] font-semibold cursor-pointer"
               >
                 Отмена
               </button>
               <button
-                type="submit"
-                className="h-9 px-4 rounded-[10px] bg-[#1D1D1F] text-white text-[12.5px] font-semibold cursor-pointer"
+                type="button"
+                onClick={() => createAndSaveModel(false)}
+                className="h-9 px-4 rounded-[10px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
               >
-                Создать и открыть карточку →
+                <Check className="h-3.5 w-3.5" />
+                <span>Сохранить карточку</span>
+              </button>
+              <button
+                type="submit"
+                className="h-9 px-4 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12.5px] font-semibold cursor-pointer transition"
+              >
+                Сохранить и открыть →
               </button>
             </div>
           </form>

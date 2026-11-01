@@ -5,17 +5,19 @@ import {
   Archive,
   ArrowUpRight,
   CalendarPlus,
+  Check,
   Download,
   FilePlus,
   ImagePlus,
   Lock,
   Plus,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import { Product, ProductStatus } from '@/types/platform';
-import { exportDocumentAsPdf } from '@/lib/document-export';
+import { compressImageFileToDataUrl, exportDocumentAsPdf } from '@/lib/document-export';
 import {
   calculateUnitEconomics,
   canUserEditBrand,
@@ -26,6 +28,7 @@ import {
 import { INITIAL_SCENARIO_MODELS, ScenarioModelSpec } from '@/lib/scenarioData';
 import { BoxerPackStackSvg } from '@/components/sections/ScenarioVisualParts';
 import { STORAGE_KEY_MODELS } from '@/components/sections/GrowthScenariosShowcase';
+import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
 
 const STATUS_META: Record<ProductStatus, { label: string; dotColor: string }> = {
   in_development: {
@@ -94,16 +97,9 @@ export function ProductCatalogView() {
 
   useEffect(() => {
     const loadModels = () => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY_MODELS);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setScenarioModels(parsed);
-          }
-        }
-      } catch {
-        // ignore
+      const parsed = safeGetStorageJson<ScenarioModelSpec[]>(STORAGE_KEY_MODELS);
+      if (Array.isArray(parsed)) {
+        setScenarioModels(parsed);
       }
     };
     loadModels();
@@ -114,6 +110,14 @@ export function ProductCatalogView() {
       window.removeEventListener('storage', loadModels);
     };
   }, []);
+
+  const handleDeleteScenarioModel = (modelToDelete: ScenarioModelSpec) => {
+    const next = scenarioModels.filter((x) => x.id !== modelToDelete.id);
+    setScenarioModels(next);
+    safeSetStorageJson(STORAGE_KEY_MODELS, next);
+    window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+    notify('warning', `Карточка модели ${modelToDelete.code} / ${modelToDelete.title} удалена`);
+  };
 
   const [drawerTab, setDrawerTab] = useState<
     'passport' | 'variants' | 'economics' | 'relations'
@@ -411,9 +415,22 @@ export function ProductCatalogView() {
                       <span className="text-[#6E6E73]">
                         {m.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · {m.code}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-white border border-[#E2DBD0] text-[10.5px] text-[#1D1D1F]">
-                        {m.launchStatus}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 rounded-full bg-white border border-[#E2DBD0] text-[10.5px] text-[#1D1D1F]">
+                          {m.launchStatus}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteScenarioModel(m);
+                          }}
+                          title="Удалить карточку"
+                          className="h-6 w-6 rounded-full bg-white border border-[#E2DBD0] hover:border-[#C94B4B] text-[#737373] hover:text-[#C94B4B] flex items-center justify-center transition cursor-pointer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                     <div className="h-24 my-2 rounded-[12px] bg-white border border-[#EFECE6] flex items-center justify-center p-2">
                       <BoxerPackStackSvg
@@ -541,8 +558,19 @@ export function ProductCatalogView() {
                   setSelectedProductId(product.id);
                   setDrawerTab('passport');
                 }}
-                className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-6 flex flex-col justify-between transition cursor-pointer group space-y-5"
+                className="relative bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-6 flex flex-col justify-between transition cursor-pointer group space-y-5"
               >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    archiveEntity('product', product.id);
+                  }}
+                  title="Удалить карточку модели"
+                  className="absolute top-8 right-8 z-10 h-7 w-7 rounded-lg bg-white/95 border border-[#E8E8E5] hover:border-[#C94B4B] text-[#737373] hover:text-[#C94B4B] flex items-center justify-center shadow-2xs transition cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
                 <div className="space-y-4">
                   {/* Предметное фото модели в чистой рамке без наслоения бейджей */}
                   <div className="h-52 w-full rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] flex items-center justify-center p-5">
@@ -739,12 +767,34 @@ export function ProductCatalogView() {
                 </h2>
               </div>
 
-              <button
-                onClick={() => setSelectedProductId(null)}
-                className="rounded-xl border border-[#E8E8E5] p-2 text-[#171717] hover:bg-[#111111] hover:text-white cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {canEditActiveProduct && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateProduct(activeProduct.id, {
+                        name: activeProduct.name,
+                        description: activeProduct.description,
+                      });
+                      notify(
+                        'success',
+                        '✓ Карточка модели сохранена',
+                        `${activeProduct.sku} · ${activeProduct.name}`
+                      );
+                    }}
+                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[13px] font-bold transition cursor-pointer shadow-2xs"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Сохранить карточку</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedProductId(null)}
+                  className="rounded-xl border border-[#E8E8E5] p-2 text-[#171717] hover:bg-[#111111] hover:text-white cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Переключение статуса и быстрый запуск */}
@@ -1553,9 +1603,9 @@ export function ProductCatalogView() {
               </div>
             )}
 
-            {/* Кнопка удаления в корзину */}
+            {/* Кнопки сохранения и удаления в корзину */}
             {canEditActiveProduct && (
-              <div className="pt-6 border-t border-[#E8E8E5] flex justify-between items-center">
+              <div className="pt-6 border-t border-[#E8E8E5] flex flex-wrap justify-between items-center gap-3">
                 <button
                   onClick={() => {
                     archiveEntity('product', activeProduct.id);
@@ -1564,11 +1614,47 @@ export function ProductCatalogView() {
                   className="inline-flex items-center gap-2 rounded-xl border border-[#C94B4B] px-4 py-2.5 text-[14px] font-semibold text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white transition cursor-pointer"
                 >
                   <Archive className="h-4 w-4" />
-                  <span>Удалить в корзину</span>
+                  <span>Удалить карточку</span>
                 </button>
-                <span className="text-[13px] text-[#737373]">
-                  Обновлено: {activeProduct.updatedAt}
-                </span>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateProduct(activeProduct.id, {
+                        name: activeProduct.name,
+                        description: activeProduct.description,
+                      });
+                      notify(
+                        'success',
+                        '✓ Карточка модели сохранена',
+                        `${activeProduct.sku} · ${activeProduct.name}`
+                      );
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#16805D] hover:bg-[#116649] px-5 py-2.5 text-[14px] font-bold text-white transition cursor-pointer shadow-xs"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Сохранить карточку</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateProduct(activeProduct.id, {
+                        name: activeProduct.name,
+                        description: activeProduct.description,
+                      });
+                      notify(
+                        'success',
+                        '✓ Карточка модели сохранена',
+                        `${activeProduct.sku} · ${activeProduct.name}`
+                      );
+                      setSelectedProductId(null);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#111111] hover:opacity-90 px-5 py-2.5 text-[14px] font-bold text-white transition cursor-pointer"
+                  >
+                    <span>Сохранить и закрыть</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1683,13 +1769,12 @@ export function ProductCatalogView() {
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (!f) return;
-                    const r = new FileReader();
-                    r.onload = () => {
-                      if (typeof r.result === 'string') {
-                        setNewSkuForm((prev) => ({ ...prev, imageUrl: r.result as string }));
+                    compressImageFileToDataUrl(f, 720, 0.78).then((url) => {
+                      if (url) {
+                        setNewSkuForm((prev) => ({ ...prev, imageUrl: url }));
                       }
-                    };
-                    r.readAsDataURL(f);
+                    });
+                    e.target.value = '';
                   }}
                   className="w-full text-[13px] text-[#737373]"
                 />
@@ -1705,9 +1790,10 @@ export function ProductCatalogView() {
               </button>
               <button
                 onClick={handleCreateProduct}
-                className="h-11 px-6 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
+                className="h-11 px-6 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[14px] font-bold inline-flex items-center gap-2 cursor-pointer transition"
               >
-                Создать модель
+                <Check className="h-4 w-4" />
+                <span>Сохранить карточку</span>
               </button>
             </div>
           </div>
