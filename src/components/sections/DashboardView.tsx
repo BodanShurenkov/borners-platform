@@ -13,6 +13,7 @@ import {
 import { ArrowUpRight, LayoutGrid, Sparkles } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import { MiroBoardView } from './MiroBoardView';
+import { GrowthScenariosShowcase } from './GrowthScenariosShowcase';
 import {
   SCENARIO_LABELS_RU,
   SEVEN_KANBAN_STAGES,
@@ -236,7 +237,7 @@ export function DashboardView() {
                 }`}
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
-                <span>Дашборд + Miro</span>
+                <span>Дашборд + Студия</span>
               </button>
               <button
                 type="button"
@@ -248,7 +249,7 @@ export function DashboardView() {
                 }`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>Доска Miro (Фото + Голос)</span>
+                <span>Студия идей (Фото + Голос)</span>
               </button>
             </div>
             <button
@@ -406,7 +407,12 @@ export function DashboardView() {
       </div>
 
       {/* =====================================================================
-          2B. СВОБОДНАЯ ДОСКА ДАШБОРДА MIRO (ФОТО, СТИКЕРЫ И ГОЛОСОВЫЕ ЗАМЕТКИ)
+          2A. СЦЕНАРИИ РАЗВИТИЯ (100 / 150 / 200 МЛН ₽/МЕС) И ПАСПОРТ МОДЕЛИ В СТИЛЕ APPLE
+      ===================================================================== */}
+      {dashboardMode === 'all' && <GrowthScenariosShowcase />}
+
+      {/* =====================================================================
+          2B. СТУДИЯ ИДЕЙ · БЕСКОНЕЧНЫЙ ХОЛСТ СО СТРЕЛОЧКАМИ, ФОТО И ГОЛОСОМ
       ===================================================================== */}
       <MiroBoardView />
 

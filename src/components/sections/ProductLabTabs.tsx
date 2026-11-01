@@ -36,6 +36,7 @@ import {
   exportConceptProductionExcel,
   exportConceptProductionPdf,
 } from '@/lib/document-export';
+import { PdfConstructorModal } from './PdfConstructorModal';
 
 export type RnDCardTabId =
   | 'overview'
@@ -176,6 +177,17 @@ export function ProductLabCardBody({
   // 05 Решение — комментарий и возврат на этап
   const [decisionReason, setDecisionReason] = useState('');
   const [reworkTargetStage, setReworkTargetStage] = useState<ConceptStage>('SAMPLE');
+
+  // 06 Производство — состояние конструктора PDF и выбора секций перед скачиванием
+  const [inlinePdfConstructorOpen, setInlinePdfConstructorOpen] = useState(false);
+  const [pdfBlocksConfig, setPdfBlocksConfig] = useState({
+    ruSection: true,
+    enSection: true,
+    zhSection: true,
+    photosFrontBack: true,
+    multiCurrency: true,
+    sizeMatrix: true,
+  });
 
   const parseCleanNumber = (raw: string): number | null => {
     const cleaned = raw.replace(/[^\d]/g, '');
@@ -1987,12 +1999,12 @@ export function ProductLabCardBody({
           </div>
         </div>
 
-        {/* БЛОК 2: ПРИМЕР ВЫГРУЗКИ PDF ДЛЯ ФАБРИКИ (RU / EN / ZH — Стр. 8 PDF и Сценарий №7) */}
+        {/* БЛОК 2: КОНСТРУКТОР И ПРЕДПРОСМОТР PDF ДЛЯ ФАБРИКИ ПЕРЕД СКАЧИВАНИЕМ */}
         <div className="rounded-3xl border border-[#E8E8E5] bg-white p-6 md:p-8 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="text-[12px] font-bold uppercase tracking-widest text-[#737373]">
-                ПРИМЕР ВЫГРУЗКИ PDF ДЛЯ ФАБРИКИ (ОДИН ФАЙЛ — 3 ЯЗЫКОВЫЕ СЕКЦИИ)
+              <div className="text-[12px] font-bold uppercase tracking-widest text-[#B85D35]">
+                КОНСТРУКТОР PDF ДЛЯ ФАБРИКИ · НАСТРОЙТЕ СОСТАВ ДОКУМЕНТА ПЕРЕД СКАЧИВАНИЕМ
               </div>
               <h4 className="text-[19px] font-bold text-[#171717] mt-0.5">
                 Единый заказ на русском, английском и китайском (RU / EN / ZH)
@@ -2002,11 +2014,20 @@ export function ProductLabCardBody({
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 type="button"
-                onClick={handleExportFactoryPdf}
-                className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-[#181715] hover:bg-[#B85D35] text-white text-[13px] font-bold transition cursor-pointer"
+                onClick={() => setInlinePdfConstructorOpen(true)}
+                className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-[#1E3A5F] hover:bg-[#162C49] text-white text-[13px] font-bold transition cursor-pointer shadow-xs"
               >
                 <Printer className="h-4 w-4" />
-                <span>Скачать PDF заказа (RU / EN / ZH)</span>
+                <span>Настроить и скачать PDF (Конструктор PDF)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportFactoryPdf}
+                className="inline-flex items-center gap-2 h-11 px-4 rounded-xl border border-[#D8D1C5] bg-white hover:bg-[#FAF8F5] text-[#171717] text-[13px] font-semibold transition cursor-pointer"
+                title="Быстрое скачивание PDF со всеми выбранными блоками"
+              >
+                <FileDown className="h-4 w-4 text-[#B85D35]" />
+                <span>Быстрый PDF</span>
               </button>
               <button
                 type="button"
@@ -2019,60 +2040,120 @@ export function ProductLabCardBody({
             </div>
           </div>
 
+          {/* ИНТЕРАКТИВНЫЙ ВЫБОР ТОГО, ЧТО ОТОБРАЗИТЬ В PDF ПЕРЕД ВЫГРУЗКОЙ */}
+          <div className="rounded-2xl bg-[#FAF8F5] border border-[#E5E0D5] p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[12.5px] font-bold text-[#1D1D1F]">
+                Выберите блоки, которые нужно отобразить в PDF:
+              </span>
+              <button
+                type="button"
+                onClick={() => setInlinePdfConstructorOpen(true)}
+                className="text-[12px] font-semibold text-[#1E3A5F] hover:underline cursor-pointer"
+              >
+                Открыть полный визуальный конструктор листа А4 →
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {[
+                { key: 'ruSection' as const, label: 'Секция RU (Русский)' },
+                { key: 'enSection' as const, label: 'Секция EN (English)' },
+                { key: 'zhSection' as const, label: 'Секция ZH (Крупный 中文)' },
+                { key: 'photosFrontBack' as const, label: 'Фото (Спереди + Сзади)' },
+                { key: 'multiCurrency' as const, label: 'Валюты (CNY / USD / RUB)' },
+                { key: 'sizeMatrix' as const, label: 'Размеры (S–4XL)' },
+              ].map((item) => (
+                <label
+                  key={item.key}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[12px] font-semibold cursor-pointer transition ${
+                    pdfBlocksConfig[item.key]
+                      ? 'bg-white border-[#C8A97E] text-[#1D1D1F] shadow-2xs'
+                      : 'bg-[#F2EFE9]/60 border-[#E5E0D5] text-[#7A756D]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={pdfBlocksConfig[item.key]}
+                    onChange={(e) =>
+                      setPdfBlocksConfig((prev) => ({
+                        ...prev,
+                        [item.key]: e.target.checked,
+                      }))
+                    }
+                    className="h-3.5 w-3.5 accent-[#1E3A5F] rounded cursor-pointer"
+                  />
+                  <span className="truncate">{item.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[12px]">
             {/* RU */}
-            <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
-                RU
-              </span>
-              <div className="font-bold text-[14px] text-[#171717]">
-                ЗАКАЗ НА ПРОИЗВОДСТВО
+            {pdfBlocksConfig.ruSection && (
+              <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
+                <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
+                  RU
+                </span>
+                <div className="font-bold text-[14px] text-[#171717]">
+                  ЗАКАЗ НА ПРОИЗВОДСТВО
+                </div>
+                <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
+                  <div>Модель: <b>{concept.name}</b> ({currentOrder.approvedSampleVersion})</div>
+                  <div>Фабрика: <b>{currentOrder.factoryName}</b></div>
+                  <div>Состав: <b>{currentOrder.materialAndColors}</b></div>
+                  <div>Комплект: <b>{currentOrder.packColorComposition}</b></div>
+                  {pdfBlocksConfig.sizeMatrix && (
+                    <div>Тираж: <b>{totalPacks.toLocaleString('ru-RU')} наб. / {totalPieces.toLocaleString('ru-RU')} шт.</b></div>
+                  )}
+                  <div>Готовность: <b>{currentOrder.plannedReadyDate}</b></div>
+                </div>
               </div>
-              <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
-                <div>Модель: <b>{concept.name}</b> ({currentOrder.approvedSampleVersion})</div>
-                <div>Фабрика: <b>{currentOrder.factoryName}</b></div>
-                <div>Состав: <b>{currentOrder.materialAndColors}</b></div>
-                <div>Комплект: <b>{currentOrder.packColorComposition}</b></div>
-                <div>Тираж: <b>{totalPacks.toLocaleString('ru-RU')} наб. / {totalPieces.toLocaleString('ru-RU')} шт.</b></div>
-                <div>Готовность: <b>{currentOrder.plannedReadyDate}</b></div>
-              </div>
-            </div>
+            )}
 
             {/* EN */}
-            <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
-                EN
-              </span>
-              <div className="font-bold text-[14px] text-[#171717]">
-                PRODUCTION ORDER
+            {pdfBlocksConfig.enSection && (
+              <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
+                <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
+                  EN
+                </span>
+                <div className="font-bold text-[14px] text-[#171717]">
+                  PRODUCTION ORDER
+                </div>
+                <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
+                  <div>Style: <b>{concept.code} · {concept.name}</b></div>
+                  <div>Factory: <b>{currentOrder.factoryName}</b></div>
+                  <div>Fabric: <b>95% Cotton + 5% Elastane (180 GSM)</b></div>
+                  <div>Pack Ratio: <b>{unitsInOnePack}-Pack Assorted Colors</b></div>
+                  {pdfBlocksConfig.sizeMatrix && (
+                    <div>Total Qty: <b>{totalPacks.toLocaleString('en-US')} packs / {totalPieces.toLocaleString('en-US')} pcs</b></div>
+                  )}
+                  <div>Ready Date: <b>{currentOrder.plannedReadyDate}</b></div>
+                </div>
               </div>
-              <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
-                <div>Style: <b>{concept.code} · {concept.name}</b></div>
-                <div>Factory: <b>{currentOrder.factoryName}</b></div>
-                <div>Fabric: <b>95% Cotton + 5% Elastane (180 GSM)</b></div>
-                <div>Pack Ratio: <b>{unitsInOnePack}-Pack Assorted Colors</b></div>
-                <div>Total Qty: <b>{totalPacks.toLocaleString('en-US')} packs / {totalPieces.toLocaleString('en-US')} pcs</b></div>
-                <div>Ready Date: <b>{currentOrder.plannedReadyDate}</b></div>
-              </div>
-            </div>
+            )}
 
             {/* ZH */}
-            <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
-              <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
-                ZH
-              </span>
-              <div className="font-bold text-[14px] text-[#171717]">
-                生产订单 (PRODUCTION ORDER)
+            {pdfBlocksConfig.zhSection && (
+              <div className="rounded-2xl border border-[#E8E8E5] bg-[#F7F7F5]/60 p-4 space-y-2.5">
+                <span className="inline-block px-2.5 py-1 rounded-md bg-[#FDF3EB] text-[#D97745] font-bold">
+                  ZH · КРУПНЫЙ КИТАЙСКИЙ
+                </span>
+                <div className="font-bold text-[16px] text-[#171717]">
+                  生产订单 (PRODUCTION ORDER)
+                </div>
+                <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
+                  <div className="text-[14px] font-bold text-[#171717]">款号: {concept.code} ({currentOrder.approvedSampleVersion})</div>
+                  <div>工厂: <b>{currentOrder.factoryName}</b></div>
+                  <div className="text-[13.5px] font-bold text-[#171717]">面料成分: 95% 棉 + 5% 氨纶 (180克重)</div>
+                  <div>包装配比: <b>{unitsInOnePack}条装礼盒/袋装 (S–4XL)</b></div>
+                  {pdfBlocksConfig.sizeMatrix && (
+                    <div className="text-[13.5px] font-bold text-[#B85D35]">订单总量: {totalPacks} 盒 / 共 {totalPieces} 件</div>
+                  )}
+                  <div>交货日期: <b>{currentOrder.plannedReadyDate}</b></div>
+                </div>
               </div>
-              <div className="space-y-1 text-[#525252] border-t border-[#E8E8E5] pt-2">
-                <div>款号: <b>{concept.code} ({currentOrder.approvedSampleVersion})</b></div>
-                <div>工厂: <b>{currentOrder.factoryName}</b></div>
-                <div>面料成分: <b>95% 棉 + 5% 氨纶 (180克重)</b></div>
-                <div>包装配比: <b>{unitsInOnePack}条装礼盒/袋装 (S–4XL)</b></div>
-                <div>订单总量: <b>{totalPacks} 盒 / 共 {totalPieces} 件</b></div>
-                <div>交货日期: <b>{currentOrder.plannedReadyDate}</b></div>
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#E8E8E5] text-[13px]">
@@ -2097,6 +2178,18 @@ export function ProductLabCardBody({
             </button>
           </div>
         </div>
+
+        {/* МОДАЛЬНОЕ ОКНО ПОЛНОГО КОНСТРУКТОРА PDF С ПРЕДПРОСМОТРОМ ЛИСТА А4 */}
+        {inlinePdfConstructorOpen && (
+          <PdfConstructorModal
+            concept={concept}
+            onClose={() => setInlinePdfConstructorOpen(false)}
+            onSaveToConcept={(patch) => {
+              onUpdateConcept(concept.id, patch);
+              notify('success', 'PDF-спецификация настроена и скачана');
+            }}
+          />
+        )}
       </div>
     );
   }

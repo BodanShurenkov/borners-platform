@@ -833,6 +833,7 @@ export interface MiroBoardItem {
   audioDataUrl?: string;
   audioDurationSec?: number;
   linkedConceptId?: string;
+  connectedToIds?: string[];
   authorName: string;
   createdAt: string;
 }

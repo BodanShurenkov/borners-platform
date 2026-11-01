@@ -15,6 +15,7 @@ import {
   canUserViewFinance,
   formatCompactRub,
 } from '@/lib/finance';
+import { GrowthScenariosShowcase } from './GrowthScenariosShowcase';
 
 const STATUS_LABELS: Record<ApprovalStatus, { label: string; dotColor: string }> = {
   draft: {
@@ -438,6 +439,7 @@ export function BrandStrategyView() {
     [strategies, activeBrand]
   );
 
+  const [strategyTab, setStrategyTab] = useState<'scenarios' | 'dna'>('scenarios');
   const [editingBlock, setEditingBlock] = useState<StrategyBlock | null>(null);
   const [historyBlock, setHistoryBlock] = useState<StrategyBlock | null>(null);
 
@@ -507,23 +509,36 @@ export function BrandStrategyView() {
   };
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* Шапка стратегии в спокойной редакционной эстетике */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#EAE6DF] pb-6">
-        <div>
-          <div className="text-[12px] font-medium text-[#8C867E] mb-1.5">
-            Паспорт бренда · 14 стратегических блоков ДНК
-          </div>
-          <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-normal tracking-[-0.015em] text-[#181715] leading-[1.08]">
-            Стратегия бренда: {activeBrand.name}
-          </h1>
-          <p className="text-[13.5px] text-[#6E6A63] mt-1.5">
-            {activeBrand.tagline} · целевая валовая маржа {activeBrand.targetMarginPct}%
-          </p>
+    <div className="space-y-6 pb-20">
+      {/* Переключатель режимов в стиле Apple: Сценарии роста (100/150/200 млн) / 14 блоков ДНК / Презентация */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E5E0D5] pb-4">
+        <div className="inline-flex rounded-[12px] bg-[#EFECE6] p-1 border border-[#E5E0D5]">
+          <button
+            type="button"
+            onClick={() => setStrategyTab('scenarios')}
+            className={`h-9 px-4 rounded-[9px] text-[13px] font-semibold transition cursor-pointer ${
+              strategyTab === 'scenarios'
+                ? 'bg-white text-[#1D1D1F] shadow-xs'
+                : 'text-[#6E6E73] hover:text-[#1D1D1F]'
+            }`}
+          >
+            Сценарии развития (100 / 150 / 200 млн ₽)
+          </button>
+          <button
+            type="button"
+            onClick={() => setStrategyTab('dna')}
+            className={`h-9 px-4 rounded-[9px] text-[13px] font-semibold transition cursor-pointer ${
+              strategyTab === 'dna'
+                ? 'bg-white text-[#1D1D1F] shadow-xs'
+                : 'text-[#6E6E73] hover:text-[#1D1D1F]'
+            }`}
+          >
+            Паспорт бренда (14 блоков и дедлайны)
+          </button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center h-9 bg-[#F2EFE9] p-0.5 rounded-[6px] border border-[#E5E0D8]">
+          <div className="flex items-center h-9 bg-[#EFECE6] p-0.5 rounded-[10px] border border-[#E5E0D5]">
             {activeBrands.map((b) => {
               const isSelected = b.code === activeBrand.code;
               return (
@@ -531,10 +546,10 @@ export function BrandStrategyView() {
                   key={b.id}
                   type="button"
                   onClick={() => setBrandFilter(b.code)}
-                  className={`h-full px-3 rounded-[4px] text-[12px] font-medium transition cursor-pointer ${
+                  className={`h-full px-3 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer ${
                     isSelected
-                      ? 'bg-[#FDFCFA] text-[#161615] shadow-2xs'
-                      : 'text-[#5C5852] hover:text-[#161615]'
+                      ? 'bg-white text-[#1D1D1F] shadow-2xs'
+                      : 'text-[#6E6E73] hover:text-[#1D1D1F]'
                   }`}
                 >
                   {b.name}
@@ -545,22 +560,35 @@ export function BrandStrategyView() {
 
           <button
             onClick={() => setPlatformMode('strategy')}
-            className="h-9 px-3.5 rounded-[6px] bg-[#161615] text-[#F8F6F2] text-[12px] font-medium hover:bg-[#2C2B29] transition cursor-pointer"
+            className="h-9 px-4 rounded-[10px] bg-[#1E3A5F] text-white text-[12.5px] font-semibold hover:bg-[#162C49] transition cursor-pointer"
           >
-            Презентация стратегии (8 слайдов)
+            Презентация стратегии (16 слайдов)
           </button>
 
           <button
             onClick={() => navigateTo('product-catalog')}
-            className="h-9 px-3.5 rounded-[6px] border border-[#E5E0D8] bg-[#FDFCFA] text-[12px] font-medium text-[#161615] hover:border-[#161615] transition cursor-pointer"
+            className="h-9 px-3.5 rounded-[10px] border border-[#E5E0D5] bg-white text-[12.5px] font-semibold text-[#1D1D1F] hover:border-[#1D1D1F] transition cursor-pointer"
           >
-            Каталог моделей →
+            Модели (SKU) →
           </button>
         </div>
       </div>
 
-      {/* Сетка 14 блоков стратегии */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {strategyTab === 'scenarios' ? (
+        <GrowthScenariosShowcase />
+      ) : (
+        <>
+          <div>
+            <h1 className="text-[24px] font-bold text-[#1D1D1F] tracking-tight">
+              Стратегия бренда: {activeBrand.name} (14 блоков ДНК)
+            </h1>
+            <p className="text-[13.5px] text-[#6E6E73] mt-1">
+              {activeBrand.tagline} · целевая валовая маржа {activeBrand.targetMarginPct}%
+            </p>
+          </div>
+
+          {/* Сетка 14 блоков стратегии */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {brandBlocks.map((block, index) => {
           const st = STATUS_LABELS[block.status];
           const isLockedForManager = block.status === 'approved' && !canEditApproved;
@@ -660,7 +688,9 @@ export function BrandStrategyView() {
             </div>
           );
         })}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ БЛОКА */}
       {editingBlock && (

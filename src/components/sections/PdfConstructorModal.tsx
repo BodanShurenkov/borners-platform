@@ -87,6 +87,13 @@ export function PdfConstructorModal({
     }
   );
 
+  // Переключатели блоков: что именно отобразить в PDF перед скачиванием
+  const [includePhotos, setIncludePhotos] = useState<boolean>(true);
+  const [includeBilingualSpecs, setIncludeBilingualSpecs] = useState<boolean>(true);
+  const [includePricing, setIncludePricing] = useState<boolean>(true);
+  const [includeSizeMatrix, setIncludeSizeMatrix] = useState<boolean>(true);
+  const [includeFactoryTerms, setIncludeFactoryTerms] = useState<boolean>(true);
+
   // Двуязычные строки: Крупный китайский (中文) сверху + мелкий русский снизу
   const [bilingualRows, setBilingualRows] = useState<
     {
@@ -246,75 +253,108 @@ export function PdfConstructorModal({
         ? `${currencyMetrics.totalUsd.toLocaleString('ru-RU')} $`
         : `${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽`;
 
+    const sectionsToRender: NonNullable<Parameters<typeof downloadEditorialPdfDocument>[0]>['sections'] = [];
+
+    if (includeBilingualSpecs) {
+      sectionsToRender.push({
+        badge: '中文 + РУС · BILINGUAL SPEC',
+        title: 'Спецификация изделия: Крупный китайский (中文) + перевод на русский',
+        subtitle: includeFactoryTerms ? `Готовность: ${plannedReadyDate}` : undefined,
+        bilingualSpecs: bilingualRows.map((r) => ({
+          labelZh: r.labelZh,
+          labelRu: r.labelRu,
+          zhLarge: r.zhLarge,
+          ruSmall: r.ruSmall,
+          highlight: r.highlight,
+        })),
+      });
+    }
+
+    if (includeSizeMatrix || includePricing) {
+      sectionsToRender.push({
+        badge: 'MULTI-CURRENCY & SIZES',
+        title: includePricing
+          ? `Размерная сетка партии (S–4XL) и расчёт в ${primaryCurrency} / CNY / USD / RUB`
+          : 'Размерная сетка партии (S–4XL) без отображения цен',
+        subtitle: includePricing
+          ? `Курс: 1¥ = ${rateCnyToRub}₽ · 1$ = ${rateUsdToRub}₽`
+          : `В 1 наборе: ${unitsPerPack} шт.`,
+        table: includeSizeMatrix
+          ? {
+              headers: includePricing
+                ? [
+                    'Размер (尺码)',
+                    'Наборов (盒数)',
+                    `Штук (×${unitsPerPack} шт.)`,
+                    'Цена 1 шт. (CNY / USD / RUB)',
+                    `Сумма (${primaryCurrency} / RUB)`,
+                  ]
+                : ['Размер (尺码)', 'Наборов (盒数)', `Штук (×${unitsPerPack} шт.)`],
+              rows: includePricing ? sizeRows : sizeRows.map((r) => [r[0], r[1], r[2]]),
+              footer: includePricing
+                ? [
+                    'ИТОГО ПАРТИЯ (合计)',
+                    `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наб.`,
+                    `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
+                    `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd} / ${currencyMetrics.unitRub}₽`,
+                    `${totalPrimary} (${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽)`,
+                  ]
+                : [
+                    'ИТОГО ПАРТИЯ (合计)',
+                    `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наб.`,
+                    `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
+                  ],
+            }
+          : undefined,
+        note: includeFactoryTerms
+          ? `Условия оплаты: ${paymentTerms}.${
+              includePricing
+                ? ` Итого по контракту: ${currencyMetrics.totalCny.toLocaleString('ru-RU')} CNY (¥)  |  ${currencyMetrics.totalUsd.toLocaleString('ru-RU')} USD ($)  |  ${currencyMetrics.totalRub.toLocaleString('ru-RU')} RUB (₽).`
+                : ''
+            }`
+          : undefined,
+      });
+    }
+
     downloadEditorialPdfDocument({
       fileName: `PDF_Спецификация_${concept.code}_${primaryCurrency}.pdf`,
       docCode: `${concept.code} · ${primaryCurrency}`,
       categoryLabel: 'ПРОИЗВОДСТВЕННЫЙ ЛИСТ (中文 + РУС)',
       brandLabel,
       title: docTitle,
-      subtitle: `Фабрика: ${factoryName} · Валюта контракта: ${primaryCurrency} (¥ ${currencyMetrics.totalCny.toLocaleString(
-        'ru-RU'
-      )} / $ ${currencyMetrics.totalUsd.toLocaleString(
-        'ru-RU'
-      )} / ₽ ${currencyMetrics.totalRub.toLocaleString('ru-RU')})`,
+      subtitle: includePricing
+        ? `Фабрика: ${factoryName} · Валюта контракта: ${primaryCurrency} (¥ ${currencyMetrics.totalCny.toLocaleString(
+            'ru-RU'
+          )} / $ ${currencyMetrics.totalUsd.toLocaleString(
+            'ru-RU'
+          )} / ₽ ${currencyMetrics.totalRub.toLocaleString('ru-RU')})`
+        : `Фабрика: ${factoryName} · Готовность: ${plannedReadyDate}`,
       metaGrid: [
         { label: 'Артикул / 款号', value: concept.code },
-        { label: 'Фабрика / 生产工厂', value: factoryName },
+        { label: 'Фабрика / 生产工厂', value: includeFactoryTerms ? factoryName : '—' },
         {
           label: 'Цена 1 шт. (CNY / USD / RUB)',
-          value: `¥${currencyMetrics.unitCny} · $${currencyMetrics.unitUsd} · ${currencyMetrics.unitRub}₽`,
+          value: includePricing
+            ? `¥${currencyMetrics.unitCny} · $${currencyMetrics.unitUsd} · ${currencyMetrics.unitRub}₽`
+            : 'Скрыто настройками PDF',
         },
         {
-          label: 'Сумма партии (3 валюты)',
-          value: `¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`,
+          label: 'Тираж / Сумма партии',
+          value: includePricing
+            ? `¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`
+            : `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
         },
       ],
-      frontPhotoUrl,
-      backPhotoUrl,
+      frontPhotoUrl: includePhotos ? frontPhotoUrl : undefined,
+      backPhotoUrl: includePhotos ? backPhotoUrl : undefined,
       frontPhotoCaption: frontCaption,
       backPhotoCaption: backCaption,
-      sections: [
-        {
-          badge: '中文 + РУС · BILINGUAL SPEC',
-          title: 'Спецификация изделия: Крупный китайский (中文) + перевод на русский',
-          subtitle: `Готовность: ${plannedReadyDate}`,
-          bilingualSpecs: bilingualRows.map((r) => ({
-            labelZh: r.labelZh,
-            labelRu: r.labelRu,
-            zhLarge: r.zhLarge,
-            ruSmall: r.ruSmall,
-            highlight: r.highlight,
-          })),
-        },
-        {
-          badge: 'MULTI-CURRENCY & SIZES',
-          title: `Размерная сетка партии (S–4XL) и расчёт в ${primaryCurrency} / CNY / USD / RUB`,
-          subtitle: `Курс: 1¥ = ${rateCnyToRub}₽ · 1$ = ${rateUsdToRub}₽`,
-          table: {
-            headers: [
-              'Размер (尺码)',
-              'Наборов (盒数)',
-              `Штук (×${unitsPerPack} шт.)`,
-              'Цена 1 шт. (CNY / USD / RUB)',
-              `Сумма (${primaryCurrency} / RUB)`,
-            ],
-            rows: sizeRows,
-            footer: [
-              'ИТОГО ПАРТИЯ (合计)',
-              `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наб.`,
-              `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
-              `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd} / ${currencyMetrics.unitRub}₽`,
-              `${totalPrimary} (${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽)`,
-            ],
-          },
-          note: `Условия оплаты: ${paymentTerms}. Итого по контракту: ${currencyMetrics.totalCny.toLocaleString(
-            'ru-RU'
-          )} CNY (¥)  |  ${currencyMetrics.totalUsd.toLocaleString(
-            'ru-RU'
-          )} USD ($)  |  ${currencyMetrics.totalRub.toLocaleString('ru-RU')} RUB (₽).`,
-        },
-      ],
-      footerRight: `${concept.code} · ¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`,
+      sections: sectionsToRender,
+      footerRight: `${concept.code}${
+        includePricing
+          ? ` · ¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`
+          : ''
+      }`,
     });
 
     if (onSaveToConcept) {
@@ -408,6 +448,120 @@ export function PdfConstructorModal({
         <div className="flex-1 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x-2 divide-[#D4CDC2]">
           {/* ЛЕВАЯ КОЛОНКА: НАСТРОЙКИ КОНСТРУКТОРА (7 колонок) */}
           <div className="lg:col-span-7 p-6 space-y-6 overflow-y-auto">
+            {/* БЛОК 0: ВЫБОР БЛОКОВ ДЛЯ ОТОБРАЖЕНИЯ В PDF ПЕРЕД СКАЧИВАНИЕМ */}
+            <div className="rounded-[16px] bg-white border border-[#E5E0D5] p-5 space-y-4 shadow-xs">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EFECE6] pb-3">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#B85D35]">
+                    ШАГ 00 · ЧТО ВКЛЮЧИТЬ В PDF ПЕРЕД СКАЧИВАНИЕМ
+                  </span>
+                  <h3 className="text-[16px] font-bold text-[#1D1D1F]">
+                    Отметьте блоки, которые должны попасть в итоговый PDF-файл
+                  </h3>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludePhotos(true);
+                      setIncludeBilingualSpecs(true);
+                      setIncludePricing(true);
+                      setIncludeSizeMatrix(true);
+                      setIncludeFactoryTerms(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[#1D1D1F] text-white text-[11px] font-semibold cursor-pointer"
+                  >
+                    Все блоки
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludePhotos(true);
+                      setIncludeBilingualSpecs(true);
+                      setIncludePricing(false);
+                      setIncludeSizeMatrix(true);
+                      setIncludeFactoryTerms(false);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[#F2EFE9] hover:bg-[#E5E0D5] text-[#1D1D1F] text-[11px] font-semibold cursor-pointer"
+                  >
+                    ТЗ без цен
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludePhotos(true);
+                      setIncludeBilingualSpecs(false);
+                      setIncludePricing(true);
+                      setIncludeSizeMatrix(true);
+                      setIncludeFactoryTerms(true);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[#F2EFE9] hover:bg-[#E5E0D5] text-[#1D1D1F] text-[11px] font-semibold cursor-pointer"
+                  >
+                    Только заказ и цены
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {[
+                  {
+                    label: 'Фото товара (Спереди + Сзади)',
+                    sub: 'Лицевая и оборотная фотографии',
+                    checked: includePhotos,
+                    onChange: setIncludePhotos,
+                  },
+                  {
+                    label: 'Крупный китайский + Русский',
+                    sub: 'Двуязычная спецификация (中文/RU)',
+                    checked: includeBilingualSpecs,
+                    onChange: setIncludeBilingualSpecs,
+                  },
+                  {
+                    label: 'Валюты и цены (CNY / USD / RUB)',
+                    sub: 'Себестоимость 1 шт. и сумма партии',
+                    checked: includePricing,
+                    onChange: setIncludePricing,
+                  },
+                  {
+                    label: 'Размерная сетка (S–4XL)',
+                    sub: 'Таблица наборов и штук по размерам',
+                    checked: includeSizeMatrix,
+                    onChange: setIncludeSizeMatrix,
+                  },
+                  {
+                    label: 'Условия фабрики и сроки',
+                    sub: 'Поставщик, дата готовности и оплата',
+                    checked: includeFactoryTerms,
+                    onChange: setIncludeFactoryTerms,
+                  },
+                ].map((opt) => (
+                  <label
+                    key={opt.label}
+                    className={`flex items-start gap-2.5 p-3 rounded-[12px] border transition cursor-pointer ${
+                      opt.checked
+                        ? 'bg-[#FDFBF7] border-[#C8A97E] shadow-2xs'
+                        : 'bg-[#FAF8F5] border-[#E5E0D5] opacity-65'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={opt.checked}
+                      onChange={(e) => opt.onChange(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[#1E3A5F] rounded cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-[12.5px] font-semibold text-[#1D1D1F] leading-snug">
+                        {opt.label}
+                      </div>
+                      <div className="text-[11px] text-[#6E6E73] leading-tight mt-0.5">
+                        {opt.sub}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {/* БЛОК 1: ФОТОГРАФИИ ТОВАРА (ЛИЦЕВАЯ + ВИД СЗАДИ/ДЕТАЛИ) */}
             <div className="rounded-[14px] bg-white border-[1.5px] border-[#CFC8BC] p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-[#EAE6DF] pb-3">
@@ -887,98 +1041,109 @@ export function PdfConstructorModal({
                 </div>
 
                 {/* Превью 2 фотографий: Лицевая + Вид сзади */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-[8px] bg-white border-[1.5px] border-[#CFC8BC] p-2.5 flex items-center gap-2.5">
-                    <img
-                      src={frontPhotoUrl}
-                      alt="Лицевая"
-                      className="h-16 w-16 rounded object-contain bg-[#F3EFE8] shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="font-mono text-[9.5px] font-bold text-[#B85D35]">
-                        01 · 正面实物图
-                      </div>
-                      <div className="text-[13px] font-bold text-[#181715] truncate">
-                        请按正面图生产
-                      </div>
-                      <div className="text-[10.5px] text-[#6E6A63] line-clamp-2 leading-tight">
-                        {frontCaption}
+                {includePhotos && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-[8px] bg-white border-[1.5px] border-[#CFC8BC] p-2.5 flex items-center gap-2.5">
+                      <img
+                        src={frontPhotoUrl}
+                        alt="Лицевая"
+                        className="h-16 w-16 rounded object-contain bg-[#F3EFE8] shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-mono text-[9.5px] font-bold text-[#B85D35]">
+                          01 · 正面实物图
+                        </div>
+                        <div className="text-[13px] font-bold text-[#181715] truncate">
+                          请按正面图生产
+                        </div>
+                        <div className="text-[10.5px] text-[#6E6A63] line-clamp-2 leading-tight">
+                          {frontCaption}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-[8px] bg-white border-[1.5px] border-[#CFC8BC] p-2.5 flex items-center gap-2.5">
-                    <img
-                      src={backPhotoUrl}
-                      alt="Вид сзади"
-                      className="h-16 w-16 rounded object-contain bg-[#F3EFE8] shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <div className="font-mono text-[9.5px] font-bold text-[#B85D35]">
-                        02 · 背面及细节
-                      </div>
-                      <div className="text-[13px] font-bold text-[#181715] truncate">
-                        腰头与平缝细节
-                      </div>
-                      <div className="text-[10.5px] text-[#6E6A63] line-clamp-2 leading-tight">
-                        {backCaption}
+                    <div className="rounded-[8px] bg-white border-[1.5px] border-[#CFC8BC] p-2.5 flex items-center gap-2.5">
+                      <img
+                        src={backPhotoUrl}
+                        alt="Вид сзади"
+                        className="h-16 w-16 rounded object-contain bg-[#F3EFE8] shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-mono text-[9.5px] font-bold text-[#B85D35]">
+                          02 · 背面及细节
+                        </div>
+                        <div className="text-[13px] font-bold text-[#181715] truncate">
+                          腰头与平缝细节
+                        </div>
+                        <div className="text-[10.5px] text-[#6E6A63] line-clamp-2 leading-tight">
+                          {backCaption}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Превью: Крупный китайский + маленький русский */}
-                <div className="space-y-2">
-                  <div className="text-[10.5px] font-mono uppercase tracking-wider text-[#B85D35] font-bold">
-                    中文大字 + 俄文小字 · Спецификация для фабрики КНР
+                {includeBilingualSpecs && (
+                  <div className="space-y-2">
+                    <div className="text-[10.5px] font-mono uppercase tracking-wider text-[#B85D35] font-bold">
+                      中文大字 + 俄文小字 · Спецификация для фабрики КНР
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {bilingualRows.map((r) => (
+                        <div
+                          key={r.id}
+                          className="rounded-[8px] bg-white border-[1.5px] border-[#D4CDC2] px-3 py-2"
+                        >
+                          <div className="text-[10px] font-mono text-[#8C867E]">
+                            {r.labelZh} · {r.labelRu}
+                          </div>
+                          <div className="text-[17px] font-bold text-[#181715] leading-snug mt-0.5">
+                            {r.zhLarge}
+                          </div>
+                          <div className="text-[11.5px] text-[#5C5852] leading-snug mt-0.5">
+                            {r.ruSmall}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
-                    {bilingualRows.map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-[8px] bg-white border-[1.5px] border-[#D4CDC2] px-3 py-2"
-                      >
-                        <div className="text-[10px] font-mono text-[#8C867E]">
-                          {r.labelZh} · {r.labelRu}
-                        </div>
-                        <div className="text-[17px] font-bold text-[#181715] leading-snug mt-0.5">
-                          {r.zhLarge}
-                        </div>
-                        <div className="text-[11.5px] text-[#5C5852] leading-snug mt-0.5">
-                          {r.ruSmall}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                )}
 
                 {/* Превью мультивалютного итога */}
-                <div className="rounded-[8px] bg-[#181715] text-white p-3.5 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px] font-mono text-[#D4CDC2]">
-                    <span>ИТОГО ПАРТИЯ ({currencyMetrics.totalUnits.toLocaleString('ru-RU')} ШТ.)</span>
-                    <span>ВАЛЮТА: {primaryCurrency}</span>
+                {(includePricing || includeSizeMatrix) && (
+                  <div className="rounded-[8px] bg-[#181715] text-white p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-[#D4CDC2]">
+                      <span>
+                        ИТОГО ПАРТИЯ ({currencyMetrics.totalPacks.toLocaleString('ru-RU')} НАБ. /{' '}
+                        {currencyMetrics.totalUnits.toLocaleString('ru-RU')} ШТ.)
+                      </span>
+                      <span>{includePricing ? `ВАЛЮТА: ${primaryCurrency}` : 'БЕЗ ЦЕН'}</span>
+                    </div>
+                    {includePricing && (
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/15 text-center">
+                        <div>
+                          <div className="text-[10px] text-[#D4CDC2]">ЮАНИ (CNY)</div>
+                          <div className="text-[14px] font-bold text-[#F5B895]">
+                            ¥ {currencyMetrics.totalCny.toLocaleString('ru-RU')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-[#D4CDC2]">ДОЛЛАРЫ (USD)</div>
+                          <div className="text-[14px] font-bold text-white">
+                            $ {currencyMetrics.totalUsd.toLocaleString('ru-RU')}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-[#D4CDC2]">РУБЛИ (RUB)</div>
+                          <div className="text-[14px] font-bold text-white">
+                            {currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/15 text-center">
-                    <div>
-                      <div className="text-[10px] text-[#D4CDC2]">ЮАНИ (CNY)</div>
-                      <div className="text-[14px] font-bold text-[#F5B895]">
-                        ¥ {currencyMetrics.totalCny.toLocaleString('ru-RU')}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-[#D4CDC2]">ДОЛЛАРЫ (USD)</div>
-                      <div className="text-[14px] font-bold text-white">
-                        $ {currencyMetrics.totalUsd.toLocaleString('ru-RU')}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-[#D4CDC2]">РУБЛИ (RUB)</div>
-                      <div className="text-[14px] font-bold text-white">
-                        {currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 

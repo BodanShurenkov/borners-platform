@@ -4,18 +4,28 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   Bell,
+  Box,
   ChevronDown,
+  Coins,
   Eye,
   EyeOff,
+  Factory,
+  FileText,
   HelpCircle,
+  Home,
   LogOut,
+  Megaphone,
   Menu,
   Plus,
   RotateCcw,
   Search,
+  Settings,
+  ShoppingCart,
   Sparkles,
   Trash2,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
@@ -573,20 +583,20 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР: при нажатии на глазик плавно уходит в блюр и сдвигается влево, освобождая центр экрана */}
+        {/* ЛЕВЫЙ САЙДБАР В ПРЕМИАЛЬНОМ СТИЛЕ APPLE PRO (BORNERS® STRATEGY PLATFORM) */}
         <aside
           aria-hidden={sidebarBlurred}
-          className={`fixed inset-y-0 left-0 z-40 w-[264px] bg-[#FAF8F5] border-r-[1.5px] border-[#D4CDC2] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[240px] bg-[#161822] text-white border-r border-white/[0.08] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.08)] ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } ${
             sidebarBlurred
-              ? 'lg:-ml-[264px] lg:-translate-x-full lg:opacity-0 lg:blur-[8px] lg:pointer-events-none'
+              ? 'lg:-ml-[240px] lg:-translate-x-full lg:opacity-0 lg:blur-[8px] lg:pointer-events-none'
               : 'lg:ml-0 lg:translate-x-0 lg:opacity-100 lg:blur-none'
           }`}
         >
           <div className="overflow-y-auto flex-1">
-            {/* Чистый логотип группы в высоту верхнего хедера h-14 + кнопка «Глазик» для блюра всей левой колонки */}
-            <div className="h-14 px-5 border-b-[1.5px] border-[#D4CDC2] flex items-center justify-between gap-2">
+            {/* Фирменный заголовок BORNERS® STRATEGY PLATFORM */}
+            <div className="px-6 pt-7 pb-5 flex items-start justify-between gap-2">
               <button
                 onClick={() => {
                   setPlatformMode('management');
@@ -596,11 +606,11 @@ export function AppShell() {
                   sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
                 }`}
               >
-                <span className="font-serif-editorial text-[20px] font-semibold tracking-[0.02em] text-[#181715] leading-none">
-                  Borners Group
+                <span className="text-[21px] font-bold tracking-[0.04em] text-white leading-none">
+                  BORNERS<sup className="text-[11px] font-semibold ml-0.5 opacity-80">®</sup>
                 </span>
-                <span className="font-mono text-[9.5px] tracking-[0.06em] text-[#8C867E] mt-0.5">
-                  borners-group.ru
+                <span className="text-[10.5px] font-medium tracking-[0.14em] text-[#8F96A6] mt-2 uppercase">
+                  STRATEGY PLATFORM
                 </span>
               </button>
 
@@ -610,30 +620,22 @@ export function AppShell() {
                   onClick={() => setSidebarBlurred((prev) => !prev)}
                   title={
                     sidebarBlurred
-                      ? 'Показать левую панель (убрать размытие)'
-                      : 'Размыть левую панель для фокуса на центральной части'
-                  }
-                  aria-label={
-                    sidebarBlurred
                       ? 'Показать левую панель'
-                      : 'Размыть левую панель'
+                      : 'Скрыть левую панель для фокуса на центральной части'
                   }
-                  className={`h-8 w-8 rounded-[8px] flex items-center justify-center transition cursor-pointer ${
-                    sidebarBlurred
-                      ? 'bg-[#181715] text-white shadow-2xs'
-                      : 'text-[#8C867E] hover:text-[#181715] hover:bg-[#EFECE6]'
-                  }`}
+                  aria-label="Переключить левую панель"
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8F96A6] hover:text-white hover:bg-white/10 transition cursor-pointer"
                 >
                   {sidebarBlurred ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-3.5 w-3.5" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5" />
                   )}
                 </button>
 
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="lg:hidden p-1 text-[#7A756D] hover:text-[#181715]"
+                  className="lg:hidden p-1 text-[#8F96A6] hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -648,189 +650,94 @@ export function AppShell() {
                   setSidebarBlurred(false);
                 }
               }}
-              title={sidebarBlurred ? 'Нажмите, чтобы вернуть чёткость меню' : undefined}
-              className={`p-4 space-y-6 transition-all duration-300 ${
+              title={sidebarBlurred ? 'Нажмите, чтобы вернуть меню' : undefined}
+              className={`px-3.5 py-2 space-y-1 transition-all duration-300 ${
                 sidebarBlurred
                   ? 'blur-[6px] opacity-30 select-none cursor-pointer'
                   : ''
               }`}
             >
-              {/* Основные разделы: мягкая подсветка активного пункта, тихие цифры без рамок */}
-              <div className="space-y-1">
-                <div className="px-3 pb-1.5 text-[11.5px] font-medium text-[#8C867E]">
-                  Основные разделы
-                </div>
-
-                {SIMPLE_NAV_ITEMS.filter((item) =>
-                  canUserAccessSection(currentUser, item.id)
-                ).map((item) => {
-                  const isActive = platformMode === 'management' && activeSection === item.id;
-
-                  const activeConceptsCount = concepts.filter((c) => !c.isArchived).length;
-                  const activeProductsCount = products.filter((p) => !p.isArchived).length;
-                  const activeLaunchesCount = launches.filter((l) => !l.isArchived).length;
-                  const activeTasksCount = tasks.filter(
-                    (t) => !t.isArchived && t.status !== 'Done'
-                  ).length;
-
-                  const countLabel =
-                    item.id === 'dashboard'
-                      ? ''
-                      : item.id === 'product-lab'
-                      ? `${activeConceptsCount}`
-                      : item.id === 'roadmap-tasks'
-                      ? `${activeTasksCount}`
-                      : item.id === 'brand-strategy'
-                      ? '14'
-                      : item.id === 'product-catalog'
-                      ? `${activeProductsCount}`
-                      : item.id === 'launch-calendar'
-                      ? `${activeLaunchesCount}`
-                      : '2027';
-
+              {[
+                { id: 'dashboard' as NavSectionId, label: 'Главная', Icon: Home },
+                { id: 'brand-strategy' as NavSectionId, label: 'Сценарии роста', Icon: BarChart3 },
+                { id: 'product-catalog' as NavSectionId, label: 'Модели (SKU)', Icon: Box },
+                { id: 'launch-calendar' as NavSectionId, label: 'План продаж', Icon: TrendingUp },
+                { id: 'product-lab' as NavSectionId, label: 'Производство', Icon: Factory },
+                { id: 'roadmap-tasks' as NavSectionId, label: 'Закупки', Icon: ShoppingCart },
+                { id: 'finance' as NavSectionId, label: 'Финансы', Icon: Coins },
+                { id: 'marketing-growth' as NavSectionId, label: 'Маркетинг', Icon: Megaphone },
+                { id: 'documents' as NavSectionId, label: 'Отчёты', Icon: FileText },
+              ]
+                .filter((item) => canUserAccessSection(currentUser, item.id))
+                .map(({ id, label, Icon }) => {
+                  const isActive = platformMode === 'management' && activeSection === id;
                   return (
                     <button
-                      key={item.id}
-                      onClick={() => {
-                        setPlatformMode('management');
-                        navigateTo(item.id);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full rounded-[10px] px-3 py-2.5 text-left transition-colors cursor-pointer ${
-                        isActive
-                          ? 'bg-[#EFECE6] text-[#181715]'
-                          : 'text-[#4A4742] hover:bg-[#F3F0EA] hover:text-[#181715]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full shrink-0 transition-opacity ${
-                              isActive ? 'bg-[#181715] opacity-100' : 'bg-[#8C867E] opacity-0'
-                            }`}
-                          />
-                          <span
-                            className={`text-[13.5px] tracking-[-0.01em] truncate ${
-                              isActive ? 'font-medium text-[#181715]' : 'font-normal'
-                            }`}
-                          >
-                            {item.label}
-                          </span>
-                        </div>
-                        {countLabel && (
-                          <span
-                            className={`text-[12px] tabular-nums shrink-0 ${
-                              isActive ? 'text-[#5C5852] font-medium' : 'text-[#9E988E]'
-                            }`}
-                          >
-                            {countLabel}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11.5px] text-[#8C867E] mt-0.5 pl-4 truncate">
-                        {item.subtitle}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Управление и аналитика */}
-              <div className="pt-4 border-t border-[#EAE6DF] space-y-0.5">
-                <div className="px-3 pb-1.5 text-[11.5px] font-medium text-[#8C867E]">
-                  Управление и аналитика
-                </div>
-
-                {OPERATIONAL_NAV_ITEMS.filter((item) =>
-                  canUserAccessSection(currentUser, item.id)
-                ).map((item) => {
-                  const isActive =
-                    platformMode === 'management' && activeSection === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setPlatformMode('management');
-                        navigateTo(item.id);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full h-8 rounded-[8px] px-3 flex items-center justify-between text-left text-[13px] transition-colors cursor-pointer ${
-                        isActive
-                          ? 'bg-[#EFECE6] text-[#181715] font-medium'
-                          : 'text-[#5C5852] hover:text-[#181715] hover:bg-[#F3F0EA]'
-                      }`}
-                    >
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Быстрый фильтр по брендам (спокойный список без лишних рамок) */}
-              <div className="pt-4 border-t border-[#EAE6DF] space-y-1">
-                <div className="px-3 pb-1 text-[11.5px] font-medium text-[#8C867E]">
-                  Бренды портфеля
-                </div>
-
-                {[
-                  {
-                    code: 'ALL' as const,
-                    title: 'Все бренды',
-                    meta: `${products.filter((p) => !p.isArchived).length} моделей`,
-                    dot: '#181715',
-                  },
-                  {
-                    code: 'BORNERS' as const,
-                    title: 'BORNERS',
-                    meta: `${
-                      concepts.filter((c) => !c.isArchived && c.brandId === 'BORNERS').length
-                    } в R&D`,
-                    dot: '#B85D35',
-                  },
-                  {
-                    code: 'NA_TELE' as const,
-                    title: 'НА ТЕЛЕ',
-                    meta: `${
-                      concepts.filter((c) => !c.isArchived && c.brandId === 'NA_TELE').length
-                    } в R&D`,
-                    dot: '#8C7A6B',
-                  },
-                ].map((b) => {
-                  const selected = brandFilter === b.code;
-                  return (
-                    <button
-                      key={b.code}
+                      key={id}
                       type="button"
-                      onClick={() => setBrandFilter(b.code)}
-                      className={`w-full h-8 px-3 rounded-[8px] flex items-center justify-between text-left transition cursor-pointer ${
-                        selected
-                          ? 'bg-[#EFECE6] text-[#181715] font-medium'
-                          : 'hover:bg-[#F3F0EA] text-[#5C5852]'
+                      onClick={() => {
+                        setPlatformMode('management');
+                        navigateTo(id);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full h-[42px] rounded-[11px] px-3.5 flex items-center gap-3.5 text-left transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-white/[0.12] text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]'
+                          : 'text-[#A2A8B8] hover:text-white hover:bg-white/[0.05] font-medium'
                       }`}
                     >
-                      <span className="inline-flex items-center gap-2 text-[13px] truncate">
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: b.dot }}
-                        />
-                        <span className="truncate">{b.title}</span>
-                      </span>
-                      <span className="text-[11.5px] text-[#8C867E] shrink-0">
-                        {b.meta}
+                      <Icon
+                        className={`h-[18px] w-[18px] shrink-0 transition-colors ${
+                          isActive ? 'text-white stroke-[2.1]' : 'text-[#8F96A6] stroke-[1.8]'
+                        }`}
+                      />
+                      <span className="text-[14px] tracking-[-0.01em] truncate">
+                        {label}
                       </span>
                     </button>
                   );
                 })}
+
+              {/* Компактные системные ссылки внизу списка */}
+              <div className="pt-4 mt-4 border-t border-white/[0.08] space-y-0.5">
+                {[
+                  { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
+                  { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' },
+                  { id: 'settings' as NavSectionId, label: 'Настройки · borners-group.ru' },
+                ]
+                  .filter((item) => canUserAccessSection(currentUser, item.id))
+                  .map((item) => {
+                    const isActive =
+                      platformMode === 'management' && activeSection === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          setPlatformMode('management');
+                          navigateTo(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full h-8 rounded-[9px] px-3.5 flex items-center justify-between text-left text-[12.5px] transition-colors cursor-pointer ${
+                          isActive
+                            ? 'bg-white/[0.12] text-white font-semibold'
+                            : 'text-[#7D8496] hover:text-[#D0D5E0] hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <span className="truncate">{item.label}</span>
+                      </button>
+                    );
+                  })}
               </div>
             </nav>
           </div>
 
-          {/* Нижняя карточка сайдбара: Мягкая тёплая плашка презентации без резкого чёрного пятна */}
+          {/* Нижняя карточка сайдбара: Переход в презентацию стратегии */}
           <div
             onClick={() => {
               if (sidebarBlurred) setSidebarBlurred(false);
             }}
-            className={`p-4 border-t border-[#EAE6DF] dark:border-zinc-800 transition-all duration-300 ${
+            className={`p-3.5 border-t border-white/[0.08] transition-all duration-300 ${
               sidebarBlurred ? 'blur-[6px] opacity-30 select-none cursor-pointer' : ''
             }`}
           >
@@ -844,17 +751,17 @@ export function AppShell() {
                 }
                 setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy');
               }}
-              className={`w-full rounded-[10px] p-3.5 text-left transition cursor-pointer border ${
+              className={`w-full rounded-[12px] p-3 text-left transition cursor-pointer border ${
                 platformMode === 'strategy'
-                  ? 'bg-[#EFECE6] text-[#181715] border-[#DCD6CC]'
-                  : 'bg-[#F3EFE8] hover:bg-[#EAE5DC] text-[#181715] border-[#E6E1D6]'
+                  ? 'bg-[#C8A97E] text-[#161822] border-[#C8A97E] font-semibold'
+                  : 'bg-white/[0.06] hover:bg-white/[0.11] text-white border-white/[0.1]'
               }`}
             >
-              <div className="flex items-center justify-between text-[11px] text-[#7A756D]">
-                <span>Презентация · 8 глав</span>
+              <div className="flex items-center justify-between text-[11px] opacity-75">
+                <span>Презентация · 16 слайдов</span>
                 <span>→</span>
               </div>
-              <div className="font-serif-editorial text-[17px] font-medium text-[#181715] mt-0.5 leading-snug">
+              <div className="text-[13.5px] font-semibold mt-0.5 leading-snug">
                 {platformMode === 'strategy'
                   ? 'Вернуться в систему'
                   : 'Стратегия развития 2027'}
@@ -1499,12 +1406,12 @@ export function AppShell() {
                 },
                 {
                   stepNum: '04 / 07',
-                  badge: 'ДАШБОРД · СВОБОДНАЯ ДОСКА MIRO',
-                  title: 'Свободная доска Miro с фото и голосовыми заметками',
-                  desc: 'На главном дашборде расположена интерактивная доска в стиле Miro: перетаскивайте карточки по холсту, загружайте пакетно референсы, записывайте голосовые заметки с микрофона и прикрепляйте аудиофайлы.',
+                  badge: 'ДАШБОРД · СТУДИЯ ИДЕЙ И БЕСКОНЕЧНЫЙ ХОЛСТ',
+                  title: 'Студия идей: бесконечная доска со стрелочками, фото и голосом',
+                  desc: 'На главном дашборде расположена интерактивная Студия идей: бесконечно двигайте холст в любую сторону, прикрепляйте стикеры друг к другу стрелочками, загружайте фото-референсы и записывайте голосовые заметки.',
                   highlightStages: [0, 1, 2, 3, 4, 5, 6],
                   targetSection: 'dashboard' as NavSectionId,
-                  ctaLabel: 'Перейти на Доску Miro',
+                  ctaLabel: 'Перейти в Студию идей',
                 },
                 {
                   stepNum: '05 / 07',

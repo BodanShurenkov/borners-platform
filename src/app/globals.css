@@ -2,60 +2,85 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Архитектурный редакционный минимализм (Atelier / Swiss Editorial) */
+/* Премиальная дизайн-система в стиле Apple Human Interface Guidelines */
 :root {
-  --bg-page: #F6F3ED;
+  --bg-page: #F7F5F0;
   --bg-card: #FFFFFF;
-  --bg-subtle: #EFECE6;
-  --bg-warm-tint: #FAF7F2;
-  --text-primary: #161615;
-  --text-secondary: #5C5852;
-  --border-color: #CFC8BC;
-  --border-strong: #181715;
-  --bg-dark-block: #161615;
-  --brand-borners: #B85D35;
-  --brand-natele: #7D7268;
-  --status-success: #1F6E50;
+  --bg-subtle: #F2EFE9;
+  --bg-warm-tint: #FAF8F5;
+  --text-primary: #1D1D1F;
+  --text-secondary: #6E6E73;
+  --border-color: #E5E0D5;
+  --border-strong: #C8A97E;
+  --bg-dark-block: #161821;
+  --brand-borners: #1E3A5F;
+  --brand-natele: #C8A97E;
+  --status-success: #1D7A4C;
   --status-warning: #B87D24;
-  --status-error: #B83E3E;
+  --status-error: #C93B3B;
 }
 
 html {
-  font-size: 16px;
+  font-size: 15.5px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background-color: var(--bg-page);
   color: var(--text-primary);
-  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.012em;
-  line-height: 1.5;
+  letter-spacing: -0.014em;
+  line-height: 1.48;
 }
 
-/* Выразительная иерархия линий для таблиц и карточек */
-table thead tr {
-  border-bottom: 2px solid #181715 !important;
-}
-
-table tbody tr + tr {
-  border-top: 1.5px solid #DFD9CE;
+/* Единый чистый и читаемый шрифт во всём сервисе (без разнобоя засечек и моноширинного кода) */
+.font-serif-editorial,
+.font-mono,
+.font-sans {
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+  font-variant-numeric: tabular-nums;
 }
 
 .font-serif-editorial {
-  font-family: var(--font-serif), Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  letter-spacing: -0.024em;
+  line-height: 1.22;
 }
 
 .font-mono {
-  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: -0.01em;
+}
+
+/* Адекватные, гармоничные размеры крупных заголовков в стиле Apple */
+h1.font-serif-editorial,
+h2.font-serif-editorial {
+  font-size: clamp(1.35rem, 1.8vw, 1.75rem) !important;
+  line-height: 1.22 !important;
+}
+
+/* Мягкие деликатные линии таблиц и карточек вместо тяжёлых чёрных рамок */
+table thead tr {
+  border-bottom: 1.5px solid #E5E0D5 !important;
+}
+
+table tbody tr + tr {
+  border-top: 1px solid #EFECE6;
+}
+
+/* Смягчение грубых 2px чёрных рамок в пользу премиальных карточек Apple */
+.border-2.border-\[\#181715\] {
+  border-width: 1px !important;
+  border-color: #E4DFD3 !important;
+  box-shadow: 0 2px 14px rgba(20, 20, 24, 0.04) !important;
 }
 
 /* Тонкие минималистичные скроллбары */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -63,10 +88,10 @@ table tbody tr + tr {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D8D2C7;
-  border-radius: 2px;
+  background: #D5CFC4;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #AFA79B;
+  background: #B5AEA0;
 }

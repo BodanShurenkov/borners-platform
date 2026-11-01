@@ -204,8 +204,9 @@ const INITIAL_MIRO_ITEMS: MiroBoardItem[] = [
     brandId: 'ALL',
     color: '#FFF8D6',
     x: 40,
-    y: 40,
+    y: 50,
     width: 280,
+    connectedToIds: ['miro-2', 'miro-4'],
     authorName: 'Алексей Морозов',
     createdAt: '2026-10-30',
   },
@@ -216,11 +217,12 @@ const INITIAL_MIRO_ITEMS: MiroBoardItem[] = [
     content: 'Лицевая фотография и фактура микромодала 180 г/м² для фабрики Guangdong Apex.',
     brandId: 'BORNERS',
     color: '#FAF8F5',
-    x: 350,
+    x: 400,
     y: 40,
     width: 300,
     imageUrl: 'images/products/borners-editorial-hero.jpg',
     galleryUrls: ['images/products/borners-editorial-hero.jpg', 'images/products/rnd-soft-boxers.jpg'],
+    connectedToIds: ['miro-3'],
     authorName: 'Дмитрий Волков',
     createdAt: '2026-10-31',
   },
@@ -231,11 +233,12 @@ const INITIAL_MIRO_ITEMS: MiroBoardItem[] = [
     content: 'Палитра телесных оттенков (Warm Oat, Almond, Espresso) — согласованы выкрасы Lab Dip.',
     brandId: 'NA_TELE',
     color: '#FAF8F5',
-    x: 680,
-    y: 40,
+    x: 780,
+    y: 60,
     width: 300,
     imageUrl: 'images/products/natele-editorial-hero.jpg',
     galleryUrls: ['images/products/natele-editorial-hero.jpg', 'images/products/rnd-seamless-base.jpg'],
+    connectedToIds: [],
     authorName: 'Елена Смирнова',
     createdAt: '2026-10-31',
   },
@@ -246,10 +249,11 @@ const INITIAL_MIRO_ITEMS: MiroBoardItem[] = [
     content: 'Проверить протокол 4 проверок после 5 циклов стирки и выгрузить PDF с китайским переводом.',
     brandId: 'NA_TELE',
     color: '#E6F4EE',
-    x: 40,
-    y: 260,
-    width: 280,
+    x: 80,
+    y: 330,
+    width: 290,
     linkedConceptId: 'concept-soft-boxers',
+    connectedToIds: ['miro-2'],
     authorName: 'Елена Смирнова',
     createdAt: '2026-11-01',
   },
@@ -324,7 +328,13 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             ...s,
             deadline: s.deadline || INITIAL_STRATEGIES[idx]?.deadline || '2027-01-15',
           })),
-          miroItems: parsed.miroItems?.length ? parsed.miroItems : prev.miroItems,
+          miroItems: parsed.miroItems?.length
+            ? parsed.miroItems.map((m) => {
+                if (m.connectedToIds) return m;
+                const fallback = INITIAL_MIRO_ITEMS.find((init) => init.id === m.id);
+                return { ...m, connectedToIds: fallback?.connectedToIds || [] };
+              })
+            : prev.miroItems,
           presentationOverrides: parsed.presentationOverrides || {},
         }));
       }
@@ -1510,9 +1520,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setState((prev) => ({
         ...prev,
-        miroItems: (prev.miroItems || []).filter((m) => m.id !== id),
+        miroItems: (prev.miroItems || [])
+          .filter((m) => m.id !== id)
+          .map((m) => ({
+            ...m,
+            connectedToIds: (m.connectedToIds || []).filter((targetId) => targetId !== id),
+          })),
       }));
-      notify('warning', 'Элемент убран со свободной доски');
+      notify('warning', 'Элемент удалён из Студии идей');
     },
     [notify]
   );
