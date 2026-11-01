@@ -668,18 +668,113 @@ export function AppShell() {
               }`}
             >
               {[
-                { id: 'dashboard' as NavSectionId, label: 'Главная', Icon: Home },
-                { id: 'brand-strategy' as NavSectionId, label: 'Сценарии роста', Icon: BarChart3 },
-                { id: 'product-catalog' as NavSectionId, label: 'Модели (SKU)', Icon: Box },
-                { id: 'launch-calendar' as NavSectionId, label: 'План продаж', Icon: TrendingUp },
-                { id: 'product-lab' as NavSectionId, label: 'Производство', Icon: Factory },
-                { id: 'roadmap-tasks' as NavSectionId, label: 'Закупки', Icon: ShoppingCart },
-                { id: 'finance' as NavSectionId, label: 'Финансы', Icon: Coins },
-                { id: 'marketing-growth' as NavSectionId, label: 'Маркетинг', Icon: Megaphone },
-                { id: 'documents' as NavSectionId, label: 'Отчёты', Icon: FileText },
+                {
+                  id: 'dashboard' as NavSectionId,
+                  label: 'Главная',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45">
+                      <rect x="2" y="2" width="5" height="5" rx="1.2" />
+                      <rect x="9" y="2" width="5" height="5" rx="1.2" />
+                      <rect x="2" y="9" width="5" height="5" rx="1.2" />
+                      <rect x="9" y="9" width="5" height="5" rx="1.2" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'brand-strategy' as NavSectionId,
+                  label: 'Сценарии роста',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2.5 13.5H13.5" />
+                      <path d="M3.5 10.5L6.5 7.5L9.2 9.2L13 4.5" />
+                      <circle cx="13" cy="4.5" r="1.1" fill="currentColor" stroke="none" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'product-catalog' as NavSectionId,
+                  label: 'Модели (SKU)',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2.5" y="3" width="11" height="10" rx="1.8" />
+                      <path d="M2.5 6.2H13.5" />
+                      <path d="M6 9.5H10" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'launch-calendar' as NavSectionId,
+                  label: 'План продаж',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
+                      <path d="M3.5 13V8.5" />
+                      <path d="M6.5 13V6" />
+                      <path d="M9.5 13V7.2" />
+                      <path d="M12.5 13V3.5" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'product-lab' as NavSectionId,
+                  label: 'Производство',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
+                      <path d="M2.5 4.5H13.5" />
+                      <circle cx="5.5" cy="4.5" r="1.4" fill="#FAF8F4" />
+                      <path d="M2.5 8H13.5" />
+                      <circle cx="10.5" cy="8" r="1.4" fill="#FAF8F4" />
+                      <path d="M2.5 11.5H13.5" />
+                      <circle cx="6.8" cy="11.5" r="1.4" fill="#FAF8F4" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'roadmap-tasks' as NavSectionId,
+                  label: 'Закупки',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M8 2.2L13.2 5V11L8 13.8L2.8 11V5L8 2.2Z" />
+                      <path d="M2.8 5L8 7.8L13.2 5" />
+                      <path d="M8 7.8V13.8" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'finance' as NavSectionId,
+                  label: 'Финансы',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2.2" y="3.5" width="11.6" height="9" rx="1.8" />
+                      <path d="M2.2 6.8H13.8" />
+                      <path d="M5 10H7.5" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'marketing-growth' as NavSectionId,
+                  label: 'Маркетинг',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
+                      <circle cx="8" cy="8" r="5.5" />
+                      <circle cx="8" cy="8" r="2.2" />
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'documents' as NavSectionId,
+                  label: 'Отчёты',
+                  renderGlyph: () => (
+                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="2.2" width="10" height="11.6" rx="1.6" />
+                      <path d="M5.5 5.5H10.5" />
+                      <path d="M5.5 8H10.5" />
+                      <path d="M5.5 10.5H8.5" />
+                    </svg>
+                  ),
+                },
               ]
                 .filter((item) => canUserAccessSection(currentUser, item.id))
-                .map(({ id, label, Icon }) => {
+                .map(({ id, label, renderGlyph }) => {
                   const isActive = platformMode === 'management' && activeSection === id;
                   return (
                     <button
@@ -690,21 +785,21 @@ export function AppShell() {
                         navigateTo(id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`group w-full h-[42px] rounded-[13px] px-2.5 flex items-center justify-between text-left transition-all duration-200 cursor-pointer outline-none ${
+                      className={`group w-full h-[38px] rounded-[10px] px-3 flex items-center justify-between text-left transition-all duration-150 cursor-pointer outline-none ${
                         isActive
-                          ? 'bg-white text-[#1D1D1F] font-semibold shadow-[0_3px_14px_rgba(24,23,21,0.06)] border border-[#E5DEC9]'
-                          : 'text-[#5A564F] hover:text-[#1D1D1F] hover:bg-white/70 border border-transparent font-medium'
+                          ? 'bg-[#1D1D1F] text-white font-semibold shadow-[0_2px_10px_rgba(24,23,21,0.10)]'
+                          : 'text-[#5A564F] hover:text-[#1D1D1F] hover:bg-[#EFECE4]/75 font-medium'
                       }`}
                     >
-                      <span className="flex items-center gap-3 min-w-0">
+                      <span className="flex items-center gap-2.5 min-w-0">
                         <span
-                          className={`h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all ${
+                          className={`shrink-0 transition-colors ${
                             isActive
-                              ? 'bg-[#1E3A5F] text-white shadow-[0_2px_6px_rgba(30,58,95,0.22)]'
-                              : 'bg-[#F0ECE2] text-[#6E6A62] group-hover:bg-[#E6E0D3] group-hover:text-[#1D1D1F]'
+                              ? 'text-[#C8A97E]'
+                              : 'text-[#7A756C] group-hover:text-[#1D1D1F]'
                           }`}
                         >
-                          <Icon className="h-[15px] w-[15px] stroke-[2]" />
+                          {renderGlyph()}
                         </span>
                         <span className="text-[13.5px] tracking-[-0.01em] truncate">
                           {label}
@@ -712,7 +807,7 @@ export function AppShell() {
                       </span>
 
                       {isActive && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#C8A97E] mr-1 shrink-0" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#C8A97E] shrink-0" />
                       )}
                     </button>
                   );
