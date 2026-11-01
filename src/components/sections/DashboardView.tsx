@@ -14,6 +14,7 @@ import { ArrowUpRight, LayoutGrid, Sparkles } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import { MiroBoardView } from './MiroBoardView';
 import { GrowthScenariosShowcase } from './GrowthScenariosShowcase';
+import { useDraftModules } from '@/lib/draftModules';
 import {
   SCENARIO_LABELS_RU,
   SEVEN_KANBAN_STAGES,
@@ -48,6 +49,7 @@ export function DashboardView() {
 
   const [chartMetric, setChartMetric] = useState<'revenue' | 'profit'>('revenue');
   const [dashboardMode, setDashboardMode] = useState<'all' | 'miro'>('all');
+  const { draftModules } = useDraftModules();
 
   const hasFinanceAccess = canUserViewFinance(currentUser);
 
@@ -210,71 +212,45 @@ export function DashboardView() {
           1. РЕДАКЦИОННАЯ ШАПКА + БЕСШОВНАЯ ЛЕНТА ЭТАПОВ PRODUCT LAB (ВЫРАЗИТЕЛЬНЫЕ ЛИНИИ)
       ===================================================================== */}
       <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] overflow-hidden">
-        <div className="p-7 md:p-9 grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
-          <div className="lg:col-span-7 space-y-2.5">
+        <div className="p-7 md:p-8 flex flex-wrap items-end justify-between gap-6">
+          <div className="space-y-2 max-w-3xl">
             <div className="text-[12.5px] font-medium text-[#8C867E]">
               Операционная сводка портфеля · 2026–2027
             </div>
-            <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-medium tracking-[-0.01em] leading-[1.1] text-[#181715]">
+            <h1 className="font-serif-editorial text-[32px] md:text-[38px] font-medium tracking-[-0.01em] leading-[1.12] text-[#181715]">
               Стратегия брендов, разработка продукта и экономика тиражей
             </h1>
-            <p className="text-[14.5px] text-[#5C5852] leading-relaxed max-w-2xl pt-0.5">
+            <p className="text-[14px] text-[#5C5852] leading-relaxed max-w-2xl pt-0.5">
               Единое рабочее пространство портфеля <span className="font-medium text-[#181715]">BORNERS</span> и{' '}
               <span className="font-medium text-[#181715]">НА ТЕЛЕ</span>: от фотореференса и расчёта
               себестоимости за пару до протокола стирки, производственного заказа фабрике и годового плана.
             </p>
           </div>
 
-          <div className="lg:col-span-5 flex flex-wrap lg:justify-end items-center gap-2.5">
-            <div className="inline-flex rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-[#FAF8F5] p-0.5">
-              <button
-                type="button"
-                onClick={() => setDashboardMode('all')}
-                className={`h-8 px-3 rounded-[6px] text-[12px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
-                  dashboardMode === 'all'
-                    ? 'bg-[#181715] text-white'
-                    : 'text-[#5C5852] hover:text-[#181715]'
-                }`}
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                <span>Дашборд + Студия</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setDashboardMode('miro')}
-                className={`h-8 px-3 rounded-[6px] text-[12px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
-                  dashboardMode === 'miro'
-                    ? 'bg-[#B85D35] text-white'
-                    : 'text-[#5C5852] hover:text-[#181715]'
-                }`}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Студия идей (Фото + Голос)</span>
-              </button>
-            </div>
+          <div className="inline-flex rounded-[10px] border border-[#D8D1C5] bg-[#FAF8F5] p-1 shrink-0">
             <button
               type="button"
-              onClick={() => navigateTo('roadmap-tasks')}
-              className="h-10 px-4 rounded-[8px] border-[1.5px] border-[#CFC8BC] hover:border-[#181715] bg-white text-[#181715] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
+              onClick={() => setDashboardMode('all')}
+              className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+                dashboardMode === 'all'
+                  ? 'bg-[#181715] text-white shadow-2xs'
+                  : 'text-[#5C5852] hover:text-[#181715]'
+              }`}
             >
-              <span className="h-2 w-2 rounded-full bg-[#B85D35]" />
-              <span>CRM · Задачи ({activeTasksCount})</span>
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Сводка и сценарии</span>
             </button>
             <button
               type="button"
-              onClick={() => setPlatformMode('strategy')}
-              className="h-10 px-4 rounded-[8px] border-[1.5px] border-[#CFC8BC] hover:border-[#181715] bg-[#FAF8F5] text-[#181715] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
+              onClick={() => setDashboardMode('miro')}
+              className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+                dashboardMode === 'miro'
+                  ? 'bg-[#B85D35] text-white shadow-2xs'
+                  : 'text-[#5C5852] hover:text-[#181715]'
+              }`}
             >
-              <span>Презентация стратегии</span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-[#7A756D]" />
-            </button>
-            <button
-              type="button"
-              onClick={() => navigateTo('product-lab')}
-              className="h-10 px-5 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-[#FAF8F5] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
-            >
-              <span>Лаборатория R&amp;D</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Только Студия идей</span>
             </button>
           </div>
         </div>
@@ -416,7 +392,10 @@ export function DashboardView() {
       ===================================================================== */}
       <MiroBoardView />
 
-      {dashboardMode === 'all' && (
+      {dashboardMode === 'all' &&
+        (draftModules.brandPortfolio ||
+          draftModules.finance ||
+          draftModules.legacyReleaseCalendar) && (
         <>
           {/* =====================================================================
               3. ДВА ФЛАГМАНСКИХ БРЕНДА — ЗЕРКАЛЬНАЯ СИММЕТРИЯ КАРТОЧЕК И ЛИНИЙ
