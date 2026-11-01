@@ -580,7 +580,10 @@ export function MiroBoardView() {
     : null;
 
   return (
-    <div className="rounded-[16px] bg-white border-2 border-[#181715] overflow-hidden shadow-xs">
+    <div
+      data-tour="studio-canvas"
+      className="rounded-[16px] bg-white border-2 border-[#181715] overflow-hidden shadow-xs"
+    >
       {/* ПАНЕЛЬ ИНСТРУМЕНТОВ СТУДИИ ИДЕЙ (БЕСКОНЕЧНЫЙ ХОЛСТ) */}
       <div className="px-5 py-4 bg-[#FAF8F5] border-b-2 border-[#181715] flex flex-wrap items-center justify-between gap-3">
         <div>

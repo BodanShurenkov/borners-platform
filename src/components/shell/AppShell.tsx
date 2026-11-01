@@ -51,6 +51,7 @@ import {
   SettingsView,
   TeamView,
 } from '@/components/sections/ManagementAndSystemViews';
+import { PeaklySpotlightTour } from '@/components/shell/PeaklySpotlightTour';
 
 interface NavGroup {
   groupTitle: string;
@@ -650,6 +651,7 @@ export function AppShell() {
             </div>
 
             <nav
+              data-tour="sidebar-nav"
               onClickCapture={(e) => {
                 if (sidebarBlurred) {
                   e.stopPropagation();
@@ -824,7 +826,7 @@ export function AppShell() {
               )}
 
               {/* ВЫПАДАЮЩИЙ СПИСОК БРЕНДОВ */}
-              <div className="relative">
+              <div className="relative" data-tour="brand-switcher">
                 <button
                   type="button"
                   onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
@@ -1386,201 +1388,18 @@ export function AppShell() {
           </div>
         )}
 
-        {/* ИНТЕРАКТИВНАЯ ОБУЧАЛКА С ПОДСВЕТКОЙ ЭТАПОВ (КАК В PEAKLY) */}
-        {tourModalOpen && (
-          <div
-            onClick={() => setTourModalOpen(false)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs"
-          >
-            {(() => {
-              const TOUR_STEPS = [
-                {
-                  stepNum: '01 / 07',
-                  badge: 'ЭТАП R&D · ЗАПУСК ГИПОТЕЗЫ',
-                  title: '01 Идея → 02 Анализ и расчёт комплекта',
-                  desc: 'Создайте карточку разработки за 15 секунд: загрузите лицевое и оборотное фото, укажите количество штук в комплекте (2 / 3 / 4 / 6 шт.) — система автоматически пересчитает себестоимость за 1 пару и весь набор.',
-                  highlightStages: [0, 1],
-                  targetSection: 'product-lab' as NavSectionId,
-                  ctaLabel: 'Перейти в Лабораторию R&D',
-                },
-                {
-                  stepNum: '02 / 07',
-                  badge: 'ЭТАП R&D · ОБРАЗЕЦ, СТИРКА И РЕШЕНИЕ',
-                  title: '03 Образец (100% состав) → 04 Тест → 05 Решение',
-                  desc: 'Конструктор ткани проверяет сумму волокон ровно на 100%, чек-лист фиксирует 4 протокола стирки и посадки, а на этапе «05 Решение» руководитель утверждает модель в тираж.',
-                  highlightStages: [2, 3, 4],
-                  targetSection: 'product-lab' as NavSectionId,
-                  ctaLabel: 'Открыть карточки на проверке',
-                },
-                {
-                  stepNum: '03 / 07',
-                  badge: 'ЭТАП R&D · СПЕЦИФИКАЦИЯ ФАБРИКЕ (PDF 中文 + ₽/$/¥)',
-                  title: '06 Производство + Конструктор PDF → 07 Запуск',
-                  desc: 'Перед отправкой на фабрику откройте «Конструктор PDF»: выберите лицевое и оборотное фото товара, валюту расчёта (Юани ¥, Доллары $, Рубли ₽) и двуязычные блоки КРУПНЫМ КИТАЙСКИМ + мелким русским шрифтом.',
-                  highlightStages: [5, 6],
-                  targetSection: 'product-lab' as NavSectionId,
-                  ctaLabel: 'Открыть Product Lab и PDF-конструктор',
-                },
-                {
-                  stepNum: '04 / 07',
-                  badge: 'ДАШБОРД · СТУДИЯ ИДЕЙ И БЕСКОНЕЧНЫЙ ХОЛСТ',
-                  title: 'Студия идей: бесконечная доска со стрелочками, фото и голосом',
-                  desc: 'На главном дашборде расположена интерактивная Студия идей: бесконечно двигайте холст в любую сторону, прикрепляйте стикеры друг к другу стрелочками, загружайте фото-референсы и записывайте голосовые заметки.',
-                  highlightStages: [0, 1, 2, 3, 4, 5, 6],
-                  targetSection: 'dashboard' as NavSectionId,
-                  ctaLabel: 'Перейти в Студию идей',
-                },
-                {
-                  stepNum: '05 / 07',
-                  badge: 'ОПЕРАЦИОННЫЙ КОНТРОЛЬ · CRM, ТЗ И КОРЗИНА',
-                  title: 'CRM · Задачи, пакетные документы и Корзина удалений',
-                  desc: 'Управляйте поручениями на Канбан-доске CRM, загружайте сразу много ТЗ с привязкой к конкретной карточке R&D/SKU и восстанавливайте случайно удалённые объекты через «Корзину» в верхней панели.',
-                  highlightStages: [0, 1, 2, 3, 4, 5, 6],
-                  targetSection: 'roadmap-tasks' as NavSectionId,
-                  ctaLabel: 'Открыть доску CRM · Задачи',
-                },
-              ];
-
-              const currentTour = TOUR_STEPS[tourStepIdx] || TOUR_STEPS[0];
-              const RND_STAGE_NAMES = [
-                '01 Идея',
-                '02 Анализ',
-                '03 Образец',
-                '04 Тест',
-                '05 Решение',
-                '06 Производство',
-                '07 Запуск',
-              ];
-
-              return (
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-full max-w-2xl bg-white rounded-2xl border-2 border-[#181715] shadow-2xl overflow-hidden"
-                >
-                  {/* Верхняя полоса с подсветкой шагов */}
-                  <div className="px-6 py-4 bg-[#181715] text-white flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2.5">
-                      <Sparkles className="h-4 w-4 text-[#D97745]" />
-                      <span className="font-mono text-[11.5px] uppercase tracking-[0.14em] text-[#D8D1C5]">
-                        ИНТЕРАКТИВНЫЙ ГИД BORNERS GROUP · ШАГ {tourStepIdx + 1} ИЗ {TOUR_STEPS.length}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setTourModalOpen(false)}
-                      className="text-[12px] font-mono text-white/75 hover:text-white cursor-pointer"
-                    >
-                      Закрыть [ESC]
-                    </button>
-                  </div>
-
-                  <div className="p-6 md:p-8 space-y-6">
-                    {/* Визуальная шкала подсветки 7 этапов (Spotlight) */}
-                    <div className="rounded-xl bg-[#FAF8F5] border-[1.5px] border-[#CFC8BC] p-4 space-y-2.5">
-                      <div className="flex items-center justify-between text-[11px] font-mono uppercase text-[#7A756D]">
-                        <span>Подсветка этапов жизненного цикла модели (01–07)</span>
-                        <span className="text-[#1F6E50] font-semibold">● Активный фокус</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-7 gap-1.5">
-                        {RND_STAGE_NAMES.map((stName, i) => {
-                          const isSpotlit = currentTour.highlightStages.includes(i);
-                          const isPassed = i < Math.min(...currentTour.highlightStages);
-                          return (
-                            <div
-                              key={stName}
-                              className={`px-2.5 py-2 rounded-[6px] border text-center transition-all ${
-                                isSpotlit
-                                  ? 'bg-[#B85D35] text-white border-[#181715] font-bold shadow-sm scale-[1.03]'
-                                  : isPassed
-                                  ? 'bg-[#1F6E50]/12 text-[#1F6E50] border-[#1F6E50]/30 font-semibold'
-                                  : 'bg-white text-[#8C867E] border-[#E2DCD2]'
-                              }`}
-                            >
-                              <div className="text-[10.5px] font-mono truncate">{stName}</div>
-                              <div className="text-[9.5px] mt-0.5">
-                                {isSpotlit ? '● Фокус' : isPassed ? '✓ Готово' : '○ Этап'}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#B85D35]">
-                        {currentTour.badge}
-                      </div>
-                      <h3 className="font-serif-editorial text-[28px] md:text-[32px] font-semibold text-[#181715] leading-tight">
-                        {currentTour.title}
-                      </h3>
-                      <p className="text-[14.5px] text-[#5C5852] leading-relaxed">
-                        {currentTour.desc}
-                      </p>
-                    </div>
-
-                    {/* Точки быстрого переключения шагов */}
-                    <div className="flex items-center gap-2 pt-1">
-                      {TOUR_STEPS.map((_, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setTourStepIdx(idx)}
-                          className={`h-2 rounded-full transition-all cursor-pointer ${
-                            idx === tourStepIdx
-                              ? 'w-8 bg-[#181715]'
-                              : 'w-2 bg-[#D4CDC2] hover:bg-[#8C867E]'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="px-6 py-4 bg-[#FAF8F5] border-t-[1.5px] border-[#CFC8BC] flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={tourStepIdx === 0}
-                        onClick={() => setTourStepIdx((i) => Math.max(0, i - 1))}
-                        className="h-9 px-3.5 rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-white text-[12.5px] font-semibold text-[#181715] disabled:opacity-40 cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <ArrowLeft className="h-3.5 w-3.5" />
-                        <span>Назад</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (tourStepIdx < TOUR_STEPS.length - 1) {
-                            setTourStepIdx((i) => i + 1);
-                          } else {
-                            setTourModalOpen(false);
-                          }
-                        }}
-                        className="h-9 px-4 rounded-[8px] border-[1.5px] border-[#181715] bg-white hover:bg-[#EFECE6] text-[12.5px] font-semibold text-[#181715] cursor-pointer inline-flex items-center gap-1"
-                      >
-                        <span>
-                          {tourStepIdx < TOUR_STEPS.length - 1 ? 'Следующий шаг' : 'Завершить гид'}
-                        </span>
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPlatformMode('management');
-                        navigateTo(currentTour.targetSection);
-                        setTourModalOpen(false);
-                      }}
-                      className="h-9 px-4 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white text-[12.5px] font-semibold cursor-pointer"
-                    >
-                      {currentTour.ctaLabel} →
-                    </button>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-        )}
+        {/* ИНТЕРАКТИВНЫЙ ОНБОРДИНГ-ГИД С ВЫРЕЗКОЙ ЭЛЕМЕНТОВ В СТИЛЕ PEAKLY */}
+        <PeaklySpotlightTour
+          open={tourModalOpen}
+          stepIdx={tourStepIdx}
+          setStepIdx={setTourStepIdx}
+          onClose={() => setTourModalOpen(false)}
+          activeSection={activeSection}
+          onNavigateSection={(sec) => {
+            setPlatformMode('management');
+            navigateTo(sec);
+          }}
+        />
         <div className="fixed bottom-6 right-6 z-50 space-y-2 max-w-md w-full pointer-events-none">
           {toasts.map((t) => (
             <div

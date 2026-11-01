@@ -23,6 +23,11 @@ import {
   buildPdfFromJpegPages,
 } from '../src/lib/document-export.ts';
 import { INITIAL_STRATEGIES } from '../src/lib/initial-strategies.ts';
+import {
+  INITIAL_SCENARIOS,
+  INITIAL_SCENARIO_MODELS,
+  computeModelScenarioMetrics,
+} from '../src/lib/scenarioData.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
   const result = calculateUnitEconomics({
@@ -357,4 +362,51 @@ test('9. Быстрая загрузка фотографий (< 50 КБ на ф
     assert.equal((block.deadline ?? '').length, 10);
   }
 });
+
+test('10. Сценарии роста и управление моделями (ТЗ v1.0, Тест 01–12): расчёт снизу вверх, маржа, дефицит и конфликт сроков', () => {
+  const scen1 = INITIAL_SCENARIOS[0]; // 100 млн ₽ / мес
+  const model001 = INITIAL_SCENARIO_MODELS[0]; // BORNERS №001 / COLOR 4 PACK
+
+  const baseMetrics = computeModelScenarioMetrics(model001, scen1);
+  // Годовая выручка считается как сумма 12 месяцев (~87 млн ₽), а не декабрь × 12
+  assert.equal(baseMetrics.annualPacks, 67442);
+  assert.equal(Math.round(baseMetrics.annualRevenueRub / 1_000_000), 87);
+  assert.equal(baseMetrics.goalSharePct, 10.8);
+  assert.equal(baseMetrics.hasScheduleConflict, false);
+  // Палитры SORBET CLUB и RIVIERA содержат по 4 цвета с Pantone (Тест 08)
+  assert.equal(model001.palettes.length, 2);
+  assert.equal(model001.palettes[0].colors.length, 4);
+  assert.equal(model001.palettes[1].colors.length, 4);
+
+  // Тест 04: изменение продаж за месяц пересчитывает годовую выручку
+  const modifiedModel = {
+    ...model001,
+    unitCostRub: 350, // Тест 05: снижение себестоимости увеличивает маржинальный доход
+    plansByScenario: {
+      ...model001.plansByScenario,
+      1: {
+        ...model001.plansByScenario[1],
+        monthlyPacks: model001.plansByScenario[1].monthlyPacks.map((v, idx) =>
+          idx === 0 ? v + 1000 : v
+        ),
+        salesStartMonthIdx: 2, // Март
+        warehouseArrivalMonthIdx: 3, // Апрель (Тест 07: конфликт сроков!)
+        warehouseArrivalDateLabel: '12 апреля',
+      },
+    },
+  };
+
+  const nextMetrics = computeModelScenarioMetrics(modifiedModel, scen1);
+  assert.equal(
+    nextMetrics.annualRevenueRub,
+    baseMetrics.annualRevenueRub + 1000 * 1290
+  );
+  assert.equal(nextMetrics.unitMarginRub > baseMetrics.unitMarginRub, true);
+  assert.equal(nextMetrics.hasScheduleConflict, true);
+  assert.equal(
+    nextMetrics.scheduleConflictMessage,
+    'План продаж начинается в марте, но товар поступит на склад только 12 апреля'
+  );
+});
+
 
