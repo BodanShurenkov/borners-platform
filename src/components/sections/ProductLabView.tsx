@@ -437,34 +437,38 @@ export function ProductLabView() {
   // Короткая 3-я строка статуса на карточке фотодоски (Стр. 3 PDF)
   const getBoardCardStatusLine = (c: ProductConcept, stage: SevenKanbanStage) => {
     if (stage === 'TEST') {
-      return { text: 'Нужен тест', highlight: true };
+      return { text: 'Требуется тест', highlight: true };
     }
     if (stage === 'SAMPLE') {
-      return { text: `Тест до ${c.targetLaunchDate?.slice(5) || '15.11'}`, highlight: false };
+      if (c.targetLaunchDate) {
+        const [, mm, dd] = c.targetLaunchDate.split('-');
+        return { text: `Образец · ${dd || '15'}.${mm || '03'}`, highlight: false };
+      }
+      return { text: 'Проверка образца', highlight: false };
     }
     if (c.targetLaunchDate) {
       const [yyyy, mm] = c.targetLaunchDate.split('-');
       return {
-        text: `Запуск: ${mm || '01'}.${yyyy || '2027'}`,
+        text: `Запуск · ${mm || '01'}.${yyyy || '2027'}`,
         highlight: false,
       };
     }
-    return { text: 'Запуск: 01.2027', highlight: false };
+    return { text: 'Запуск · 01.2027', highlight: false };
   };
 
   return (
     <div className="space-y-6 pb-20">
       {/* =====================================================================
-          02 / ГЛАВНЫЙ ЭКРАН — ФОТОДОСКА (БЕЗ ИИ-ПОЛОСОК, СТРОГАЯ АРХИТЕКТУРА)
+          02 / ГЛАВНЫЙ ЭКРАН — ФОТОДОСКА (ЧИСТАЯ РЕДАКЦИОННАЯ ВЕРСТКА)
       ===================================================================== */}
-      <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 md:p-7 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#E5E0D8] pb-5">
+      <div className="rounded-[12px] bg-white border border-[#EAE6DF] p-6 md:p-8 space-y-6">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#EAE6DF] pb-5">
           <div className="space-y-1">
-            <div className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-[#7A756D]">
-              BORNERS GROUP · PRODUCT LAB R&amp;D
+            <div className="text-[12px] font-medium text-[#8C867E]">
+              Разработка продукта · 7 этапов отбора
             </div>
-            <h1 className="font-serif-editorial text-[32px] md:text-[38px] font-medium tracking-[-0.01em] text-[#161615] leading-none">
-              Лаборатория продукта
+            <h1 className="font-serif-editorial text-[32px] md:text-[38px] font-normal tracking-[-0.015em] text-[#181715] leading-none">
+              Лаборатория R&amp;D
             </h1>
             <p className="text-[13.5px] text-[#6E6A63] pt-1">
               Визуальная доска разработки: от первой фотографии и анализа рынка до протокола стирки и заказа фабрике
@@ -474,7 +478,7 @@ export function ProductLabView() {
           <button
             type="button"
             onClick={() => setQuickIdeaOpen(true)}
-            className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-[#161615] hover:bg-[#2C2B29] text-white px-4 text-[13px] font-medium transition cursor-pointer"
+            className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white px-4 text-[13px] font-medium transition cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />
             <span>Новая идея</span>
@@ -487,7 +491,7 @@ export function ProductLabView() {
             <select
               value={brandFilter}
               onChange={(e) => setBrandFilter(e.target.value)}
-              className="h-9 rounded-[6px] bg-[#F8F6F2] hover:border-[#161615] border border-[#E5E0D8] px-3 text-[12.5px] font-medium text-[#161615] outline-none cursor-pointer transition"
+              className="h-9 rounded-[8px] bg-[#FAF8F5] hover:border-[#181715] border border-[#EAE6DF] px-3 text-[12.5px] font-medium text-[#181715] outline-none cursor-pointer transition"
             >
               <option value="ALL">Все бренды</option>
               <option value="BORNERS">BORNERS</option>
@@ -497,12 +501,12 @@ export function ProductLabView() {
             <select
               value={stageFilter}
               onChange={(e) => setStageFilter(e.target.value)}
-              className="h-9 rounded-[6px] bg-[#F8F6F2] hover:border-[#161615] border border-[#E5E0D8] px-3 text-[12.5px] font-medium text-[#161615] outline-none cursor-pointer transition"
+              className="h-9 rounded-[8px] bg-[#FAF8F5] hover:border-[#181715] border border-[#EAE6DF] px-3 text-[12.5px] font-medium text-[#181715] outline-none cursor-pointer transition"
             >
               <option value="ALL">Все этапы (01–07)</option>
-              {SEVEN_KANBAN_STAGES.map((st, idx) => (
+              {SEVEN_KANBAN_STAGES.map((st) => (
                 <option key={st} value={st}>
-                  0{idx + 1} · {CONCEPT_STAGE_LABELS_RU[st]}
+                  {CONCEPT_STAGE_LABELS_RU[st]}
                 </option>
               ))}
             </select>
@@ -513,19 +517,19 @@ export function ProductLabView() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск модели или ID..."
-                className="w-full h-9 rounded-[6px] bg-[#F8F6F2] border border-[#E5E0D8] pl-8 pr-3 text-[12.5px] outline-none focus:bg-white focus:border-[#161615]"
+                className="w-full h-9 rounded-[8px] bg-[#FAF8F5] border border-[#EAE6DF] pl-8 pr-3 text-[12.5px] outline-none focus:bg-white focus:border-[#181715]"
               />
             </div>
           </div>
 
-          <div className="flex items-center h-9 bg-[#F2EFE9] p-0.5 rounded-[6px] border border-[#E5E0D8]">
+          <div className="flex items-center h-9 bg-[#F3EFE8] p-0.5 rounded-[8px] border border-[#EAE6DF]">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
-              className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-[6px] text-[12.5px] font-medium transition cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-white text-[#161615] shadow-2xs'
-                  : 'text-[#6E6A63] hover:text-[#161615]'
+                  ? 'bg-white text-[#181715] shadow-2xs'
+                  : 'text-[#6E6A63] hover:text-[#181715]'
               }`}
             >
               <Columns3 className="h-3.5 w-3.5" />
@@ -534,10 +538,10 @@ export function ProductLabView() {
             <button
               type="button"
               onClick={() => setViewMode('gallery')}
-              className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-[6px] text-[12.5px] font-medium transition cursor-pointer ${
                 viewMode === 'gallery'
-                  ? 'bg-white text-[#161615] shadow-2xs'
-                  : 'text-[#6E6A63] hover:text-[#161615]'
+                  ? 'bg-white text-[#181715] shadow-2xs'
+                  : 'text-[#6E6A63] hover:text-[#181715]'
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
@@ -547,7 +551,7 @@ export function ProductLabView() {
         </div>
 
         {/* ===================================================================
-            ФОТОДОСКА KANBAN (Крупные карточки 252px, фото 60% высоты, 3 строки текста)
+            ФОТОДОСКА KANBAN (Крупные карточки 256px, фото 60% высоты, 3 строки текста без зажатия)
         =================================================================== */}
         {viewMode === 'kanban' && (
           <div className="space-y-3">
@@ -557,6 +561,7 @@ export function ProductLabView() {
                   (c) => normalizeConceptStageToSeven(c.stage) === stage
                 );
                 const isOver = dragOverStage === stage;
+                const cleanStageTitle = CONCEPT_STAGE_LABELS_RU[stage].replace(/^\d+\s*[·-]\s*/, '');
 
                 return (
                   <div
@@ -578,19 +583,21 @@ export function ProductLabView() {
                         attemptStageTransition(found, stage);
                       }
                     }}
-                    className={`w-[254px] shrink-0 rounded-[8px] p-3 flex flex-col gap-3 min-h-[520px] border transition ${
+                    className={`w-[258px] shrink-0 rounded-[10px] p-3 flex flex-col gap-3 min-h-[520px] border transition ${
                       isOver
-                        ? 'border-[#161615] bg-[#EAE5DC]'
-                        : 'border-[#E5E0D8] bg-[#F6F4EF]'
+                        ? 'border-[#181715] bg-[#EFECE6]'
+                        : 'border-[#EAE6DF] bg-[#FAF8F5]'
                     }`}
                   >
-                    {/* Заголовок колонки */}
-                    <div className="flex items-center justify-between px-1 pb-2 border-b border-[#E5E0D8]">
-                      <span className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#161615] font-medium">
-                        <span className="text-[#8C867E] mr-1.5">0{stageIdx + 1}</span>
-                        {CONCEPT_STAGE_LABELS_RU[stage]}
+                    {/* Заголовок колонки без дублирования 01 01 */}
+                    <div className="flex items-center justify-between px-1 pb-2 border-b border-[#EAE6DF]">
+                      <span className="text-[13px] text-[#181715] font-medium flex items-center gap-2">
+                        <span className="text-[11.5px] tabular-nums text-[#9E988E] font-normal">
+                          0{stageIdx + 1}
+                        </span>
+                        <span>{cleanStageTitle}</span>
                       </span>
-                      <span className="font-mono text-[11px] text-[#7A756D]">
+                      <span className="text-[12px] tabular-nums text-[#8C867E]">
                         {stageItems.length}
                       </span>
                     </div>
@@ -611,7 +618,7 @@ export function ProductLabView() {
                               e.dataTransfer.setData('text/plain', concept.id);
                             }}
                             onClick={() => openConceptCard(concept)}
-                            className="group relative bg-white rounded-[6px] border border-[#E5E0D8] hover:border-[#161615] overflow-hidden cursor-pointer transition flex flex-col"
+                            className="group relative bg-white rounded-[8px] border border-[#EAE6DF] hover:border-[#CBC5B9] hover:shadow-xs overflow-hidden cursor-pointer transition flex flex-col"
                           >
                             <button
                               type="button"
@@ -620,13 +627,13 @@ export function ProductLabView() {
                                 deleteConcept(concept.id);
                               }}
                               title="Удалить карточку"
-                              className="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 z-10 h-6 w-6 rounded-[4px] bg-white/90 border border-[#E5E0D8] flex items-center justify-center text-[#7A756D] hover:text-[#B83E3E] hover:border-[#B83E3E] transition cursor-pointer"
+                              className="opacity-0 group-hover:opacity-100 absolute top-2.5 right-2.5 z-10 h-6 w-6 rounded-[6px] bg-white/90 border border-[#EAE6DF] flex items-center justify-center text-[#7A756D] hover:text-[#B83E3E] hover:border-[#B83E3E] transition cursor-pointer"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>
 
                             {/* Крупное изображение (~60% высоты карточки) */}
-                            <div className="h-[196px] w-full bg-[#EFECE6] border-b border-[#E5E0D8] overflow-hidden flex items-center justify-center">
+                            <div className="h-[196px] w-full bg-[#F3EFE8] border-b border-[#EAE6DF] overflow-hidden flex items-center justify-center">
                               {hasPhoto ? (
                                 <img
                                   src={concept.imageUrl}
@@ -634,29 +641,29 @@ export function ProductLabView() {
                                   className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                                 />
                               ) : (
-                                <div className="text-center px-4 font-mono text-[11px] uppercase tracking-wider text-[#8C867E]">
-                                  Карточка без фото
+                                <div className="text-center px-4 text-[12px] text-[#8C867E]">
+                                  Фото образца не загружено
                                 </div>
                               )}
                             </div>
 
-                            {/* Ровно 3 чистые строки под фото */}
-                            <div className="p-3 space-y-1">
-                              <h4 className="text-[14px] font-semibold text-[#161615] leading-snug line-clamp-1">
+                            {/* Ровно 3 чистые строки под фото — без зажатия текста */}
+                            <div className="p-3.5 space-y-1">
+                              <h4 className="text-[14px] font-medium text-[#181715] leading-snug line-clamp-1">
                                 {concept.name}
                               </h4>
 
-                              <div className="text-[12px] text-[#6E6A63] truncate">
+                              <div className="text-[12px] text-[#7A756D] truncate">
                                 {concept.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ·{' '}
                                 {getUserShortName(concept.ownerId)}
                               </div>
 
-                              <div className="flex items-center justify-between gap-2 pt-1">
+                              <div className="flex items-center justify-between gap-2 pt-1 min-h-[24px]">
                                 <span
-                                  className={`font-mono text-[11px] ${
+                                  className={`text-[12px] tabular-nums whitespace-nowrap ${
                                     statusLine.highlight
                                       ? 'text-[#B85D35] font-medium'
-                                      : 'text-[#7A756D]'
+                                      : 'text-[#8C867E]'
                                   }`}
                                 >
                                   {statusLine.text}
@@ -673,11 +680,11 @@ export function ProductLabView() {
                                     );
                                   }}
                                   title="Переместить в этап..."
-                                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 font-mono text-[10px] text-[#161615] bg-[#F8F6F2] border border-[#E5E0D8] rounded-[4px] px-1.5 py-0.5 cursor-pointer transition"
+                                  className="hidden group-hover:block focus:block text-[11px] text-[#181715] bg-[#FAF8F5] border border-[#DCD6CC] rounded-[5px] px-1.5 py-0.5 cursor-pointer transition max-w-[118px] truncate"
                                 >
                                   {SEVEN_KANBAN_STAGES.map((st) => (
                                     <option key={st} value={st}>
-                                      → {CONCEPT_STAGE_LABELS_RU[st]}
+                                      → {CONCEPT_STAGE_LABELS_RU[st].replace(/^\d+\s*[·-]\s*/, '')}
                                     </option>
                                   ))}
                                 </select>

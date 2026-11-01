@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   Bell,
   ChevronDown,
+  Eye,
+  EyeOff,
   LogOut,
   Menu,
   Plus,
@@ -174,6 +176,7 @@ export function AppShell() {
   } = usePlatform();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarBlurred, setSidebarBlurred] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -387,28 +390,73 @@ export function AppShell() {
           }`}
         >
           <div className="overflow-y-auto flex-1">
-            {/* Чистый логотип группы в высоту верхнего хедера h-14 */}
-            <div className="h-14 px-6 border-b border-[#EAE6DF] dark:border-zinc-800 flex items-center justify-between">
+            {/* Чистый логотип группы в высоту верхнего хедера h-14 + кнопка «Глазик» для блюра всей левой колонки */}
+            <div className="h-14 px-5 border-b border-[#EAE6DF] dark:border-zinc-800 flex items-center justify-between gap-2">
               <button
                 onClick={() => {
                   setPlatformMode('management');
                   navigateTo('dashboard');
                 }}
-                className="text-left cursor-pointer flex items-baseline gap-2 group"
+                className={`text-left cursor-pointer flex items-baseline gap-2 group transition-all duration-300 ${
+                  sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
+                }`}
               >
                 <span className="font-serif-editorial text-[22px] font-semibold tracking-[0.02em] text-[#181715] dark:text-white leading-none">
                   Borners Group
                 </span>
               </button>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="lg:hidden p-1 text-[#7A756D] hover:text-[#181715]"
-              >
-                <X className="h-4 w-4" />
-              </button>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSidebarBlurred((prev) => !prev)}
+                  title={
+                    sidebarBlurred
+                      ? 'Показать левую панель (убрать размытие)'
+                      : 'Размыть левую панель для фокуса на центральной части'
+                  }
+                  aria-label={
+                    sidebarBlurred
+                      ? 'Показать левую панель'
+                      : 'Размыть левую панель'
+                  }
+                  className={`h-8 w-8 rounded-[8px] flex items-center justify-center transition cursor-pointer ${
+                    sidebarBlurred
+                      ? 'bg-[#181715] text-white shadow-2xs'
+                      : 'text-[#8C867E] hover:text-[#181715] hover:bg-[#EFECE6]'
+                  }`}
+                >
+                  {sidebarBlurred ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="lg:hidden p-1 text-[#7A756D] hover:text-[#181715]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            <nav className="p-4 space-y-6">
+            <nav
+              onClickCapture={(e) => {
+                if (sidebarBlurred) {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setSidebarBlurred(false);
+                }
+              }}
+              title={sidebarBlurred ? 'Нажмите, чтобы вернуть чёткость меню' : undefined}
+              className={`p-4 space-y-6 transition-all duration-300 ${
+                sidebarBlurred
+                  ? 'blur-[6px] opacity-30 select-none cursor-pointer'
+                  : ''
+              }`}
+            >
               {/* Основные разделы: мягкая подсветка активного пункта, тихие цифры без рамок */}
               <div className="space-y-1">
                 <div className="px-3 pb-1.5 text-[11.5px] font-medium text-[#8C867E]">
@@ -575,12 +623,24 @@ export function AppShell() {
           </div>
 
           {/* Нижняя карточка сайдбара: Мягкая тёплая плашка презентации без резкого чёрного пятна */}
-          <div className="p-4 border-t border-[#EAE6DF] dark:border-zinc-800">
+          <div
+            onClick={() => {
+              if (sidebarBlurred) setSidebarBlurred(false);
+            }}
+            className={`p-4 border-t border-[#EAE6DF] dark:border-zinc-800 transition-all duration-300 ${
+              sidebarBlurred ? 'blur-[6px] opacity-30 select-none cursor-pointer' : ''
+            }`}
+          >
             <button
               type="button"
-              onClick={() =>
-                setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy')
-              }
+              onClick={(e) => {
+                if (sidebarBlurred) {
+                  e.stopPropagation();
+                  setSidebarBlurred(false);
+                  return;
+                }
+                setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy');
+              }}
               className={`w-full rounded-[10px] p-3.5 text-left transition cursor-pointer border ${
                 platformMode === 'strategy'
                   ? 'bg-[#EFECE6] text-[#181715] border-[#DCD6CC]'

@@ -496,18 +496,16 @@ export function BrandStrategyView() {
 
   return (
     <div className="space-y-8 pb-20">
-      {/* Шапка стратегии в стиле швейцарского ателье */}
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#E5E0D8] pb-6">
+      {/* Шапка стратегии в спокойной редакционной эстетике */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#EAE6DF] pb-6">
         <div>
-          <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.2em] text-[#7A756D] mb-2">
-            <span>BRAND PASSPORT</span>
-            <span>·</span>
-            <span>14 СТРАТЕГИЧЕСКИХ БЛОКОВ УПРАВЛЕНИЯ</span>
+          <div className="text-[12px] font-medium text-[#8C867E] mb-1.5">
+            Паспорт бренда · 14 стратегических блоков ДНК
           </div>
-          <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-medium tracking-[-0.02em] text-[#161615] leading-[1.08]">
+          <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-normal tracking-[-0.015em] text-[#181715] leading-[1.08]">
             Стратегия бренда: {activeBrand.name}
           </h1>
-          <p className="text-[13px] text-[#5C5852] mt-1.5">
+          <p className="text-[13.5px] text-[#6E6A63] mt-1.5">
             {activeBrand.tagline} · целевая валовая маржа {activeBrand.targetMarginPct}%
           </p>
         </div>
@@ -629,15 +627,15 @@ export function BrandStrategyView() {
                 </ul>
               </div>
 
-              {/* Опорные показатели блока */}
-              <div className="pt-4 border-t border-[#E5E0D8] grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Опорные показатели блока — без обрезания слов и без технических рамок */}
+              <div className="pt-4 border-t border-[#EAE6DF] grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {block.kpiHighlights.map((m, idx) => (
-                  <div key={idx} className="p-2.5 rounded-[4px] bg-[#F8F6F2] border border-[#E5E0D8]">
-                    <div className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#7A756D] truncate">
+                  <div key={idx} className="rounded-[8px] bg-[#FAF8F5] border border-[#EAE6DF] px-3.5 py-2.5">
+                    <div className="text-[11.5px] text-[#7A756D] leading-snug">
                       {m.label}
                     </div>
-                    <div className="text-[13px] font-medium text-[#161615] mt-0.5">
-                      {m.value}
+                    <div className="text-[14px] font-semibold text-[#181715] mt-0.5 tabular-nums">
+                      {m.value.replace(/\s*\(ДЕМО\)/gi, '')}
                     </div>
                   </div>
                 ))}
