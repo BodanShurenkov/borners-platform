@@ -33,6 +33,7 @@ import {
   formatCurrencyRub,
 } from '@/lib/finance';
 import {
+  compressImageFileToDataUrl,
   exportConceptProductionExcel,
   exportConceptProductionPdf,
 } from '@/lib/document-export';
@@ -1129,16 +1130,14 @@ export function ProductLabCardBody({
                     onChange={(e) => {
                       const files = Array.from(e.target.files || []);
                       files.forEach((f) => {
-                        const r = new FileReader();
-                        r.onload = () => {
-                          if (typeof r.result === 'string') {
+                        void compressImageFileToDataUrl(f, 680, 0.78).then((compressedUrl) => {
+                          if (compressedUrl) {
                             setSampleForm((prev) => ({
                               ...prev,
-                              photos: [...prev.photos, r.result as string],
+                              photos: [...prev.photos, compressedUrl],
                             }));
                           }
-                        };
-                        r.readAsDataURL(f);
+                        });
                       });
                     }}
                   />

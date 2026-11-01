@@ -295,6 +295,65 @@ const DEFAULT_STATE: PersistedState = {
   presentationOverrides: {},
 };
 
+let uniqueIdSeq = 0;
+function makeUniqueId(prefix: string): string {
+  uniqueIdSeq += 1;
+  return `${prefix}-${Date.now()}-${uniqueIdSeq}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/**
+ * Автоматически убирает дубликаты товаров в каталоге (например, возникшие при совпадении Date.now() ID)
+ * и гарантирует уникальность каждого product.id, чтобы удаление и редактирование работали с 1 клика.
+ */
+function deduplicateAndHealProducts(products: Product[]): Product[] {
+  const seenIds = new Set<string>();
+  const seenKeys = new Set<string>();
+  const result: Product[] = [];
+
+  const bornersDataUrls = new Set(
+    products
+      .filter((p) => p && p.brandId === 'BORNERS' && p.imageUrl?.startsWith('data:image/'))
+      .map((p) => p.imageUrl)
+  );
+
+  for (const raw of products) {
+    if (!raw) continue;
+    const keySku = `${raw.brandId}:${(raw.sku || '').trim().toUpperCase()}`;
+    const keyName = `${raw.brandId}:${(raw.name || '').trim().toUpperCase()}`;
+
+    if (seenKeys.has(keySku) || seenKeys.has(keyName)) {
+      continue;
+    }
+    seenKeys.add(keySku);
+    seenKeys.add(keyName);
+
+    let id = raw.id;
+    if (!id || seenIds.has(id)) {
+      id = makeUniqueId('prod');
+    }
+    seenIds.add(id);
+
+    // Если при старом совпадении ID (prod-${Date.now()}) карточка НА ТЕЛЕ (SECOND SKIN SET)
+    // случайно унаследовала чужое фото боксеров BORNERS, восстанавливаем её штатный визуал
+    let imageUrl = raw.imageUrl;
+    if (
+      raw.brandId === 'NA_TELE' &&
+      imageUrl &&
+      bornersDataUrls.has(imageUrl)
+    ) {
+      imageUrl = 'images/products/natele-milky-black.svg';
+    }
+
+    result.push({
+      ...raw,
+      id,
+      imageUrl,
+    });
+  }
+
+  return result;
+}
+
 const PlatformContext = createContext<PlatformContextValue | null>(null);
 
 export function PlatformProvider({ children }: { children: React.ReactNode }) {
@@ -354,6 +413,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         setState((prev) => ({
           ...prev,
           ...parsed,
+          products: deduplicateAndHealProducts(parsed.products || prev.products),
           brands: (parsed.brands || prev.brands).map((b) =>
             b.code === 'BORNERS'
               ? { ...b, heroImage: 'images/products/borners-editorial-hero.jpg' }
@@ -745,7 +805,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   // 1. Создание концепции в Product Lab (п. 4, 6, 21 ТЗ Product Lab R&D)
   const createConcept = useCallback(
     (input: Partial<ProductConcept> & { name: string; brandId: string }): ProductConcept => {
-      const id = `concept-${Date.now()}`;
+      const id = makeUniqueId('concept');
       const nextNum = state.concepts.length + 21;
       const code = input.code || `RD-0${nextNum}`;
       const now = new Date().toISOString().slice(0, 10);
@@ -810,7 +870,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         attachments: input.attachments || [],
         stageHistory: [
           {
-            id: `sh-${Date.now()}`,
+            id: makeUniqueId('sh'),
             timestamp: nowTime,
             authorName: currentUser.fullName,
             authorRole: currentUser.role,
@@ -985,7 +1045,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       }
 
       const now = new Date().toISOString().slice(0, 10);
-      const productId = `prod-${Date.now()}`;
+      const productId = makeUniqueId('prod');
       const sku = concept.code.replace('-LAB-', '-PRD-');
 
       const newProduct: Product = {
@@ -1018,7 +1078,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         deliveryLeadDays: 16,
         techFiles: [
           {
-            id: `asset-${Date.now()}`,
+            id: makeUniqueId('asset'),
             title: `Техническое задание ${sku} (Китайский/Англ/Рус).pdf`,
             assetType: 'tech_pack',
             url: concept.imageUrl,
@@ -1048,7 +1108,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             : ['Wildberries', 'Ozon', 'Собственный магазин'],
         variants: [
           {
-            id: `var-${Date.now()}-1`,
+            id: makeUniqueId('var'),
             productId,
             variantSku: `${sku}-M`,
             colorName: concept.colorCombinations[0] || 'Чёрный + Тёмно-синий',
@@ -1059,7 +1119,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
             stockQty: 0,
           },
           {
-            id: `var-${Date.now()}-2`,
+            id: makeUniqueId('var'),
             productId,
             variantSku: `${sku}-L`,
             colorName: concept.colorCombinations[0] || 'Чёрный + Тёмно-синий',
@@ -1103,7 +1163,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const createProduct = useCallback(
     (input: Partial<Product> & { name: string; sku: string; brandId: string }): Product => {
       const now = new Date().toISOString().slice(0, 10);
-      const id = `prod-${Date.now()}`;
+      const id = makeUniqueId('prod');
       const newProduct: Product = {
         id,
         sku: input.sku,
@@ -1167,14 +1227,38 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         updatedAt: now,
       };
 
-      setState((prev) => ({
-        ...prev,
-        products: [newProduct, ...prev.products],
-        auditLog: [
-          appendAudit('product', id, 'created', `Добавлена модель «${newProduct.name}» (${newProduct.sku})`),
-          ...prev.auditLog,
-        ],
-      }));
+      setState((prev) => {
+        const cleanSku = newProduct.sku.trim().toUpperCase();
+        const cleanName = newProduct.name.trim().toUpperCase();
+        const existingIdx = prev.products.findIndex(
+          (p) =>
+            p.brandId === newProduct.brandId &&
+            (p.sku.trim().toUpperCase() === cleanSku ||
+              p.name.trim().toUpperCase() === cleanName)
+        );
+        if (existingIdx !== -1) {
+          const updatedList = [...prev.products];
+          updatedList[existingIdx] = {
+            ...updatedList[existingIdx],
+            ...input,
+            isArchived: false,
+            status: input.status || 'active',
+            updatedAt: now,
+          };
+          return {
+            ...prev,
+            products: deduplicateAndHealProducts(updatedList),
+          };
+        }
+        return {
+          ...prev,
+          products: deduplicateAndHealProducts([newProduct, ...prev.products]),
+          auditLog: [
+            appendAudit('product', id, 'created', `Добавлена модель «${newProduct.name}» (${newProduct.sku})`),
+            ...prev.auditLog,
+          ],
+        };
+      });
       notify('success', 'Модель добавлена в каталог', `${newProduct.sku} · ${newProduct.name}`);
       return newProduct;
     },
@@ -1227,9 +1311,27 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       setState((prev) => {
         const next = { ...prev };
         if (type === 'product') {
-          next.products = prev.products.map((p) =>
-            p.id === id ? { ...p, isArchived: !p.isArchived, status: !p.isArchived ? 'archived' : 'active' } : p
-          );
+          const target = prev.products.find((p) => p.id === id);
+          const nextArchiveState = target ? !target.isArchived : true;
+          const targetSku = target?.sku?.trim().toUpperCase();
+          const targetName = target?.name?.trim().toUpperCase();
+
+          next.products = prev.products.map((p) => {
+            const isMatch =
+              p.id === id ||
+              (nextArchiveState &&
+                target &&
+                p.brandId === target.brandId &&
+                ((targetSku && p.sku.trim().toUpperCase() === targetSku) ||
+                  (targetName && p.name.trim().toUpperCase() === targetName)));
+            return isMatch
+              ? {
+                  ...p,
+                  isArchived: nextArchiveState,
+                  status: nextArchiveState ? 'archived' : 'active',
+                }
+              : p;
+          });
         } else if (type === 'concept') {
           next.concepts = prev.concepts.map((c) =>
             c.id === id ? { ...c, isArchived: !c.isArchived } : c
@@ -1272,7 +1374,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       salesPlanRub: number;
       ownerId: string;
     }): Launch => {
-      const id = `launch-${Date.now()}`;
+      const id = makeUniqueId('launch');
       const now = new Date().toISOString().slice(0, 10);
       const linkedProduct = state.products.find((p) => p.id === input.productId);
       const linkedConcept = state.concepts.find((c) => c.id === input.conceptId);
@@ -1429,7 +1531,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       priority: TaskItem['priority'];
       deadline: string;
     }): TaskItem => {
-      const id = `task-${Date.now()}`;
+      const id = makeUniqueId('task');
       const newTask: TaskItem = {
         id,
         title: input.title,
@@ -1571,7 +1673,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const createCampaign = useCallback(
     (input: Omit<Campaign, 'id' | 'isDemo' | 'isArchived'>) => {
-      const id = `camp-${Date.now()}`;
+      const id = makeUniqueId('camp');
       setState((prev) => ({
         ...prev,
         campaigns: [{ ...input, id, isDemo: false, isArchived: false }, ...prev.campaigns],
@@ -1583,7 +1685,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const createExperiment = useCallback(
     (input: Omit<GrowthExperiment, 'id' | 'isDemo'>) => {
-      const id = `exp-${Date.now()}`;
+      const id = makeUniqueId('exp');
       setState((prev) => ({
         ...prev,
         experiments: [{ ...input, id, isDemo: false }, ...prev.experiments],
@@ -1629,7 +1731,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const createResearch = useCallback(
     (input: Omit<ResearchItem, 'id' | 'isDemo'>) => {
-      const id = `res-${Date.now()}`;
+      const id = makeUniqueId('res');
       setState((prev) => ({
         ...prev,
         research: [{ ...input, id, isDemo: false }, ...prev.research],

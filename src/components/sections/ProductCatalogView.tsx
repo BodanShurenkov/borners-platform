@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Archive,
   ArrowUpRight,
@@ -111,7 +111,9 @@ export function ProductCatalogView() {
     };
   }, []);
 
-  // Автоматическая синхронизация всех моделей из «Сценариев роста» в основной «Каталог моделей (SKU)»
+  // Однократная безопасная синхронизация моделей из «Сценариев роста» в основной «Каталог моделей (SKU)»
+  // (не пересоздаёт удалённые/архивированные карточки и не создаёт дубликатов)
+  const syncedScenarioKeysRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     scenarioModels.forEach((spec) => {
       if (spec.launchStatus === 'В архиве') return;
@@ -122,14 +124,16 @@ export function ProductCatalogView() {
           spec.gallery.find((g) => Boolean(g.url)))?.url ||
         spec.palettes.find((p) => Boolean(p.imageUrl))?.imageUrl;
 
-      const existing = products.find(
+      // Проверяем в том числе и архивные записи, чтобы удалённая пользователем карточка НИКОГДА не воскресала сама
+      const existingAny = products.find(
         (p) =>
-          !p.isArchived &&
-          (p.sku.toUpperCase() === targetSku.toUpperCase() ||
-            p.name.toUpperCase() === spec.title.toUpperCase())
+          p.sku.trim().toUpperCase() === targetSku.toUpperCase() ||
+          p.name.trim().toUpperCase() === spec.title.trim().toUpperCase()
       );
 
-      if (!existing) {
+      if (!existingAny) {
+        if (syncedScenarioKeysRef.current.has(spec.id)) return;
+        syncedScenarioKeysRef.current.add(spec.id);
         createProduct({
           sku: targetSku,
           name: spec.title,
@@ -158,10 +162,11 @@ export function ProductCatalogView() {
           },
         });
       } else if (
-        (mainPhotoUrl && existing.imageUrl !== mainPhotoUrl) ||
-        existing.name !== spec.title
+        !existingAny.isArchived &&
+        ((mainPhotoUrl && existingAny.imageUrl !== mainPhotoUrl) ||
+          existingAny.name !== spec.title)
       ) {
-        updateProduct(existing.id, {
+        updateProduct(existingAny.id, {
           name: spec.title,
           ...(mainPhotoUrl
             ? {
@@ -179,7 +184,48 @@ export function ProductCatalogView() {
     setScenarioModels(next);
     safeSetStorageJson(STORAGE_KEY_MODELS, next);
     window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+
+    // Одновременно удаляем (архивируем) связанный SKU из основного каталога
+    const cleanCode = modelToDelete.code.replace(/[^0-9A-Za-zА-Яа-я-]/g, '') || '001';
+    const targetSku = `${modelToDelete.brandId === 'NA_TELE' ? 'NT' : 'BRN'}-${cleanCode}`.toUpperCase();
+    products.forEach((p) => {
+      if (
+        !p.isArchived &&
+        (p.sku.trim().toUpperCase() === targetSku ||
+          p.name.trim().toUpperCase() === modelToDelete.title.trim().toUpperCase())
+      ) {
+        archiveEntity('product', p.id);
+      }
+    });
+
     notify('warning', `Карточка модели ${modelToDelete.code} / ${modelToDelete.title} удалена`);
+  };
+
+  // Полное удаление карточки из Каталога моделей (и из Сценариев роста, чтобы она не создавалась заново)
+  const handleDeleteCatalogProduct = (
+    productToDelete: Product,
+    e?: React.MouseEvent
+  ) => {
+    e?.stopPropagation();
+    const cleanName = productToDelete.name.trim().toUpperCase();
+    const cleanSku = productToDelete.sku.trim().toUpperCase();
+
+    // 1. Убираем совпадающую модель из сценариев роста
+    const nextScenarios = scenarioModels.filter((m) => {
+      const mCode = m.code.replace(/[^0-9A-Za-zА-Яа-я-]/g, '') || '';
+      const mSku = `${m.brandId === 'NA_TELE' ? 'NT' : 'BRN'}-${mCode}`.toUpperCase();
+      return (
+        m.title.trim().toUpperCase() !== cleanName && mSku !== cleanSku
+      );
+    });
+    if (nextScenarios.length !== scenarioModels.length) {
+      setScenarioModels(nextScenarios);
+      safeSetStorageJson(STORAGE_KEY_MODELS, nextScenarios);
+      window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+    }
+
+    // 2. Архивируем саму карточку (и любые её дубли) в каталоге
+    archiveEntity('product', productToDelete.id);
   };
 
   const [drawerTab, setDrawerTab] = useState<
@@ -329,23 +375,24 @@ export function ProductCatalogView() {
     setCreateModalOpen(false);
   };
 
-  const handleUploadProductPhoto = (
+  const handleUploadProductPhoto = async (
     e: React.ChangeEvent<HTMLInputElement>,
     product: Product
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+    try {
+      const dataUrl = await compressImageFileToDataUrl(file, 720, 0.78);
       if (!dataUrl) return;
       updateProduct(product.id, {
         imageUrl: dataUrl,
         galleryUrls: [dataUrl, ...product.galleryUrls],
       });
       notify('success', `Фотография для ${product.sku} обновлена`);
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      // ignore
+    }
+    e.target.value = '';
   };
 
   const handleUploadTechFile = (
@@ -662,7 +709,7 @@ export function ProductCatalogView() {
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    archiveEntity('product', product.id);
+                    handleDeleteCatalogProduct(product);
                   }}
                   title="Удалить карточку модели"
                   className="absolute top-8 right-8 z-10 h-7 w-7 rounded-lg bg-white/95 border border-[#E8E8E5] hover:border-[#C94B4B] text-[#737373] hover:text-[#C94B4B] flex items-center justify-center shadow-2xs transition cursor-pointer"
@@ -819,10 +866,20 @@ export function ProductCatalogView() {
                       {hasFinance ? `${calc.marginPct}%` : '—'}
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <span className="inline-flex items-center gap-2 text-[13px] font-medium">
-                        <span className={`h-2 w-2 rounded-full ${st.dotColor}`} />
-                        <span>{st.label}</span>
-                      </span>
+                      <div className="inline-flex items-center justify-end gap-3">
+                        <span className="inline-flex items-center gap-2 text-[13px] font-medium">
+                          <span className={`h-2 w-2 rounded-full ${st.dotColor}`} />
+                          <span>{st.label}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteCatalogProduct(p, e)}
+                          title="Удалить карточку из каталога"
+                          className="h-8 w-8 rounded-lg border border-[#E8E8E5] bg-white hover:bg-[#FEF2F2] hover:border-[#F87171] text-[#737373] hover:text-[#DC2626] flex items-center justify-center transition cursor-pointer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -867,24 +924,35 @@ export function ProductCatalogView() {
 
               <div className="flex items-center gap-2">
                 {canEditActiveProduct && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      updateProduct(activeProduct.id, {
-                        name: activeProduct.name,
-                        description: activeProduct.description,
-                      });
-                      notify(
-                        'success',
-                        '✓ Карточка модели сохранена',
-                        `${activeProduct.sku} · ${activeProduct.name}`
-                      );
-                    }}
-                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[13px] font-bold transition cursor-pointer shadow-2xs"
-                  >
-                    <Check className="h-4 w-4" />
-                    <span>Сохранить карточку</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateProduct(activeProduct.id, {
+                          name: activeProduct.name,
+                          description: activeProduct.description,
+                        });
+                        notify(
+                          'success',
+                          '✓ Карточка модели сохранена',
+                          `${activeProduct.sku} · ${activeProduct.name}`
+                        );
+                      }}
+                      className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#16805D] hover:bg-[#116649] text-white text-[13px] font-bold transition cursor-pointer shadow-2xs"
+                    >
+                      <Check className="h-4 w-4" />
+                      <span>Сохранить карточку</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCatalogProduct(activeProduct)}
+                      title="Удалить карточку из каталога"
+                      className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] text-[#DC2626] text-[13px] font-bold transition cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span>Удалить</span>
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => setSelectedProductId(null)}
@@ -1706,7 +1774,7 @@ export function ProductCatalogView() {
               <div className="pt-6 border-t border-[#E8E8E5] flex flex-wrap justify-between items-center gap-3">
                 <button
                   onClick={() => {
-                    archiveEntity('product', activeProduct.id);
+                    handleDeleteCatalogProduct(activeProduct);
                     setSelectedProductId(null);
                   }}
                   className="inline-flex items-center gap-2 rounded-xl border border-[#C94B4B] px-4 py-2.5 text-[14px] font-semibold text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white transition cursor-pointer"

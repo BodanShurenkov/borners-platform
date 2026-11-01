@@ -304,26 +304,40 @@ export function GrowthScenariosShowcase({
 
   // Единая синхронизация модели сценария с основным Каталогом моделей (SKU)
   const syncScenarioModelToCatalog = useCallback(
-    (spec: ScenarioModelSpec) => {
+    (spec: ScenarioModelSpec, prevSpec?: ScenarioModelSpec) => {
       const cleanCode = spec.code.replace(/[^0-9A-Za-zА-Яа-я-]/g, '') || '001';
       const targetSku = `${spec.brandId === 'NA_TELE' ? 'NT' : 'BRN'}-${cleanCode}`;
+
+      const prevCleanCode = prevSpec
+        ? prevSpec.code.replace(/[^0-9A-Za-zА-Яа-я-]/g, '') || '001'
+        : cleanCode;
+      const prevSku = prevSpec
+        ? `${prevSpec.brandId === 'NA_TELE' ? 'NT' : 'BRN'}-${prevCleanCode}`
+        : targetSku;
+
       const mainPhotoUrl =
         (spec.gallery.find((g) => g.isMain && g.url) ||
           spec.gallery.find((g) => Boolean(g.url)))?.url ||
         spec.palettes.find((p) => Boolean(p.imageUrl))?.imageUrl;
 
-      const existing = products.find(
-        (p) =>
-          !p.isArchived &&
-          (p.sku.toUpperCase() === targetSku.toUpperCase() ||
-            p.name.toUpperCase() === spec.title.toUpperCase())
-      );
+      const existing = products.find((p) => {
+        const pSku = (p.sku || '').toUpperCase();
+        const pName = (p.name || '').toUpperCase();
+        return (
+          pSku === targetSku.toUpperCase() ||
+          pName === spec.title.toUpperCase() ||
+          (prevSpec &&
+            (pSku === prevSku.toUpperCase() ||
+              pName === prevSpec.title.toUpperCase()))
+        );
+      });
 
       if (existing) {
         updateProduct(existing.id, {
           sku: targetSku,
           name: spec.title,
           brandId: spec.brandId,
+          isArchived: false,
           materials: spec.fabric.composition,
           fitType: `${spec.subtitle} · резинка ${spec.waistband.width}`,
           ...(mainPhotoUrl
@@ -378,8 +392,9 @@ export function GrowthScenariosShowcase({
   );
 
   const handleUpdateModel = (updated: ScenarioModelSpec) => {
+    const prevSpec = models.find((m) => m.id === updated.id);
     commitModels((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-    syncScenarioModelToCatalog(updated);
+    syncScenarioModelToCatalog(updated, prevSpec);
   };
 
   // Дублирование модели (п. 4.1)
