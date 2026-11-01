@@ -488,6 +488,27 @@ export function GrowthScenariosShowcase({
     );
   };
 
+  // Удаление сценария роста с немедленным сохранением в localStorage
+  const handleDeleteScenario = (scToDelete: GrowthScenarioDef) => {
+    if (scenarios.length <= 1) {
+      notify(
+        'warning',
+        'Нельзя удалить последний оставшийся сценарий',
+        'В системе должен оставаться хотя бы один базовый сценарий роста.'
+      );
+      return;
+    }
+    const remaining = scenarios.filter((s) => s.id !== scToDelete.id);
+    commitScenarios(remaining);
+    if (selectedScenarioId === scToDelete.id && remaining[0]) {
+      setSelectedScenarioId(remaining[0].id);
+    }
+    notify(
+      'warning',
+      `Сценарий «${scToDelete.title} (${scToDelete.monthlyTargetMln} млн ₽/мес)» удалён`
+    );
+  };
+
   const conceptForPdf = concepts[0];
   const maxChartVal = Math.max(
     currentScenario.monthlyTargetMln * 0.45,
@@ -611,17 +632,16 @@ export function GrowthScenariosShowcase({
                 ? (agg.annualRevenueRub / 1_000_000).toFixed(1).replace('.', ',')
                 : '0';
               return (
-                <button
+                <div
                   key={sc.id}
-                  type="button"
                   onClick={() => setSelectedScenarioId(sc.id)}
-                  className={`rounded-[18px] p-4 text-left transition-all cursor-pointer border relative ${
+                  className={`group rounded-[18px] p-4 text-left transition-all cursor-pointer border relative ${
                     isSelected
                       ? 'bg-[#4E6A85] text-white border-[#4E6A85] shadow-[0_10px_24px_rgba(78,106,133,0.22)]'
                       : 'bg-white hover:bg-[#F5F2EB] text-[#1D1D1F] border-[#E4DEC9]'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <span
                       className={`text-[11.5px] font-semibold ${
                         isSelected ? 'text-white/80' : 'text-[#6E6E73]'
@@ -629,11 +649,30 @@ export function GrowthScenariosShowcase({
                     >
                       {sc.title} · {sc.scopeLabel}
                     </span>
-                    {isSelected && (
-                      <span className="h-5 w-5 rounded-full bg-[#F5E6CE] text-[#2C3E50] flex items-center justify-center">
-                        <Check className="h-3 w-3 stroke-[3]" />
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      {isSelected && (
+                        <span className="h-5 w-5 rounded-full bg-[#F5E6CE] text-[#2C3E50] flex items-center justify-center">
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        </span>
+                      )}
+                      {scenarios.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteScenario(sc);
+                          }}
+                          title={`Удалить сценарий «${sc.title}»`}
+                          className={`h-6 w-6 rounded-full flex items-center justify-center transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-white/15 hover:bg-[#C93B2B] text-white/85 hover:text-white border border-white/25'
+                              : 'bg-[#FAF8F4] hover:bg-[#FFF2F0] text-[#7A756C] hover:text-[#C93B2B] border border-[#DED8CC] hover:border-[#F0C7C2]'
+                          }`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="text-[24px] font-bold tracking-[-0.02em] mt-1">
@@ -653,7 +692,7 @@ export function GrowthScenariosShowcase({
                       За 2027 г.: {annualMln} млн ₽ · {agg?.modelsCount || 0} мод.
                     </span>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1224,9 +1263,10 @@ export function GrowthScenariosShowcase({
               </button>
               <button
                 type="submit"
-                className="h-9 px-4 rounded-[10px] bg-[#1D1D1F] text-white text-[12.5px] font-semibold cursor-pointer"
+                className="h-9 px-4 rounded-[10px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
               >
-                Создать сценарий
+                <Check className="h-3.5 w-3.5" />
+                <span>Сохранить сценарий</span>
               </button>
             </div>
           </form>

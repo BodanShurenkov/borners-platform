@@ -304,8 +304,8 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
   const [currentUserId, setCurrentUserId] = useState<string>('user-owner');
 
-  const [activeSection, setActiveSection] = useState<NavSectionId>('product-lab');
-  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['product-lab']);
+  const [activeSection, setActiveSection] = useState<NavSectionId>('dashboard');
+  const [navHistory, setNavHistory] = useState<NavSectionId[]>(['dashboard']);
   const [historyState, setHistoryState] = useState<{
     stack: {
       section: NavSectionId;
@@ -319,7 +319,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     }[];
     cursor: number;
   }>({
-    stack: [{ section: 'product-lab', platformMode: 'management' }],
+    stack: [{ section: 'dashboard', platformMode: 'management' }],
     cursor: 0,
   });
   const historyStackRef = useRef(historyState.stack);
