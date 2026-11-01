@@ -585,10 +585,10 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР В СВЕТЛОЙ ВОЗДУШНОЙ ЭСТЕТИКЕ APPLE CUPERTINO GLASS (BORNERS® STRATEGY PLATFORM) */}
+        {/* ЛЕВЫЙ САЙДБАР С ПРИЯТНОЙ СРЕДНЕ-КОНТРАСТНОЙ ЗАЛИВКОЙ NORDIC SLATE (#3B5168) */}
         <aside
           aria-hidden={sidebarBlurred}
-          className={`fixed inset-y-0 left-0 z-40 w-[252px] bg-[#FAF8F4]/95 backdrop-blur-2xl text-[#1D1D1F] border-r border-[#E6E0D4] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[252px] bg-gradient-to-b from-[#3D546C] to-[#32465B] text-white border-r border-[#2B3D50] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 shadow-[4px_0_24px_rgba(24,34,46,0.08)] ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } ${
             sidebarBlurred
@@ -597,7 +597,7 @@ export function AppShell() {
           }`}
         >
           <div className="overflow-y-auto flex-1">
-            {/* Фирменный заголовок BORNERS® STRATEGY PLATFORM в стиле Apple */}
+            {/* Фирменный заголовок BORNERS® STRATEGY PLATFORM */}
             <div className="px-5 pt-6 pb-4 flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -609,14 +609,14 @@ export function AppShell() {
                   sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
                 }`}
               >
-                <span className="h-9 w-9 rounded-[11px] bg-gradient-to-br from-[#1E3A5F] to-[#12243B] text-white shadow-[0_3px_10px_rgba(30,58,95,0.20)] flex items-center justify-center font-bold text-[15px] tracking-tight shrink-0">
+                <span className="h-9 w-9 rounded-[11px] bg-[#EAD3B3] text-[#243547] shadow-[0_3px_10px_rgba(0,0,0,0.16)] flex items-center justify-center font-bold text-[15px] tracking-tight shrink-0">
                   B
                 </span>
                 <span className="flex flex-col">
-                  <span className="text-[18px] font-bold tracking-[-0.02em] text-[#1D1D1F] leading-none">
-                    BORNERS<sup className="text-[10px] font-semibold ml-0.5 text-[#8E8A82]">®</sup>
+                  <span className="text-[18px] font-bold tracking-[-0.02em] text-white leading-none">
+                    BORNERS<sup className="text-[10px] font-semibold ml-0.5 text-[#CBD7E6]">®</sup>
                   </span>
-                  <span className="text-[9.5px] font-semibold tracking-[0.13em] text-[#8E8A82] mt-1 uppercase">
+                  <span className="text-[9.5px] font-semibold tracking-[0.13em] text-[#B8C7D9] mt-1 uppercase">
                     STRATEGY PLATFORM
                   </span>
                 </span>
@@ -632,7 +632,7 @@ export function AppShell() {
                       : 'Скрыть левую панель для фокуса на центральной части'
                   }
                   aria-label="Переключить левую панель"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8E8A82] hover:text-[#1D1D1F] hover:bg-[#EFECE5] transition cursor-pointer outline-none"
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#C4D1E0] hover:text-white hover:bg-white/12 transition cursor-pointer outline-none"
                 >
                   {sidebarBlurred ? (
                     <EyeOff className="h-3.5 w-3.5" />
@@ -644,7 +644,7 @@ export function AppShell() {
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="lg:hidden p-1 text-[#8E8A82] hover:text-[#1D1D1F]"
+                  className="lg:hidden p-1 text-[#C4D1E0] hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -787,16 +787,16 @@ export function AppShell() {
                       }}
                       className={`group w-full h-[39px] rounded-[11px] px-3 flex items-center justify-between text-left transition-all duration-150 cursor-pointer outline-none ${
                         isActive
-                          ? 'bg-[#4E6A85] text-white font-semibold shadow-[0_4px_14px_rgba(78,106,133,0.24)]'
-                          : 'text-[#5A564F] hover:text-[#1D1D1F] hover:bg-[#EFECE4]/80 font-medium'
+                          ? 'bg-white/18 text-white font-semibold border border-white/22 shadow-[0_4px_14px_rgba(15,25,36,0.18)]'
+                          : 'text-[#DCE5F0] hover:text-white hover:bg-white/10 border border-transparent font-medium'
                       }`}
                     >
                       <span className="flex items-center gap-2.5 min-w-0">
                         <span
                           className={`shrink-0 transition-colors ${
                             isActive
-                              ? 'text-[#F5E6CE]'
-                              : 'text-[#7A756C] group-hover:text-[#1D1D1F]'
+                              ? 'text-[#F3DAB6]'
+                              : 'text-[#B8C7D9] group-hover:text-white'
                           }`}
                         >
                           {renderGlyph()}
@@ -807,14 +807,14 @@ export function AppShell() {
                       </span>
 
                       {isActive && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#F5E6CE] shrink-0" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#F3DAB6] shrink-0" />
                       )}
                     </button>
                   );
                 })}
 
               {/* Компактные дополнительные разделы внизу */}
-              <div className="pt-3.5 mt-3.5 border-t border-[#EAE4D8] space-y-0.5">
+              <div className="pt-3.5 mt-3.5 border-t border-white/14 space-y-0.5">
                 {[
                   { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
                   { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' },
@@ -835,8 +835,8 @@ export function AppShell() {
                         }}
                         className={`w-full h-8 rounded-[10px] px-3 flex items-center justify-between text-left text-[12px] transition-colors cursor-pointer outline-none ${
                           isActive
-                            ? 'bg-white text-[#1D1D1F] font-semibold border border-[#E5DEC9] shadow-2xs'
-                            : 'text-[#7A756C] hover:text-[#1D1D1F] hover:bg-white/60'
+                            ? 'bg-white/18 text-white font-semibold border border-white/22'
+                            : 'text-[#B8C7D9] hover:text-white hover:bg-white/10'
                         }`}
                       >
                         <span className="truncate">{item.label}</span>
@@ -852,7 +852,7 @@ export function AppShell() {
             onClick={() => {
               if (sidebarBlurred) setSidebarBlurred(false);
             }}
-            className={`p-3.5 border-t border-[#EAE4D8] transition-all duration-300 ${
+            className={`p-3.5 border-t border-white/14 transition-all duration-300 ${
               sidebarBlurred ? 'blur-[6px] opacity-30 select-none cursor-pointer' : ''
             }`}
           >
@@ -868,11 +868,11 @@ export function AppShell() {
               }}
               className={`w-full rounded-[14px] p-3 text-left transition cursor-pointer border outline-none ${
                 platformMode === 'strategy'
-                  ? 'bg-[#1E3A5F] text-white border-[#1E3A5F] shadow-sm'
-                  : 'bg-white hover:border-[#C8A97E] text-[#1D1D1F] border-[#E5DEC9] shadow-[0_2px_10px_rgba(24,23,21,0.03)]'
+                  ? 'bg-[#EAD3B3] text-[#243547] border-[#EAD3B3] shadow-sm'
+                  : 'bg-white/12 hover:bg-white/18 text-white border-white/18'
               }`}
             >
-              <div className="flex items-center justify-between text-[11px] opacity-75">
+              <div className="flex items-center justify-between text-[11px] opacity-80">
                 <span>Презентация · 16 слайдов</span>
                 <span>→</span>
               </div>
