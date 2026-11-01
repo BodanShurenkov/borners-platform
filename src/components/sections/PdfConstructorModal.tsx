@@ -23,14 +23,24 @@ export function PdfConstructorModal({
 }: PdfConstructorModalProps) {
   const existingOrder = concept.productionOrders?.[0];
 
+  const [docTitleZh, setDocTitleZh] = useState(
+    `生产工艺单及大货采购订单：${
+      concept.techPack?.zh?.modelName && concept.techPack.zh.modelName !== '待定'
+        ? concept.techPack.zh.modelName
+        : 'BORNERS 男士莫代尔平角内裤'
+    } (${concept.code})`
+  );
   const [docTitle, setDocTitle] = useState(
     `Спецификация и заказ на производство: ${concept.name} (${concept.code})`
+  );
+  const [factoryNameZh, setFactoryNameZh] = useState(
+    '广东奥佩克内衣有限公司 (佛山, 中国)'
   );
   const [factoryName, setFactoryName] = useState(
     existingOrder?.factoryName ||
       concept.samples?.[0]?.factoryName ||
       concept.supplierName ||
-      'Guangdong Apex Intimate Apparel Co., Ltd.'
+      'Фабрика Гуандун Апекс Интимэйт (Фошань, КНР)'
   );
   const [plannedReadyDate, setPlannedReadyDate] = useState(
     existingOrder?.plannedReadyDate || concept.targetLaunchDate || '2027-02-15'
@@ -91,6 +101,8 @@ export function PdfConstructorModal({
   const [includePhotos, setIncludePhotos] = useState<boolean>(true);
   const [includeBilingualSpecs, setIncludeBilingualSpecs] = useState<boolean>(true);
   const [includePricing, setIncludePricing] = useState<boolean>(true);
+  const [showRubInPdf, setShowRubInPdf] = useState<boolean>(false);
+  const [includeTotalSumColumn, setIncludeTotalSumColumn] = useState<boolean>(true);
   const [includeSizeMatrix, setIncludeSizeMatrix] = useState<boolean>(true);
   const [includeFactoryTerms, setIncludeFactoryTerms] = useState<boolean>(true);
 
@@ -229,37 +241,47 @@ export function PdfConstructorModal({
 
   const handleDownloadPdf = () => {
     const brandLabel = concept.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS';
-    const curSymbol =
-      primaryCurrency === 'CNY' ? '¥' : primaryCurrency === 'USD' ? '$' : '₽';
 
     const sizeRows = SIZES.map((sz) => {
       const packs = packsBySize[sz] || 0;
       const pcs = packs * unitsPerPack;
-      const sumPrimary = Number((pcs * unitPriceInPrimary).toFixed(0));
+      const sumCny = Math.round(pcs * currencyMetrics.unitCny);
+      const sumUsd = Math.round(pcs * currencyMetrics.unitUsd);
       const sumRub = Math.round(pcs * currencyMetrics.unitRub);
-      return [
+
+      const unitPriceCell = showRubInPdf
+        ? `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd} (${currencyMetrics.unitRub}₽)`
+        : `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd}`;
+
+      const sumCell = showRubInPdf
+        ? `¥${sumCny.toLocaleString('ru-RU')} / $${sumUsd.toLocaleString('ru-RU')} (${sumRub.toLocaleString('ru-RU')} ₽)`
+        : `¥${sumCny.toLocaleString('ru-RU')} ($${sumUsd.toLocaleString('ru-RU')})`;
+
+      const baseRow = [
         sz,
-        `${packs.toLocaleString('ru-RU')} наб.`,
-        `${pcs.toLocaleString('ru-RU')} шт.`,
-        `${unitPriceInPrimary} ${curSymbol} (${currencyMetrics.unitCny} ¥ / ${currencyMetrics.unitUsd} $ / ${currencyMetrics.unitRub} ₽)`,
-        `${sumPrimary.toLocaleString('ru-RU')} ${curSymbol} (${sumRub.toLocaleString('ru-RU')} ₽)`,
+        `${packs.toLocaleString('ru-RU')} 盒 (наб.)`,
+        `${pcs.toLocaleString('ru-RU')} 件 (шт.)`,
       ];
+
+      if (!includePricing) return baseRow;
+      if (!includeTotalSumColumn) return [...baseRow, unitPriceCell];
+      return [...baseRow, unitPriceCell, sumCell];
     });
 
-    const totalPrimary =
-      primaryCurrency === 'CNY'
-        ? `${currencyMetrics.totalCny.toLocaleString('ru-RU')} ¥`
-        : primaryCurrency === 'USD'
-        ? `${currencyMetrics.totalUsd.toLocaleString('ru-RU')} $`
-        : `${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽`;
+    const totalSumCell = showRubInPdf
+      ? `¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')} (${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽)`
+      : `¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} ($${currencyMetrics.totalUsd.toLocaleString('ru-RU')})`;
 
     const sectionsToRender: NonNullable<Parameters<typeof downloadEditorialPdfDocument>[0]>['sections'] = [];
 
     if (includeBilingualSpecs) {
       sectionsToRender.push({
-        badge: '中文 + РУС · BILINGUAL SPEC',
-        title: 'Спецификация изделия: Крупный китайский (中文) + перевод на русский',
-        subtitle: includeFactoryTerms ? `Готовность: ${plannedReadyDate}` : undefined,
+        badge: '01 · 工艺标准',
+        titleZh: '一、产品工艺规格与面辅料标准',
+        title: 'Спецификация изделия: Крупный китайский (中文) + перевод на русский внизу',
+        subtitle: includeFactoryTerms
+          ? `交货期 / Готовность: ${plannedReadyDate}`
+          : undefined,
         bilingualSpecs: bilingualRows.map((r) => ({
           labelZh: r.labelZh,
           labelRu: r.labelRu,
@@ -271,45 +293,82 @@ export function PdfConstructorModal({
     }
 
     if (includeSizeMatrix || includePricing) {
+      const tableHeadersBase = [
+        '尺码 (Размер)',
+        '盒数 (Наборов)',
+        `总件数 (Штук ×${unitsPerPack})`,
+      ];
+      const tableHeaders = !includePricing
+        ? tableHeadersBase
+        : !includeTotalSumColumn
+        ? [
+            ...tableHeadersBase,
+            showRubInPdf
+              ? '单价 (Цена 1 шт. CNY/USD/RUB)'
+              : '单价 (Цена 1 шт. CNY / USD)',
+          ]
+        : [
+            ...tableHeadersBase,
+            showRubInPdf
+              ? '单价 (Цена 1 шт. CNY/USD/RUB)'
+              : '单价 (Цена 1 шт. CNY / USD)',
+            showRubInPdf
+              ? '合计金额 (Сумма CNY/USD + RUB)'
+              : '合计金额 (Сумма CNY / USD)',
+          ];
+
+      const tableFooterBase = [
+        '合计总订单 (ИТОГО)',
+        `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} 盒 (наб.)`,
+        `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} 件 (шт.)`,
+      ];
+      const unitFooterCell = showRubInPdf
+        ? `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd} (${currencyMetrics.unitRub}₽)`
+        : `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd}`;
+
+      const tableFooter = !includePricing
+        ? tableFooterBase
+        : !includeTotalSumColumn
+        ? [...tableFooterBase, unitFooterCell]
+        : [...tableFooterBase, unitFooterCell, totalSumCell];
+
       sectionsToRender.push({
-        badge: 'MULTI-CURRENCY & SIZES',
+        badge: '02 · 尺码及金额',
+        titleZh: includePricing
+          ? '二、大货尺码配比及订单金额明细 (S–4XL)'
+          : '二、大货尺码及数量配比明细表 (S–4XL)',
         title: includePricing
-          ? `Размерная сетка партии (S–4XL) и расчёт в ${primaryCurrency} / CNY / USD / RUB`
+          ? `Размерная сетка партии (S–4XL) и расчёт заказа (${
+              showRubInPdf ? 'CNY / USD / RUB' : 'CNY ¥ / USD $ — без рублей'
+            })`
           : 'Размерная сетка партии (S–4XL) без отображения цен',
-        subtitle: includePricing
-          ? `Курс: 1¥ = ${rateCnyToRub}₽ · 1$ = ${rateUsdToRub}₽`
-          : `В 1 наборе: ${unitsPerPack} шт.`,
+        subtitle: `每盒 ${unitsPerPack} 件 (В 1 наборе: ${unitsPerPack} шт.)`,
         table: includeSizeMatrix
           ? {
-              headers: includePricing
-                ? [
-                    'Размер (尺码)',
-                    'Наборов (盒数)',
-                    `Штук (×${unitsPerPack} шт.)`,
-                    'Цена 1 шт. (CNY / USD / RUB)',
-                    `Сумма (${primaryCurrency} / RUB)`,
-                  ]
-                : ['Размер (尺码)', 'Наборов (盒数)', `Штук (×${unitsPerPack} шт.)`],
-              rows: includePricing ? sizeRows : sizeRows.map((r) => [r[0], r[1], r[2]]),
-              footer: includePricing
-                ? [
-                    'ИТОГО ПАРТИЯ (合计)',
-                    `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наб.`,
-                    `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
-                    `¥${currencyMetrics.unitCny} / $${currencyMetrics.unitUsd} / ${currencyMetrics.unitRub}₽`,
-                    `${totalPrimary} (${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽)`,
-                  ]
-                : [
-                    'ИТОГО ПАРТИЯ (合计)',
-                    `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наб.`,
-                    `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
-                  ],
+              headers: tableHeaders,
+              rows: sizeRows,
+              footer: tableFooter,
             }
           : undefined,
-        note: includeFactoryTerms
-          ? `Условия оплаты: ${paymentTerms}.${
+        noteZh: includeFactoryTerms
+          ? `付款及交货条款：30% 定金，70% 尾款验货合格(AQL 1.5)发货前付清 · 交货期：${plannedReadyDate}${
               includePricing
-                ? ` Итого по контракту: ${currencyMetrics.totalCny.toLocaleString('ru-RU')} CNY (¥)  |  ${currencyMetrics.totalUsd.toLocaleString('ru-RU')} USD ($)  |  ${currencyMetrics.totalRub.toLocaleString('ru-RU')} RUB (₽).`
+                ? ` · 合同总金额：¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} CNY / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')} USD${
+                    showRubInPdf
+                      ? ` (${currencyMetrics.totalRub.toLocaleString('ru-RU')} RUB)`
+                      : ''
+                  }`
+                : ''
+            }`
+          : undefined,
+        note: includeFactoryTerms
+          ? `Условия оплаты: ${paymentTerms} · Готовность: ${plannedReadyDate}.${
+              includePricing
+                ? ` Итого партия: ¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} CNY | $${currencyMetrics.totalUsd.toLocaleString('ru-RU')} USD${
+                    showRubInPdf
+                      ? ` | ${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽`
+                      : ''
+                  }.`
                 : ''
             }`
           : undefined,
@@ -318,31 +377,59 @@ export function PdfConstructorModal({
 
     downloadEditorialPdfDocument({
       fileName: `PDF_Спецификация_${concept.code}_${primaryCurrency}.pdf`,
-      docCode: `${concept.code} · ${primaryCurrency}`,
-      categoryLabel: 'ПРОИЗВОДСТВЕННЫЙ ЛИСТ (中文 + РУС)',
+      docCode: `${concept.code} · ${showRubInPdf ? primaryCurrency : 'CNY/USD'}`,
+      categoryLabel: '生产工艺单及采购订单 (ПРОИЗВОДСТВЕННЫЙ ЛИСТ)',
       brandLabel,
+      titleZh: docTitleZh,
       title: docTitle,
+      subtitleZh: includeFactoryTerms
+        ? `生产工厂：${factoryNameZh} · 交货日期：${plannedReadyDate}${
+            includePricing
+              ? ` · 订单总额：¥ ${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $ ${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`
+              : ''
+          }`
+        : `款号：${concept.code} · 标准：AQL 1.5`,
       subtitle: includePricing
-        ? `Фабрика: ${factoryName} · Валюта контракта: ${primaryCurrency} (¥ ${currencyMetrics.totalCny.toLocaleString(
+        ? `Фабрика: ${factoryName} · Сумма партии: ¥ ${currencyMetrics.totalCny.toLocaleString(
             'ru-RU'
-          )} / $ ${currencyMetrics.totalUsd.toLocaleString(
-            'ru-RU'
-          )} / ₽ ${currencyMetrics.totalRub.toLocaleString('ru-RU')})`
+          )} / $ ${currencyMetrics.totalUsd.toLocaleString('ru-RU')}${
+            showRubInPdf
+              ? ` / ${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽`
+              : ''
+          }`
         : `Фабрика: ${factoryName} · Готовность: ${plannedReadyDate}`,
       metaGrid: [
-        { label: 'Артикул / 款号', value: concept.code },
-        { label: 'Фабрика / 生产工厂', value: includeFactoryTerms ? factoryName : '—' },
         {
-          label: 'Цена 1 шт. (CNY / USD / RUB)',
+          label: '款号 · Артикул',
+          value: concept.code,
+          subValueRu: `Код модели ${concept.code}`,
+        },
+        {
+          label: '生产工厂 · Фабрика',
+          value: includeFactoryTerms ? factoryNameZh : '—',
+          subValueRu: includeFactoryTerms ? factoryName : 'Скрыто',
+        },
+        {
+          label: '单价 · Цена 1 шт.',
           value: includePricing
-            ? `¥${currencyMetrics.unitCny} · $${currencyMetrics.unitUsd} · ${currencyMetrics.unitRub}₽`
+            ? `¥${currencyMetrics.unitCny} · $${currencyMetrics.unitUsd}`
+            : '隐藏价格',
+          subValueRu: includePricing
+            ? showRubInPdf
+              ? `${currencyMetrics.unitRub} ₽ / шт.`
+              : 'За 1 ед. (CNY / USD)'
             : 'Скрыто настройками PDF',
         },
         {
-          label: 'Тираж / Сумма партии',
+          label: '总数量及金额 · Тираж и сумма',
           value: includePricing
-            ? `¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`
-            : `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.`,
+            ? `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} 件 · ¥${currencyMetrics.totalCny.toLocaleString('ru-RU')}`
+            : `${currencyMetrics.totalUnits.toLocaleString('ru-RU')} 件 (${currencyMetrics.totalPacks.toLocaleString('ru-RU')} 盒)`,
+          subValueRu: includePricing
+            ? showRubInPdf
+              ? `$${currencyMetrics.totalUsd.toLocaleString('ru-RU')} · ${currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽`
+              : `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наб. · $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`
+            : `${currencyMetrics.totalPacks.toLocaleString('ru-RU')} наборов (${currencyMetrics.totalUnits.toLocaleString('ru-RU')} шт.)`,
         },
       ],
       frontPhotoUrl: includePhotos ? frontPhotoUrl : undefined,
@@ -352,7 +439,11 @@ export function PdfConstructorModal({
       sections: sectionsToRender,
       footerRight: `${concept.code}${
         includePricing
-          ? ` · ¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}`
+          ? ` · ¥${currencyMetrics.totalCny.toLocaleString('ru-RU')} / $${currencyMetrics.totalUsd.toLocaleString('ru-RU')}${
+              showRubInPdf
+                ? ` / ${currencyMetrics.totalRub.toLocaleString('ru-RU')}₽`
+                : ''
+            }`
           : ''
       }`,
     });
@@ -468,10 +559,25 @@ export function PdfConstructorModal({
                       setIncludePricing(true);
                       setIncludeSizeMatrix(true);
                       setIncludeFactoryTerms(true);
+                      setIncludeTotalSumColumn(true);
                     }}
                     className="px-2.5 py-1 rounded-lg bg-[#1D1D1F] text-white text-[11px] font-semibold cursor-pointer"
                   >
                     Все блоки
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludePhotos(true);
+                      setIncludeBilingualSpecs(true);
+                      setIncludePricing(true);
+                      setIncludeSizeMatrix(true);
+                      setIncludeFactoryTerms(true);
+                      setShowRubInPdf(false);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[#E6F4EE] hover:bg-[#D2ECDF] text-[#1F6E50] text-[11px] font-semibold cursor-pointer"
+                  >
+                    Для фабрики КНР (без ₽)
                   </button>
                   <button
                     type="button"
@@ -486,45 +592,44 @@ export function PdfConstructorModal({
                   >
                     ТЗ без цен
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIncludePhotos(true);
-                      setIncludeBilingualSpecs(false);
-                      setIncludePricing(true);
-                      setIncludeSizeMatrix(true);
-                      setIncludeFactoryTerms(true);
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-[#F2EFE9] hover:bg-[#E5E0D5] text-[#1D1D1F] text-[11px] font-semibold cursor-pointer"
-                  >
-                    Только заказ и цены
-                  </button>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {[
                   {
-                    label: 'Фото товара (Спереди + Сзади)',
+                    label: 'Фото товара (正面图 + 背面图)',
                     sub: 'Лицевая и оборотная фотографии',
                     checked: includePhotos,
                     onChange: setIncludePhotos,
                   },
                   {
-                    label: 'Крупный китайский + Русский',
-                    sub: 'Двуязычная спецификация (中文/RU)',
+                    label: 'Китайский крупно + Русский мелко',
+                    sub: 'Двуязычная спецификация (中文 вверху / RU внизу)',
                     checked: includeBilingualSpecs,
                     onChange: setIncludeBilingualSpecs,
                   },
                   {
-                    label: 'Валюты и цены (CNY / USD / RUB)',
-                    sub: 'Себестоимость 1 шт. и сумма партии',
+                    label: 'Валюты и цены (单价 / 金额)',
+                    sub: 'Себестоимость 1 шт. и бюджет заказа',
                     checked: includePricing,
                     onChange: setIncludePricing,
                   },
                   {
+                    label: 'Столбец «Сумма» (合计金额)',
+                    sub: 'Итоговая сумма по каждому размеру в таблице',
+                    checked: includeTotalSumColumn,
+                    onChange: setIncludeTotalSumColumn,
+                  },
+                  {
+                    label: 'Сумма в рублях (RUB ₽)',
+                    sub: 'Включить или отключить показ рублей ₽ в столбцах',
+                    checked: showRubInPdf,
+                    onChange: setShowRubInPdf,
+                  },
+                  {
                     label: 'Размерная сетка (S–4XL)',
-                    sub: 'Таблица наборов и штук по размерам',
+                    sub: 'Таблица коробов и штук по размерам',
                     checked: includeSizeMatrix,
                     onChange: setIncludeSizeMatrix,
                   },
@@ -803,14 +908,27 @@ export function PdfConstructorModal({
                 </div>
 
                 <div
-                  className={`rounded-[10px] p-3 border-[1.5px] ${
-                    primaryCurrency === 'RUB'
+                  className={`rounded-[10px] p-3 border-[1.5px] transition ${
+                    !showRubInPdf
+                      ? 'bg-[#F5F3EE] border-dashed border-[#CFC8BC] opacity-65'
+                      : primaryCurrency === 'RUB'
                       ? 'bg-[#FBF3EE] border-[#B85D35]'
                       : 'bg-[#FAF8F5] border-[#E5E0D8]'
                   }`}
                 >
-                  <div className="text-[11px] font-mono uppercase text-[#7A756D]">
-                    РУБЛИ · RUB (₽)
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[11px] font-mono uppercase text-[#7A756D]">
+                      РУБЛИ · RUB (₽)
+                    </span>
+                    <span
+                      className={`text-[9.5px] font-semibold px-1.5 py-0.5 rounded ${
+                        showRubInPdf
+                          ? 'bg-[#E6F4EE] text-[#1F6E50]'
+                          : 'bg-[#EFECE6] text-[#7A756D]'
+                      }`}
+                    >
+                      {showRubInPdf ? 'В PDF ВКЛ.' : 'СКРЫТО В PDF'}
+                    </span>
                   </div>
                   <div className="text-[18px] font-bold text-[#181715] mt-0.5">
                     {currencyMetrics.unitRub} ₽ <span className="text-[12px] font-normal">/ шт.</span>
@@ -819,6 +937,59 @@ export function PdfConstructorModal({
                     Партия: {currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽
                   </div>
                 </div>
+              </div>
+
+              {/* Переключатели столбца суммы и рублей в таблице PDF */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <label
+                  className={`flex items-start gap-2.5 p-3 rounded-[10px] border cursor-pointer transition ${
+                    showRubInPdf
+                      ? 'bg-[#FDFBF7] border-[#B85D35]'
+                      : 'bg-[#FAF8F5] border-[#D4CDC2]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showRubInPdf}
+                    onChange={(e) => setShowRubInPdf(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-[#181715] rounded cursor-pointer"
+                  />
+                  <div>
+                    <div className="text-[12.5px] font-semibold text-[#181715]">
+                      Показывать сумму в рублях (RUB ₽) в столбце таблицы
+                    </div>
+                    <div className="text-[11px] text-[#6E6A63] mt-0.5">
+                      {showRubInPdf
+                        ? 'Сейчас рубли ₽ включены в столбцах «Цена» и «Сумма»'
+                        : 'Рубли ₽ скрыты для китайской фабрики (в PDF только ¥ CNY / $ USD)'}
+                    </div>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex items-start gap-2.5 p-3 rounded-[10px] border cursor-pointer transition ${
+                    includeTotalSumColumn
+                      ? 'bg-[#FDFBF7] border-[#B85D35]'
+                      : 'bg-[#FAF8F5] border-[#D4CDC2]'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={includeTotalSumColumn}
+                    onChange={(e) => setIncludeTotalSumColumn(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-[#181715] rounded cursor-pointer"
+                  />
+                  <div>
+                    <div className="text-[12.5px] font-semibold text-[#181715]">
+                      Показывать столбец «合计金额 / Сумма» в таблице
+                    </div>
+                    <div className="text-[11px] text-[#6E6A63] mt-0.5">
+                      {includeTotalSumColumn
+                        ? 'Столбец итоговой суммы по каждому размеру включён'
+                        : 'Столбец суммы отключён (остаются только размеры, короба и штуки)'}
+                    </div>
+                  </div>
+                </label>
               </div>
             </div>
 
@@ -953,9 +1124,44 @@ export function PdfConstructorModal({
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11.5px] text-[#5C5852] mb-1">Фабрика:</label>
+                  <label className="block text-[11.5px] font-semibold text-[#B85D35] mb-1">
+                    Заголовок PDF на китайском (крупно сверху):
+                  </label>
+                  <input
+                    value={docTitleZh}
+                    onChange={(e) => setDocTitleZh(e.target.value)}
+                    className="w-full rounded-[8px] border-[1.5px] border-[#CFC8BC] px-3 py-1.5 text-[14px] font-bold text-[#181715]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11.5px] text-[#5C5852] mb-1">
+                    Заголовок на русском (мелко внизу под китайским):
+                  </label>
+                  <input
+                    value={docTitle}
+                    onChange={(e) => setDocTitle(e.target.value)}
+                    className="w-full rounded-[8px] border border-[#D4CDC2] px-3 py-1.5 text-[13px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11.5px] font-semibold text-[#B85D35] mb-1">
+                    Фабрика (中文 крупно):
+                  </label>
+                  <input
+                    value={factoryNameZh}
+                    onChange={(e) => setFactoryNameZh(e.target.value)}
+                    className="w-full rounded-[8px] border border-[#D4CDC2] px-3 py-1.5 text-[13px] font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11.5px] text-[#5C5852] mb-1">
+                    Фабрика (RU мелко внизу):
+                  </label>
                   <input
                     value={factoryName}
                     onChange={(e) => setFactoryName(e.target.value)}
@@ -1029,9 +1235,12 @@ export function PdfConstructorModal({
                 <div className="border-b-2 border-[#181715] pb-3 flex items-start justify-between gap-2">
                   <div>
                     <div className="font-mono text-[10px] uppercase tracking-widest text-[#7A756D]">
-                      BORNERS GROUP · PRODUCTION ORDER · {concept.code}
+                      BORNERS GROUP · 工厂生产技术工艺单 · {concept.code}
                     </div>
-                    <div className="font-serif-editorial text-[19px] font-bold text-[#181715] leading-snug mt-0.5">
+                    <div className="text-[20px] font-extrabold text-[#181715] leading-snug mt-0.5">
+                      {docTitleZh}
+                    </div>
+                    <div className="text-[11.5px] text-[#6E6A63] leading-snug mt-0.5">
                       {docTitle}
                     </div>
                   </div>
@@ -1115,31 +1324,41 @@ export function PdfConstructorModal({
                   <div className="rounded-[8px] bg-[#181715] text-white p-3.5 space-y-1.5">
                     <div className="flex items-center justify-between text-[11px] font-mono text-[#D4CDC2]">
                       <span>
-                        ИТОГО ПАРТИЯ ({currencyMetrics.totalPacks.toLocaleString('ru-RU')} НАБ. /{' '}
-                        {currencyMetrics.totalUnits.toLocaleString('ru-RU')} ШТ.)
+                        合计总量 · ИТОГО ({currencyMetrics.totalPacks.toLocaleString('ru-RU')} 盒 /{' '}
+                        {currencyMetrics.totalUnits.toLocaleString('ru-RU')} 件)
                       </span>
-                      <span>{includePricing ? `ВАЛЮТА: ${primaryCurrency}` : 'БЕЗ ЦЕН'}</span>
+                      <span>
+                        {includePricing
+                          ? `${showRubInPdf ? 'CNY / USD / RUB ₽' : 'CNY ¥ / USD $ (без ₽)'}`
+                          : 'БЕЗ ЦЕН'}
+                      </span>
                     </div>
                     {includePricing && (
-                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/15 text-center">
+                      <div
+                        className={`grid ${
+                          showRubInPdf ? 'grid-cols-3' : 'grid-cols-2'
+                        } gap-2 pt-1 border-t border-white/15 text-center`}
+                      >
                         <div>
-                          <div className="text-[10px] text-[#D4CDC2]">ЮАНИ (CNY)</div>
+                          <div className="text-[10px] text-[#D4CDC2]">人民币 · CNY</div>
                           <div className="text-[14px] font-bold text-[#F5B895]">
                             ¥ {currencyMetrics.totalCny.toLocaleString('ru-RU')}
                           </div>
                         </div>
                         <div>
-                          <div className="text-[10px] text-[#D4CDC2]">ДОЛЛАРЫ (USD)</div>
+                          <div className="text-[10px] text-[#D4CDC2]">美元 · USD</div>
                           <div className="text-[14px] font-bold text-white">
                             $ {currencyMetrics.totalUsd.toLocaleString('ru-RU')}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] text-[#D4CDC2]">РУБЛИ (RUB)</div>
-                          <div className="text-[14px] font-bold text-white">
-                            {currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽
+                        {showRubInPdf && (
+                          <div>
+                            <div className="text-[10px] text-[#D4CDC2]">卢布 · RUB</div>
+                            <div className="text-[14px] font-bold text-white">
+                              {currencyMetrics.totalRub.toLocaleString('ru-RU')} ₽
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>

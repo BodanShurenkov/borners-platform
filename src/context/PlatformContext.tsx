@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   AppUser,
   AuditLogEntry,
@@ -97,6 +97,8 @@ interface PlatformContextValue extends PersistedState {
   // Глобальные переключатели и навигация
   activeSection: NavSectionId;
   navHistory: NavSectionId[];
+  canGoBack: boolean;
+  canGoForward: boolean;
   navigateTo: (
     section: NavSectionId,
     opts?: {
@@ -104,9 +106,16 @@ interface PlatformContextValue extends PersistedState {
       conceptId?: string;
       launchId?: string;
       brandId?: BrandFilter;
+      scenarioScreen?: 'scenarios' | 'model' | 'sales-plan';
+      scenarioModelId?: string;
     }
   ) => void;
+  pushScenarioStep: (
+    screen: 'scenarios' | 'model' | 'sales-plan',
+    modelId?: string
+  ) => void;
   goBack: () => void;
+  goForward: () => void;
   brandFilter: BrandFilter;
   setBrandFilter: (brand: BrandFilter) => void;
   periodFilter: PeriodFilter;
@@ -292,6 +301,24 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const [activeSection, setActiveSection] = useState<NavSectionId>('product-lab');
   const [navHistory, setNavHistory] = useState<NavSectionId[]>(['product-lab']);
+  const [historyState, setHistoryState] = useState<{
+    stack: {
+      section: NavSectionId;
+      platformMode: PlatformMode;
+      brandFilter?: BrandFilter;
+      productId?: string | null;
+      conceptId?: string | null;
+      launchId?: string | null;
+      scenarioScreen?: 'scenarios' | 'model' | 'sales-plan';
+      scenarioModelId?: string;
+    }[];
+    cursor: number;
+  }>({
+    stack: [{ section: 'product-lab', platformMode: 'management' }],
+    cursor: 0,
+  });
+  const historyStackRef = useRef(historyState.stack);
+  const historyCursorRef = useRef(0);
   const [brandFilter, setBrandFilter] = useState<BrandFilter>('ALL');
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('2027');
   const [platformMode, setPlatformMode] = useState<PlatformMode>('management');
@@ -452,6 +479,71 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     [appendAudit, notify]
   );
 
+  const applyHistoryEntry = useCallback(
+    (entry: {
+      section: NavSectionId;
+      platformMode: PlatformMode;
+      brandFilter?: BrandFilter;
+      productId?: string | null;
+      conceptId?: string | null;
+      launchId?: string | null;
+      scenarioScreen?: 'scenarios' | 'model' | 'sales-plan';
+      scenarioModelId?: string;
+    }) => {
+      setPlatformMode(entry.platformMode || 'management');
+      setActiveSection(entry.section);
+      if (entry.brandFilter !== undefined) setBrandFilter(entry.brandFilter);
+      if (entry.productId !== undefined) setSelectedProductId(entry.productId);
+      if (entry.conceptId !== undefined) setSelectedConceptId(entry.conceptId);
+      if (entry.launchId !== undefined) setSelectedLaunchId(entry.launchId);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('borners-history-restore', { detail: entry })
+        );
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    []
+  );
+
+  // Синхронизация с браузерной историей (поддержка нативного свайпа двумя пальцами на тачпаде MacBook / ноутбука)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (typeof window.history.state?.bornersCursor !== 'number') {
+        window.history.replaceState({ bornersCursor: 0 }, '');
+      }
+    } catch {
+      // ignore
+    }
+
+    const onPopState = (e: PopStateEvent) => {
+      const targetCursor = e.state?.bornersCursor;
+      if (
+        typeof targetCursor === 'number' &&
+        targetCursor >= 0 &&
+        targetCursor < historyStackRef.current.length &&
+        targetCursor !== historyCursorRef.current
+      ) {
+        historyCursorRef.current = targetCursor;
+        const targetEntry = historyStackRef.current[targetCursor];
+        setHistoryState({
+          stack: historyStackRef.current,
+          cursor: targetCursor,
+        });
+        setNavHistory(
+          historyStackRef.current
+            .slice(0, targetCursor + 1)
+            .map((item) => item.section)
+        );
+        applyHistoryEntry(targetEntry);
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [applyHistoryEntry]);
+
   const navigateTo = useCallback(
     (
       section: NavSectionId,
@@ -460,15 +552,66 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         conceptId?: string;
         launchId?: string;
         brandId?: BrandFilter;
+        scenarioScreen?: 'scenarios' | 'model' | 'sales-plan';
+        scenarioModelId?: string;
       }
     ) => {
       setPlatformMode('management');
       setActiveSection(section);
-      setNavHistory((prev) => [...prev.slice(-15), section]);
       if (opts?.brandId !== undefined) setBrandFilter(opts.brandId);
       if (opts?.productId !== undefined) setSelectedProductId(opts.productId);
       if (opts?.conceptId !== undefined) setSelectedConceptId(opts.conceptId);
       if (opts?.launchId !== undefined) setSelectedLaunchId(opts.launchId);
+
+      const currentStack = historyStackRef.current;
+      const currentCursor = historyCursorRef.current;
+      const currentEntry = currentStack[currentCursor];
+
+      const nextEntry = {
+        section,
+        platformMode: 'management' as PlatformMode,
+        brandFilter: opts?.brandId,
+        productId: opts?.productId,
+        conceptId: opts?.conceptId,
+        launchId: opts?.launchId,
+        scenarioScreen:
+          opts?.scenarioScreen ||
+          (section === 'launch-calendar' ? 'sales-plan' : 'scenarios'),
+        scenarioModelId: opts?.scenarioModelId,
+      };
+
+      const isSameAsCurrent =
+        currentEntry &&
+        currentEntry.section === nextEntry.section &&
+        currentEntry.scenarioScreen === nextEntry.scenarioScreen &&
+        currentEntry.scenarioModelId === nextEntry.scenarioModelId &&
+        currentEntry.productId === nextEntry.productId &&
+        currentEntry.conceptId === nextEntry.conceptId;
+
+      if (!isSameAsCurrent) {
+        const nextStack = [
+          ...currentStack.slice(0, currentCursor + 1).slice(-30),
+          nextEntry,
+        ];
+        const nextCursor = nextStack.length - 1;
+        historyStackRef.current = nextStack;
+        historyCursorRef.current = nextCursor;
+        setHistoryState({ stack: nextStack, cursor: nextCursor });
+        setNavHistory(nextStack.map((item) => item.section));
+
+        if (typeof window !== 'undefined') {
+          try {
+            window.history.pushState(
+              { bornersCursor: nextCursor },
+              '',
+              `#${section}${nextEntry.scenarioScreen ? `-${nextEntry.scenarioScreen}` : ''}`
+            );
+          } catch {
+            // ignore
+          }
+        }
+      }
+
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -476,15 +619,125 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const pushScenarioStep = useCallback(
+    (
+      screen: 'scenarios' | 'model' | 'sales-plan',
+      modelId?: string
+    ) => {
+      const currentStack = historyStackRef.current;
+      const currentCursor = historyCursorRef.current;
+      const currentEntry = currentStack[currentCursor];
+      const sec = currentEntry?.section || activeSection;
+
+      if (
+        currentEntry &&
+        currentEntry.section === sec &&
+        currentEntry.scenarioScreen === screen &&
+        currentEntry.scenarioModelId === modelId
+      ) {
+        return;
+      }
+
+      const nextEntry = {
+        section: sec,
+        platformMode: 'management' as PlatformMode,
+        scenarioScreen: screen,
+        scenarioModelId: modelId,
+      };
+      const nextStack = [
+        ...currentStack.slice(0, currentCursor + 1).slice(-30),
+        nextEntry,
+      ];
+      const nextCursor = nextStack.length - 1;
+      historyStackRef.current = nextStack;
+      historyCursorRef.current = nextCursor;
+      setHistoryState({ stack: nextStack, cursor: nextCursor });
+      setNavHistory(nextStack.map((item) => item.section));
+
+      if (typeof window !== 'undefined') {
+        try {
+          window.history.pushState(
+            { bornersCursor: nextCursor },
+            '',
+            `#${sec}-${screen}`
+          );
+        } catch {
+          // ignore
+        }
+      }
+    },
+    [activeSection]
+  );
+
   const goBack = useCallback(() => {
-    setPlatformMode('management');
-    setNavHistory((prev) => {
-      if (prev.length <= 1) return prev;
-      const next = prev.slice(0, -1);
-      setActiveSection(next[next.length - 1]);
-      return next;
+    const currentCursor = historyCursorRef.current;
+    if (currentCursor <= 0) return;
+    const targetCursor = currentCursor - 1;
+    const targetEntry = historyStackRef.current[targetCursor];
+    if (!targetEntry) return;
+
+    historyCursorRef.current = targetCursor;
+    setHistoryState({
+      stack: historyStackRef.current,
+      cursor: targetCursor,
     });
-  }, []);
+    setNavHistory(
+      historyStackRef.current
+        .slice(0, targetCursor + 1)
+        .map((item) => item.section)
+    );
+    applyHistoryEntry(targetEntry);
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (
+          typeof window.history.state?.bornersCursor === 'number' &&
+          window.history.state.bornersCursor > targetCursor
+        ) {
+          window.history.back();
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [applyHistoryEntry]);
+
+  const goForward = useCallback(() => {
+    const currentCursor = historyCursorRef.current;
+    const currentStack = historyStackRef.current;
+    if (currentCursor >= currentStack.length - 1) return;
+    const targetCursor = currentCursor + 1;
+    const targetEntry = currentStack[targetCursor];
+    if (!targetEntry) return;
+
+    historyCursorRef.current = targetCursor;
+    setHistoryState({
+      stack: currentStack,
+      cursor: targetCursor,
+    });
+    setNavHistory(
+      currentStack
+        .slice(0, targetCursor + 1)
+        .map((item) => item.section)
+    );
+    applyHistoryEntry(targetEntry);
+
+    if (typeof window !== 'undefined') {
+      try {
+        if (
+          typeof window.history.state?.bornersCursor === 'number' &&
+          window.history.state.bornersCursor < targetCursor
+        ) {
+          window.history.forward();
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [applyHistoryEntry]);
+
+  const canGoBack = historyState.cursor > 0;
+  const canGoForward = historyState.cursor < historyState.stack.length - 1;
 
   // 1. Создание концепции в Product Lab (п. 4, 6, 21 ТЗ Product Lab R&D)
   const createConcept = useCallback(
@@ -1634,8 +1887,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       updateUserRoleOrPermissions,
       activeSection,
       navHistory,
+      canGoBack,
+      canGoForward,
       navigateTo,
+      pushScenarioStep,
       goBack,
+      goForward,
       brandFilter,
       setBrandFilter,
       periodFilter,
@@ -1704,8 +1961,12 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       updateUserRoleOrPermissions,
       activeSection,
       navHistory,
+      canGoBack,
+      canGoForward,
       navigateTo,
+      pushScenarioStep,
       goBack,
+      goForward,
       brandFilter,
       periodFilter,
       platformMode,

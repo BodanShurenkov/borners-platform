@@ -179,8 +179,11 @@ export function AppShell() {
     competitors,
     activeSection,
     navHistory,
+    canGoBack,
+    canGoForward,
     navigateTo,
     goBack,
+    goForward,
     brandFilter,
     setBrandFilter,
     periodFilter,
@@ -298,16 +301,114 @@ export function AppShell() {
     return items;
   }, [concepts, products, launches, tasks, documents]);
 
+  const [swipeFeedback, setSwipeFeedback] = useState<'back' | 'forward' | null>(null);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+        return;
+      }
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (
+        (e.altKey && e.key === 'ArrowLeft') ||
+        (e.metaKey && e.key === '[')
+      ) {
+        if (canGoBack) {
+          e.preventDefault();
+          goBack();
+          setSwipeFeedback('back');
+          setTimeout(() => setSwipeFeedback(null), 700);
+        }
+      } else if (
+        (e.altKey && e.key === 'ArrowRight') ||
+        (e.metaKey && e.key === ']')
+      ) {
+        if (canGoForward) {
+          e.preventDefault();
+          goForward();
+          setSwipeFeedback('forward');
+          setTimeout(() => setSwipeFeedback(null), 700);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [canGoBack, canGoForward, goBack, goForward]);
+
+  // Двухпальцевый свайп влево/вправо на тачпаде ноутбука (Назад / Вперёд)
+  useEffect(() => {
+    let accX = 0;
+    let lastWheelAt = 0;
+    let lastNavAt = 0;
+
+    const canElementScrollHorizontally = (
+      el: HTMLElement | null,
+      deltaX: number
+    ): boolean => {
+      let cur = el;
+      while (cur && cur !== document.body && cur !== document.documentElement) {
+        const style = window.getComputedStyle(cur);
+        const overflowX = style.overflowX;
+        if (
+          (overflowX === 'auto' || overflowX === 'scroll') &&
+          cur.scrollWidth > cur.clientWidth + 4
+        ) {
+          if (deltaX < 0 && cur.scrollLeft > 2) return true;
+          if (
+            deltaX > 0 &&
+            cur.scrollLeft + cur.clientWidth < cur.scrollWidth - 2
+          ) {
+            return true;
+          }
+        }
+        cur = cur.parentElement;
+      }
+      return false;
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      const now = Date.now();
+      if (now - lastNavAt < 580) return;
+
+      // Интересуют только выраженные горизонтальные свайпы двумя пальцами
+      if (Math.abs(e.deltaX) < 6 || Math.abs(e.deltaX) < Math.abs(e.deltaY) * 1.55) {
+        accX = 0;
+        return;
+      }
+
+      if (canElementScrollHorizontally(e.target as HTMLElement | null, e.deltaX)) {
+        accX = 0;
+        return;
+      }
+
+      if (now - lastWheelAt > 220) {
+        accX = 0;
+      }
+      lastWheelAt = now;
+      accX += e.deltaX;
+
+      if (accX <= -85 && canGoBack) {
+        lastNavAt = now;
+        accX = 0;
+        goBack();
+        setSwipeFeedback('back');
+        setTimeout(() => setSwipeFeedback(null), 700);
+      } else if (accX >= 85 && canGoForward) {
+        lastNavAt = now;
+        accX = 0;
+        goForward();
+        setSwipeFeedback('forward');
+        setTimeout(() => setSwipeFeedback(null), 700);
+      }
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: true });
+    return () => window.removeEventListener('wheel', onWheel);
+  }, [canGoBack, canGoForward, goBack, goForward]);
 
   const searchResults = useMemo(() => {
     const q = globalSearchQuery.trim().toLowerCase();
@@ -960,15 +1061,54 @@ export function AppShell() {
                 </button>
               )}
 
-              {navHistory.length > 1 && (
+              {/* Кнопки Назад (←) и Вперёд (→) + поддержка свайпа 2 пальцами на тачпаде */}
+              <div className="inline-flex items-center rounded-[7px] bg-white border-[1.5px] border-[#D4CDC2] p-0.5 shrink-0">
                 <button
+                  type="button"
                   onClick={goBack}
-                  title="Назад"
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] text-[12.5px] font-medium text-[#161615] hover:border-[#161615] transition cursor-pointer shrink-0"
+                  disabled={!canGoBack}
+                  title="Назад (свайп двумя пальцами влево или ⌘[)"
+                  aria-label="Назад"
+                  className={`inline-flex items-center gap-1 h-7.5 px-2.5 rounded-[5px] text-[12px] font-medium transition ${
+                    canGoBack
+                      ? 'text-[#161615] hover:bg-[#F2EFE9] cursor-pointer'
+                      : 'text-[#B8B2A8] opacity-55 cursor-not-allowed'
+                  }`}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Назад</span>
                 </button>
+                <div className="h-4 w-[1px] bg-[#E5E0D8]" />
+                <button
+                  type="button"
+                  onClick={goForward}
+                  disabled={!canGoForward}
+                  title="Вперёд (свайп двумя пальцами вправо или ⌘])"
+                  aria-label="Вперёд"
+                  className={`inline-flex items-center gap-1 h-7.5 px-2 rounded-[5px] text-[12px] font-medium transition ${
+                    canGoForward
+                      ? 'text-[#161615] hover:bg-[#F2EFE9] cursor-pointer'
+                      : 'text-[#B8B2A8] opacity-55 cursor-not-allowed'
+                  }`}
+                >
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {swipeFeedback && (
+                <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-3.5 py-1.5 rounded-full bg-[#181715]/90 text-white text-[12px] font-semibold shadow-lg flex items-center gap-1.5">
+                  {swipeFeedback === 'back' ? (
+                    <>
+                      <ArrowLeft className="h-3.5 w-3.5 text-[#F3DAB6]" />
+                      <span>Назад</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Вперёд</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-[#F3DAB6]" />
+                    </>
+                  )}
+                </div>
               )}
 
               {/* ВЫПАДАЮЩИЙ СПИСОК БРЕНДОВ */}

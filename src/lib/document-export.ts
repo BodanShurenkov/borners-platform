@@ -525,6 +525,7 @@ export function buildPdfFromJpegPages(
 
 export interface EditorialPdfSection {
   badge?: string;
+  titleZh?: string;
   title: string;
   subtitle?: string;
   rows?: { label: string; value: string; highlight?: boolean }[];
@@ -541,6 +542,7 @@ export interface EditorialPdfSection {
     footer?: string[];
   };
   swatches?: { name: string; code: string; hex: string; note: string }[];
+  noteZh?: string;
   note?: string;
 }
 
@@ -549,9 +551,11 @@ export interface EditorialPdfDocumentSpec {
   docCode: string;
   categoryLabel: string;
   brandLabel: string;
+  titleZh?: string;
   title: string;
+  subtitleZh?: string;
   subtitle: string;
-  metaGrid: { label: string; value: string }[];
+  metaGrid: { label: string; value: string; subValueRu?: string }[];
   frontPhotoUrl?: string;
   backPhotoUrl?: string;
   frontPhotoCaption?: string;
@@ -684,7 +688,9 @@ export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): vo
     );
 
     // Right pill: Brand
-    const brandPillText = `БРЕНД: ${spec.brandLabel}`;
+    const brandPillText = spec.titleZh
+      ? `品牌 / БРЕНД: ${spec.brandLabel}`
+      : `БРЕНД: ${spec.brandLabel}`;
     ctx.font = `600 17px ${sansFont}`;
     const pillW = ctx.measureText(brandPillText).width + 36;
     ctx.fillStyle = spec.brandLabel.includes('НА ТЕЛЕ') ? '#8C7A6B' : '#181715';
@@ -694,30 +700,66 @@ export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): vo
     ctx.fillStyle = '#FAF8F5';
     ctx.fillText(brandPillText, W - PAD - pillW + 18, y - 1);
 
-    y += 50;
+    y += 48;
 
-    // Main Document Title
-    ctx.fillStyle = '#181715';
-    ctx.font = `600 42px ${serifFont}`;
-    const titleLines = wrapCanvasText(ctx, spec.title, CONTENT_W);
-    for (const line of titleLines.slice(0, 2)) {
-      ctx.fillText(line, PAD, y);
-      y += 48;
+    // Main Document Title (If titleZh is provided: LARGE CHINESE on top + small Russian title underneath)
+    if (spec.titleZh) {
+      ctx.fillStyle = '#181715';
+      ctx.font = `700 38px ${sansFont}`;
+      const zhTitleLines = wrapCanvasText(ctx, spec.titleZh, CONTENT_W);
+      for (const line of zhTitleLines.slice(0, 2)) {
+        ctx.fillText(line, PAD, y);
+        y += 44;
+      }
+
+      ctx.fillStyle = '#5C5852';
+      ctx.font = `500 17.5px ${sansFont}`;
+      const ruTitleLines = wrapCanvasText(ctx, spec.title, CONTENT_W);
+      for (const line of ruTitleLines.slice(0, 1)) {
+        ctx.fillText(line, PAD, y - 6);
+        y += 24;
+      }
+
+      if (spec.subtitleZh) {
+        ctx.fillStyle = '#B85D35';
+        ctx.font = `600 17.5px ${sansFont}`;
+        const zhSubLines = wrapCanvasText(ctx, spec.subtitleZh, CONTENT_W);
+        for (const line of zhSubLines.slice(0, 1)) {
+          ctx.fillText(line, PAD, y - 4);
+          y += 22;
+        }
+      }
+
+      ctx.fillStyle = '#7A756D';
+      ctx.font = `400 14.5px ${sansFont}`;
+      const subLines = wrapCanvasText(ctx, spec.subtitle, CONTENT_W);
+      for (const line of subLines.slice(0, 1)) {
+        ctx.fillText(line, PAD, y - 4);
+        y += 20;
+      }
+    } else {
+      ctx.fillStyle = '#181715';
+      ctx.font = `600 42px ${serifFont}`;
+      const titleLines = wrapCanvasText(ctx, spec.title, CONTENT_W);
+      for (const line of titleLines.slice(0, 2)) {
+        ctx.fillText(line, PAD, y);
+        y += 48;
+      }
+
+      ctx.fillStyle = '#6E6A63';
+      ctx.font = `400 20px ${sansFont}`;
+      const subLines = wrapCanvasText(ctx, spec.subtitle, CONTENT_W);
+      for (const line of subLines.slice(0, 2)) {
+        ctx.fillText(line, PAD, y);
+        y += 28;
+      }
     }
 
-    // Subtitle
-    ctx.fillStyle = '#6E6A63';
-    ctx.font = `400 20px ${sansFont}`;
-    const subLines = wrapCanvasText(ctx, spec.subtitle, CONTENT_W);
-    for (const line of subLines.slice(0, 2)) {
-      ctx.fillText(line, PAD, y);
-      y += 28;
-    }
+    y += 10;
 
-    y += 12;
-
-    // 4-Column Architectural Meta Ledger
-    const metaH = 88;
+    // 4-Column Architectural Meta Ledger (supports Chinese value + small Russian subValueRu underneath)
+    const hasSubValues = spec.metaGrid.some((m) => Boolean(m.subValueRu));
+    const metaH = hasSubValues ? 104 : 88;
     ctx.fillStyle = '#FFFFFF';
     ctx.strokeStyle = '#D4CDC2';
     ctx.lineWidth = 2;
@@ -738,16 +780,23 @@ export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): vo
         ctx.stroke();
       }
       ctx.fillStyle = '#8C867E';
-      ctx.font = `500 14.5px ${sansFont}`;
-      ctx.fillText(m.label, cx + 20, y + 32);
+      ctx.font = `500 13.5px ${sansFont}`;
+      ctx.fillText(m.label, cx + 18, y + 26);
 
       ctx.fillStyle = '#181715';
-      ctx.font = `600 19px ${sansFont}`;
-      const valLines = wrapCanvasText(ctx, m.value, colW - 32);
-      ctx.fillText(valLines[0] || '—', cx + 20, y + 63);
+      ctx.font = `700 18.5px ${sansFont}`;
+      const valLines = wrapCanvasText(ctx, m.value, colW - 28);
+      ctx.fillText(valLines[0] || '—', cx + 18, y + 55);
+
+      if (m.subValueRu) {
+        ctx.fillStyle = '#6E6A63';
+        ctx.font = `400 13px ${sansFont}`;
+        const ruSubLines = wrapCanvasText(ctx, m.subValueRu, colW - 28);
+        ctx.fillText(ruSubLines[0] || '', cx + 18, y + 81);
+      }
     });
 
-    y += metaH + 24;
+    y += metaH + 22;
 
     // Optional Product Photos Row (Лицевая фотография + Вид сзади / Детали)
     if (frontImg || backImg) {
@@ -795,62 +844,77 @@ export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): vo
           ctx.drawImage(c.img, dx, dy, dw, dh);
         }
 
-        // Caption right of photo
+        // Caption right of photo: LARGE CHINESE on top, small Russian underneath
         const tx = bx + imgAreaW + 34;
         const tw = boxW - imgAreaW - 50;
         ctx.fillStyle = '#B85D35';
         ctx.font = `700 15px ${monoFont}`;
-        ctx.fillText(c.labelZh, tx, y + 56);
+        ctx.fillText(c.labelZh, tx, y + 52);
 
         ctx.fillStyle = '#181715';
-        ctx.font = `700 22px ${sansFont}`;
-        ctx.fillText(idx === 0 ? '请按正面图打样生产' : '腰头及四针六线平缝细节', tx, y + 96);
+        ctx.font = `700 23px ${sansFont}`;
+        ctx.fillText(
+          idx === 0 ? '请按正面确认样衣版型及色卡生产' : '38mm超柔腰头及四针六线平缝细节',
+          tx,
+          y + 92
+        );
 
-        ctx.fillStyle = '#5C5852';
-        ctx.font = `500 15.5px ${sansFont}`;
+        ctx.fillStyle = '#6E6A63';
+        ctx.font = `400 14px ${sansFont}`;
         const capLines = wrapCanvasText(ctx, c.labelRu, tw);
         capLines.slice(0, 3).forEach((cl, lIdx) => {
-          ctx.fillText(cl, tx, y + 134 + lIdx * 24);
+          ctx.fillText(cl, tx, y + 128 + lIdx * 21);
         });
 
         ctx.fillStyle = '#1F6E50';
-        ctx.font = `600 14px ${sansFont}`;
-        ctx.fillText('✓ Утверждено в заказ · 已确认', tx, y + photoBoxH - 28);
+        ctx.font = `700 15px ${sansFont}`;
+        ctx.fillText('✓ 已确认投产 (Утверждено в заказ)', tx, y + photoBoxH - 26);
       });
 
-      y += photoBoxH + 26;
+      y += photoBoxH + 22;
     }
 
     // Sections
     for (const sec of spec.sections) {
       if (y > H - 200) break;
 
-      // Section card calculation & header
+      // Section card calculation & header (supports titleZh large + small Russian title underneath)
+      const secHeaderH = sec.titleZh ? 56 : 42;
       ctx.fillStyle = '#EFECE6';
       ctx.beginPath();
-      ctx.roundRect(PAD, y, CONTENT_W, 42, 8);
+      ctx.roundRect(PAD, y, CONTENT_W, secHeaderH, 8);
       ctx.fill();
 
       let secTitleX = PAD + 18;
       if (sec.badge) {
         ctx.fillStyle = '#B85D35';
-        ctx.font = `700 15px ${monoFont}`;
-        ctx.fillText(sec.badge, secTitleX, y + 27);
+        ctx.font = `700 14px ${monoFont}`;
+        ctx.fillText(sec.badge, secTitleX, y + (sec.titleZh ? 23 : 27));
         secTitleX += ctx.measureText(sec.badge).width + 16;
       }
 
-      ctx.fillStyle = '#181715';
-      ctx.font = `600 19.5px ${sansFont}`;
-      ctx.fillText(sec.title, secTitleX, y + 27);
+      if (sec.titleZh) {
+        ctx.fillStyle = '#181715';
+        ctx.font = `700 20px ${sansFont}`;
+        ctx.fillText(sec.titleZh, secTitleX, y + 24);
+
+        ctx.fillStyle = '#6E6A63';
+        ctx.font = `400 13px ${sansFont}`;
+        ctx.fillText(sec.title, secTitleX, y + 44);
+      } else {
+        ctx.fillStyle = '#181715';
+        ctx.font = `600 19.5px ${sansFont}`;
+        ctx.fillText(sec.title, secTitleX, y + 27);
+      }
 
       if (sec.subtitle) {
         ctx.fillStyle = '#7A756D';
-        ctx.font = `400 15.5px ${sansFont}`;
+        ctx.font = `500 14.5px ${sansFont}`;
         const sw = ctx.measureText(sec.subtitle).width;
-        ctx.fillText(sec.subtitle, W - PAD - sw - 18, y + 27);
+        ctx.fillText(sec.subtitle, W - PAD - sw - 18, y + (sec.titleZh ? 33 : 27));
       }
 
-      y += 52;
+      y += secHeaderH + 10;
 
       // Bilingual Chinese-First Rows (Крупный китайский 中文 + подстрочный русский)
       if (sec.bilingualSpecs && sec.bilingualSpecs.length > 0) {
@@ -1025,15 +1089,26 @@ export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): vo
         y += 20;
       }
 
-      if (sec.note && y < H - 155) {
-        ctx.fillStyle = '#6E6A63';
-        ctx.font = `400 15.5px ${sansFont}`;
-        const nLines = wrapCanvasText(ctx, sec.note, CONTENT_W);
-        nLines.slice(0, 2).forEach((nl) => {
-          ctx.fillText(nl, PAD, y + 18);
-          y += 23;
-        });
-        y += 8;
+      if ((sec.noteZh || sec.note) && y < H - 155) {
+        if (sec.noteZh) {
+          ctx.fillStyle = '#181715';
+          ctx.font = `700 16px ${sansFont}`;
+          const zhLines = wrapCanvasText(ctx, sec.noteZh, CONTENT_W);
+          zhLines.slice(0, 2).forEach((zl) => {
+            ctx.fillText(zl, PAD, y + 16);
+            y += 22;
+          });
+        }
+        if (sec.note) {
+          ctx.fillStyle = '#6E6A63';
+          ctx.font = `400 13.5px ${sansFont}`;
+          const nLines = wrapCanvasText(ctx, sec.note, CONTENT_W);
+          nLines.slice(0, 2).forEach((nl) => {
+            ctx.fillText(nl, PAD, y + 14);
+            y += 19;
+          });
+        }
+        y += 6;
       }
     }
 
@@ -1047,9 +1122,11 @@ export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): vo
     ctx.stroke();
 
     ctx.fillStyle = '#8C867E';
-    ctx.font = `500 15.5px ${sansFont}`;
+    ctx.font = `500 14.5px ${sansFont}`;
     ctx.fillText(
-      'BORNERS GROUP (borners-group.ru)  ·  Официальный документ рабочей платформы (2026–2027)',
+      spec.titleZh
+        ? 'BORNERS GROUP (borners-group.ru) · 生产工艺及大货采购确认单 (Официальная производственная спецификация)'
+        : 'BORNERS GROUP (borners-group.ru)  ·  Официальный документ рабочей платформы (2026–2027)',
       PAD,
       footerY + 6
     );
@@ -1777,15 +1854,17 @@ export function exportConceptProductionPdf(
   downloadEditorialPdfDocument({
     fileName: `ТЗ_Заказ_Фабрика_${concept.code}_v${orderInfo.orderVersion}.pdf`,
     docCode: `${concept.code} · v${orderInfo.orderVersion}`,
-    categoryLabel: 'PRODUCTION ORDER (中文 / RU / EN)',
+    categoryLabel: '生产工艺及采购单 (PRODUCTION ORDER)',
     brandLabel,
-    title: `Заказ на производство: ${concept.name} (${concept.code})`,
-    subtitle: `Двуязычная фабричная спецификация (Крупный китайский 中文 + подстрочный русский) · Фабрика: ${orderInfo.factoryName}`,
+    titleZh: `生产工艺单及大货采购订单：${concept.techPack?.zh?.modelName || 'BORNERS 男士莫代尔内裤'} (${concept.code})`,
+    title: `Спецификация и заказ на производство: ${concept.name} (${concept.code})`,
+    subtitleZh: `承接生产工厂：广东奥佩克内衣有限公司 (佛山) · 交货期：${orderInfo.plannedReadyDate}`,
+    subtitle: `Фабрика: ${orderInfo.factoryName} · Срок готовности партии: ${orderInfo.plannedReadyDate}`,
     metaGrid: [
-      { label: 'Код модели / 款号', value: concept.code },
-      { label: 'Фабрика / 生产工厂', value: orderInfo.factoryName },
-      { label: 'Готовность / 交货日期', value: orderInfo.plannedReadyDate },
-      { label: 'Оплата и валюта / 结算', value: `${orderInfo.currency} · ${orderInfo.paymentTerms}` },
+      { label: '款号 · Код модели', value: concept.code, subValueRu: `Артикул ${concept.code}` },
+      { label: '生产工厂 · Фабрика', value: '广东奥佩克内衣厂 (佛山)', subValueRu: orderInfo.factoryName },
+      { label: '交货日期 · Готовность', value: orderInfo.plannedReadyDate, subValueRu: 'Срок сдачи партии' },
+      { label: '结算货币 · Валюта', value: `${orderInfo.currency} · 30%定金/70%尾款`, subValueRu: orderInfo.paymentTerms },
     ],
     frontPhotoUrl: frontPhoto,
     backPhotoUrl: backPhoto,
@@ -1793,9 +1872,10 @@ export function exportConceptProductionPdf(
     backPhotoCaption: `Вид сзади, резинка пояса и плоские швы (${orderInfo.approvedSampleVersion})`,
     sections: [
       {
-        badge: '中文 + РУС · FACTORY SPEC',
-        title: 'Спецификация для фабрики КНР (Крупный китайский 中文 + перевод на русский)',
-        subtitle: 'Раздел 01',
+        badge: '01 · 工艺标准',
+        titleZh: '一、产品工艺规格与面辅料标准',
+        title: 'Спецификация изделия, материалы и стандарты пошива (перевод на русский)',
+        subtitle: `Утверждено · ${orderInfo.approvedSampleVersion}`,
         bilingualSpecs: [
           {
             labelZh: '款式名称与版型',
@@ -1826,26 +1906,28 @@ export function exportConceptProductionPdf(
         ],
       },
       {
-        badge: 'ORDER MATRIX S–4XL',
-        title: 'Размерная сетка заказа (S – 4XL) — 尺码与数量明细表',
-        subtitle: `В 1 наборе: ${orderInfo.unitsPerPack} шт. · Валюта: ${orderInfo.currency}`,
+        badge: '02 · 尺码明细',
+        titleZh: '二、大货尺码配比及订单金额明细 (S – 4XL)',
+        title: 'Размерная сетка заказа (S – 4XL) и расчёт стоимости партии',
+        subtitle: `每盒 ${orderInfo.unitsPerPack} 件 (В 1 наборе: ${orderInfo.unitsPerPack} шт.)`,
         table: {
           headers: [
-            'Размер (尺码 / Size)',
-            'Наборов (盒数 / Packs)',
-            'Штук (件数 / Pcs)',
-            `Цена 1 шт. (${orderInfo.currency})`,
-            `Сумма (${orderInfo.currency})`,
+            '尺码 (Размер)',
+            '盒数 (Наборов)',
+            '总件数 (Штук)',
+            `单价 (Цена 1 шт. ${orderInfo.currency})`,
+            `合计金额 (Сумма ${orderInfo.currency})`,
           ],
           rows: sizeRows,
           footer: [
-            'ИТОГО (合计 / TOTAL)',
-            `${totalPacks.toLocaleString('ru-RU')} наборов`,
-            `${totalPcs.toLocaleString('ru-RU')} штук`,
+            '合计总订单 (ИТОГО)',
+            `${totalPacks.toLocaleString('ru-RU')} 盒 (наб.)`,
+            `${totalPcs.toLocaleString('ru-RU')} 件 (шт.)`,
             `${orderInfo.unitPrice} ${orderInfo.currency}`,
             `${totalSum.toLocaleString('ru-RU')} ${orderInfo.currency}`,
           ],
         },
+        noteZh: '验货标准：出货前执行 AQL 1.5 抽检 · 40°C 水洗5次缩水率 ≤ 2.5% · 每盒粘贴 EAN-13 及俄罗斯诚实标签 (DataMatrix)',
         note: 'Контроль качества AQL 1.5 перед отгрузкой. Усадка после стирки 40°C не более 2,5%. Маркировка Честный ЗНАК и EAN-13 на каждой упаковке.',
       },
     ],

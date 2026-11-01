@@ -36,7 +36,7 @@ export function GrowthScenariosShowcase({
   initialScreen = 'scenarios',
   initialModelId,
 }: GrowthScenariosShowcaseProps = {}) {
-  const { concepts, createProduct, notify } = usePlatform();
+  const { concepts, createProduct, pushScenarioStep, notify } = usePlatform();
 
   // Архитектура из 3 экранов (п. 02 ТЗ):
   // 'scenarios' (Экран №1) -> 'model' (Экран №2) -> 'sales-plan' (Экран №3)
@@ -50,6 +50,33 @@ export function GrowthScenariosShowcase({
   const [selectedModelId, setSelectedModelId] = useState<string>(
     initialModelId || 'scen-model-001'
   );
+
+  const navigateScreen = (
+    nextScreen: 'scenarios' | 'model' | 'sales-plan',
+    nextModelId?: string
+  ) => {
+    const targetModelId = nextModelId || selectedModelId;
+    if (nextModelId) {
+      setSelectedModelId(nextModelId);
+    }
+    setScreen(nextScreen);
+    pushScenarioStep(nextScreen, targetModelId);
+  };
+
+  useEffect(() => {
+    const onHistoryRestore = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.scenarioScreen) {
+        setScreen(detail.scenarioScreen);
+      }
+      if (detail?.scenarioModelId) {
+        setSelectedModelId(detail.scenarioModelId);
+      }
+    };
+    window.addEventListener('borners-history-restore', onHistoryRestore);
+    return () =>
+      window.removeEventListener('borners-history-restore', onHistoryRestore);
+  }, []);
 
   useEffect(() => {
     setScreen(initialScreen);
@@ -65,11 +92,12 @@ export function GrowthScenariosShowcase({
         sessionStorage.removeItem('borners_open_scenario_model_id');
         setSelectedModelId(pendingModelId);
         setScreen('model');
+        pushScenarioStep('model', pendingModelId);
       }
     } catch {
       // ignore
     }
-  }, [initialModelId]);
+  }, [initialModelId, pushScenarioStep]);
 
   // Фильтры каталога на Экране №1
   const [searchQuery, setSearchQuery] = useState('');
@@ -432,7 +460,7 @@ export function GrowthScenariosShowcase({
         <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
           <button
             type="button"
-            onClick={() => setScreen('scenarios')}
+            onClick={() => navigateScreen('scenarios')}
             className={`h-8 px-3 rounded-[9px] font-semibold transition cursor-pointer ${
               screen === 'scenarios'
                 ? 'bg-[#1D1D1F] text-white'
@@ -444,7 +472,7 @@ export function GrowthScenariosShowcase({
           <ChevronRight className="h-3.5 w-3.5 text-[#8E8A82]" />
           <button
             type="button"
-            onClick={() => setScreen('model')}
+            onClick={() => navigateScreen('model')}
             className={`h-8 px-3 rounded-[9px] font-semibold transition cursor-pointer ${
               screen === 'model'
                 ? 'bg-[#1D1D1F] text-white'
@@ -456,7 +484,7 @@ export function GrowthScenariosShowcase({
           <ChevronRight className="h-3.5 w-3.5 text-[#8E8A82]" />
           <button
             type="button"
-            onClick={() => setScreen('sales-plan')}
+            onClick={() => navigateScreen('sales-plan')}
             className={`h-8 px-3 rounded-[9px] font-semibold transition cursor-pointer ${
               screen === 'sales-plan'
                 ? 'bg-[#1D1D1F] text-white'
@@ -477,8 +505,8 @@ export function GrowthScenariosShowcase({
         <ScenarioModelCardScreen
           model={activeModel}
           scenario={currentScenario}
-          onBackToScenarios={() => setScreen('scenarios')}
-          onOpenSalesPlan={() => setScreen('sales-plan')}
+          onBackToScenarios={() => navigateScreen('scenarios')}
+          onOpenSalesPlan={() => navigateScreen('sales-plan')}
           onUpdateModel={handleUpdateModel}
           onDuplicateModel={handleDuplicateModel}
           onDeleteOrArchiveModel={handleDeleteOrArchiveModel}
@@ -494,7 +522,7 @@ export function GrowthScenariosShowcase({
           scenario={currentScenario}
           allScenarios={scenarios}
           onSelectScenario={(id) => setSelectedScenarioId(id)}
-          onBackToModel={() => setScreen('model')}
+          onBackToModel={() => navigateScreen('model')}
           onUpdateModel={handleUpdateModel}
           notify={notify}
         />
@@ -721,8 +749,7 @@ export function GrowthScenariosShowcase({
                     type="button"
                     data-tour={modIdx === 0 ? 'model-passport' : undefined}
                     onClick={() => {
-                      setSelectedModelId(mod.id);
-                      setScreen('model');
+                      navigateScreen('model', mod.id);
                     }}
                     className="group rounded-[20px] bg-white hover:bg-[#FDFCFA] border border-[#E6E0D4] hover:border-[#C8A97E] p-4 text-left transition-all cursor-pointer flex flex-col justify-between shadow-2xs hover:shadow-[0_10px_26px_rgba(24,23,21,0.08)]"
                   >
