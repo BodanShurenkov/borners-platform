@@ -40,6 +40,9 @@ import {
 } from '@/components/sections/ProductLabTabs';
 import { PdfConstructorModal } from '@/components/sections/PdfConstructorModal';
 import { compressImageFileToDataUrl } from '@/lib/document-export';
+import { INITIAL_SCENARIO_MODELS, ScenarioModelSpec } from '@/lib/scenarioData';
+import { STORAGE_KEY_MODELS } from '@/components/sections/GrowthScenariosShowcase';
+import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
 
 export function ProductLabView() {
   const {
@@ -59,6 +62,7 @@ export function ProductLabView() {
     updateConcept,
     updateConceptStage,
     deleteConcept,
+    createProduct,
     createProductFromConcept,
     createLaunch,
     createTask,
@@ -85,6 +89,122 @@ export function ProductLabView() {
 
   // Быстрое создание новой идеи (за 30–60 секунд, Стр. 2 и 4 PDF)
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
+  const [addFromCatalogOpen, setAddFromCatalogOpen] = useState(false);
+  const [targetStageForImport, setTargetStageForImport] =
+    useState<ConceptStage>('IDEA');
+  const [scenarioModels, setScenarioModels] = useState<ScenarioModelSpec[]>(
+    INITIAL_SCENARIO_MODELS
+  );
+
+  useEffect(() => {
+    const loadModels = () => {
+      const parsed = safeGetStorageJson<ScenarioModelSpec[]>(STORAGE_KEY_MODELS);
+      if (Array.isArray(parsed)) {
+        setScenarioModels(parsed);
+      }
+    };
+    loadModels();
+    window.addEventListener('borners-scenario-models-changed', loadModels);
+    window.addEventListener('storage', loadModels);
+    return () => {
+      window.removeEventListener('borners-scenario-models-changed', loadModels);
+      window.removeEventListener('storage', loadModels);
+    };
+  }, []);
+
+  // Единый список карточек из базы (Сценарии роста + Каталог моделей SKU)
+  const unifiedCatalogItems = useMemo(() => {
+    const items: Array<{
+      key: string;
+      code: string;
+      name: string;
+      subtitle: string;
+      brandId: 'BORNERS' | 'NA_TELE';
+      imageUrl?: string;
+      retailPriceRub: number;
+      unitCostRub: number;
+      materials: string;
+      sourceLabel: string;
+    }> = [];
+    const seenNames = new Set<string>();
+
+    for (const sm of scenarioModels) {
+      if (sm.launchStatus === 'В архиве') continue;
+      const photo =
+        (sm.gallery.find((g) => g.isMain && g.url) ||
+          sm.gallery.find((g) => Boolean(g.url)))?.url ||
+        sm.palettes.find((p) => Boolean(p.imageUrl))?.imageUrl;
+      seenNames.add(sm.title.trim().toUpperCase());
+      items.push({
+        key: `scen-${sm.id}`,
+        code: sm.code,
+        name: sm.title,
+        subtitle: sm.subtitle,
+        brandId: sm.brandId,
+        imageUrl: photo,
+        retailPriceRub: sm.retailPriceRub,
+        unitCostRub: sm.unitCostRub,
+        materials: sm.fabric.composition,
+        sourceLabel: 'Сценарии / Каталог',
+      });
+    }
+
+    for (const pr of products) {
+      if (pr.isArchived) continue;
+      if (seenNames.has(pr.name.trim().toUpperCase())) continue;
+      seenNames.add(pr.name.trim().toUpperCase());
+      items.push({
+        key: `prod-${pr.id}`,
+        code: pr.sku,
+        name: pr.name,
+        subtitle: `${pr.category} · ${pr.productType}`,
+        brandId: pr.brandId === 'NA_TELE' ? 'NA_TELE' : 'BORNERS',
+        imageUrl: pr.imageUrl,
+        retailPriceRub: pr.economics.plannedRetailPrice,
+        unitCostRub: pr.economics.unitCostPrice,
+        materials: pr.materials,
+        sourceLabel: 'Каталог SKU',
+      });
+    }
+
+    return items;
+  }, [scenarioModels, products]);
+
+  const handleImportModelToBoard = (
+    item: (typeof unifiedCatalogItems)[number],
+    stage: ConceptStage = targetStageForImport
+  ) => {
+    const created = createConcept({
+      name: item.name,
+      brandId: item.brandId,
+      stage,
+      developmentType: 'new_construction',
+      whatAttracted: `${item.subtitle} · ${item.materials}`,
+      ideaDescription: `${item.subtitle} (${item.code}) — розница ${item.retailPriceRub} ₽, себестоимость ${item.unitCostRub} ₽`,
+      ownerId: currentUser.id,
+      targetLaunchDate: '2027-03-15',
+      imageUrl: item.imageUrl,
+    });
+    if (item.imageUrl) {
+      updateConcept(created.id, {
+        imageUrl: item.imageUrl,
+        galleryPhotos: [
+          {
+            id: `ph-import-${Date.now()}`,
+            url: item.imageUrl,
+            caption: 'Главное фото из базы',
+          },
+        ],
+      });
+    }
+    setAddFromCatalogOpen(false);
+    setQuickIdeaOpen(false);
+    notify(
+      'success',
+      `✓ Карточка «${item.name}» добавлена в Лабораторию R&D`,
+      `Этап: ${CONCEPT_STAGE_LABELS_RU[stage]}`
+    );
+  };
   const [quickIdeaForm, setQuickIdeaForm] = useState<{
     brandId: string;
     name: string;
@@ -351,6 +471,51 @@ export function ProductLabView() {
       });
     }
 
+    // Также синхронизируем созданную в Лаборатории R&D карточку в Каталог моделей (SKU) и Сценарии роста
+    const nextNum = String(scenarioModels.length + 1).padStart(3, '0');
+    const cleanBrand =
+      quickIdeaForm.brandId === 'NA_TELE' ? 'NA_TELE' : 'BORNERS';
+    createProduct({
+      sku: `${cleanBrand === 'NA_TELE' ? 'NT' : 'BRN'}-RND-${nextNum}`,
+      name: title,
+      brandId: cleanBrand,
+      category: 'Боксеры',
+      productType: 'Базовая коллекция',
+      priceSegment: 'Middle+',
+      collection: `${cleanBrand === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} 2027`,
+      materials: quickIdeaForm.comment.trim() || '93% хлопок компакт-пенье, 7% спандекс',
+      fitType: 'Разработка R&D',
+      imageUrl: quickIdeaForm.images[0] || undefined,
+      status: 'in_development',
+    });
+
+    const newScenarioSpec: ScenarioModelSpec = {
+      ...INITIAL_SCENARIO_MODELS[0],
+      id: `scen-model-${Date.now()}`,
+      code: `№${nextNum}`,
+      title: title.toUpperCase(),
+      subtitle: quickIdeaForm.comment.trim() || 'Разработка R&D · 4 шт. в комплекте',
+      brandId: cleanBrand,
+      launchStatus: 'В разработке',
+      unitsInPack: 4,
+      retailPriceRub: 1290,
+      unitCostRub: 410,
+      hasActualSalesOrPurchases: false,
+      gallery: [
+        {
+          id: `g-main-${Date.now()}`,
+          category: 'pack',
+          label: 'Главное фото',
+          url: quickIdeaForm.images[0] || undefined,
+          isMain: true,
+        },
+      ],
+    };
+    const nextScenarioModels = [...scenarioModels, newScenarioSpec];
+    setScenarioModels(nextScenarioModels);
+    safeSetStorageJson(STORAGE_KEY_MODELS, nextScenarioModels);
+    window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+
     setQuickIdeaOpen(false);
     setQuickIdeaForm({
       brandId: brandFilter === 'NA_TELE' ? 'NA_TELE' : 'BORNERS',
@@ -498,14 +663,25 @@ export function ProductLabView() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setQuickIdeaOpen(true)}
-            className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white px-4 text-[13px] font-medium transition cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Новая идея</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setAddFromCatalogOpen(true)}
+              className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-white hover:bg-[#FAF6EE] border border-[#C8A97E] text-[#7A5C38] px-3.5 text-[12.5px] font-semibold transition cursor-pointer shadow-2xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>+ Добавить из каталога / базы ({unifiedCatalogItems.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setQuickIdeaOpen(true)}
+              className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white px-4 text-[13px] font-medium transition cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Новая идея</span>
+            </button>
+          </div>
         </div>
 
         {/* Панель фильтров: Все бренды | Все этапы | Поиск | Вид */}
@@ -1497,6 +1673,22 @@ export function ProductLabView() {
               </div>
             </div>
 
+            <div className="rounded-2xl bg-[#FAF6EE] border border-[#E5DEC9] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-[12.5px] font-semibold text-[#4A4740]">
+                Хотите добавить на доску уже созданную карточку из Каталога или Сценариев?
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickIdeaOpen(false);
+                  setAddFromCatalogOpen(true);
+                }}
+                className="h-8 px-3.5 rounded-xl bg-[#1D1D1F] text-white text-[12px] font-bold cursor-pointer hover:bg-[#323236] transition"
+              >
+                Выбрать из базы ({unifiedCatalogItems.length}) →
+              </button>
+            </div>
+
             <div className="space-y-4 text-[14px]">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
@@ -1734,6 +1926,107 @@ export function ProductLabView() {
                   <span>Сохранить и открыть →</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          МОДАЛЬНОЕ ОКНО: ДОБАВИТЬ КАРТОЧКУ ИЗ ЕДИНОЙ БАЗЫ (КАТАЛОГ / СЦЕНАРИИ РОСТА)
+      ===================================================================== */}
+      {addFromCatalogOpen && (
+        <div
+          onClick={() => setAddFromCatalogOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl bg-white rounded-3xl border border-[#E8E8E5] p-6 md:p-7 space-y-5 shadow-2xl my-8"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#E8E8E5] pb-4">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                  Единая база моделей (Сценарии роста · Каталог SKU · Производство)
+                </div>
+                <h3 className="text-[22px] font-bold text-[#171717] mt-0.5">
+                  Добавить созданную карточку из базы в Лабораторию R&amp;D
+                </h3>
+                <p className="text-[12.5px] text-[#737373] mt-0.5">
+                  Выберите любую модель, созданную в Каталоге или Сценариях роста, чтобы разместить её на доске разработки
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddFromCatalogOpen(false)}
+                className="p-2 rounded-xl border border-[#E8E8E5] text-[#737373] hover:text-[#171717] cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FAF8F4] border border-[#E6E0D4] rounded-2xl p-3.5">
+              <span className="text-[13px] font-semibold text-[#1D1D1F]">
+                На какой этап доски добавить карточку:
+              </span>
+              <select
+                value={targetStageForImport}
+                onChange={(e) =>
+                  setTargetStageForImport(e.target.value as ConceptStage)
+                }
+                className="h-9 rounded-xl bg-white border border-[#D4CDC2] px-3 text-[13px] font-bold text-[#1D1D1F] cursor-pointer"
+              >
+                {SEVEN_KANBAN_STAGES.map((st) => (
+                  <option key={st} value={st}>
+                    {CONCEPT_STAGE_LABELS_RU[st]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1">
+              {unifiedCatalogItems.map((item) => (
+                <div
+                  key={item.key}
+                  className="rounded-2xl bg-[#FAF8F4] hover:bg-white border border-[#E6E0D4] hover:border-[#1D1D1F] p-3.5 flex items-center justify-between gap-3 transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-14 w-14 rounded-xl bg-white border border-[#E5DEC9] flex items-center justify-center overflow-hidden shrink-0">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[10px] font-bold text-[#8B6F47] text-center px-1">
+                          {item.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10.5px] font-bold text-[#8B6F47]">
+                        {item.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · {item.code}
+                      </div>
+                      <div className="text-[13.5px] font-bold text-[#1D1D1F] truncate">
+                        {item.name}
+                      </div>
+                      <div className="text-[11px] text-[#6E6E73] truncate">
+                        {item.subtitle} · {item.retailPriceRub} ₽
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleImportModelToBoard(item, targetStageForImport)
+                    }
+                    className="h-9 px-3.5 rounded-xl bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-bold shrink-0 cursor-pointer transition"
+                  >
+                    + На доску
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>

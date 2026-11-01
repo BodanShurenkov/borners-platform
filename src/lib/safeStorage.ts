@@ -115,3 +115,95 @@ export function safeGetStorageJson<T>(key: string): T | null {
     return null;
   }
 }
+
+/* ============================================================================
+ * INDEXEDDB-ХРАНИЛИЩЕ ДЛЯ ЗАГРУЖЕННЫХ PDF-ФАЙЛОВ КАРТОЧЕК МОДЕЛЕЙ
+ * Позволяет прикреплять к карточкам полноразмерные PDF (3–25 МБ) без переполнения localStorage
+ * ============================================================================ */
+const IDB_NAME = 'borners_platform_files_db_v1';
+const IDB_STORE = 'model_pdf_blobs';
+
+function openFilesDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      reject(new Error('IndexedDB unavailable'));
+      return;
+    }
+    const req = window.indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('IndexedDB open error'));
+  });
+}
+
+export async function savePdfBlobToIdb(pdfId: string, blob: Blob): Promise<boolean> {
+  try {
+    const db = await openFilesDb();
+    return await new Promise<boolean>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      store.put(blob, pdfId);
+      tx.oncomplete = () => {
+        db.close();
+        resolve(true);
+      };
+      tx.onerror = () => {
+        db.close();
+        resolve(false);
+      };
+    });
+  } catch {
+    return false;
+  }
+}
+
+export async function loadPdfBlobUrlFromIdb(pdfId: string): Promise<string | null> {
+  try {
+    const db = await openFilesDb();
+    return await new Promise<string | null>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      const req = store.get(pdfId);
+      req.onsuccess = () => {
+        db.close();
+        const result = req.result;
+        if (result instanceof Blob) {
+          resolve(URL.createObjectURL(result));
+        } else {
+          resolve(null);
+        }
+      };
+      req.onerror = () => {
+        db.close();
+        resolve(null);
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function deletePdfBlobFromIdb(pdfId: string): Promise<void> {
+  try {
+    const db = await openFilesDb();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(pdfId);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        resolve();
+      };
+    });
+  } catch {
+    // ignore
+  }
+}

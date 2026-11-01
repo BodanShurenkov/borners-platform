@@ -11,7 +11,16 @@ export interface PalettePack {
   title: string;
   subtitle: string;
   statusLabel: string;
+  imageUrl?: string;
   colors: PackColor[];
+}
+
+export interface AttachedModelPdf {
+  id: string;
+  name: string;
+  sizeBytes: number;
+  uploadedAt: string;
+  staticUrl?: string;
 }
 
 export interface ProductionStep {
@@ -63,6 +72,7 @@ export interface ScenarioModelSpec {
   hasActualSalesOrPurchases: boolean;
   palettes: PalettePack[];
   gallery: GalleryMediaItem[];
+  attachedPdfs?: AttachedModelPdf[];
   construction: {
     type: string;
     fit: string;

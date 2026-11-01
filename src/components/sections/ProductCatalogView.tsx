@@ -111,6 +111,69 @@ export function ProductCatalogView() {
     };
   }, []);
 
+  // Автоматическая синхронизация всех моделей из «Сценариев роста» в основной «Каталог моделей (SKU)»
+  useEffect(() => {
+    scenarioModels.forEach((spec) => {
+      if (spec.launchStatus === 'В архиве') return;
+      const cleanCode = spec.code.replace(/[^0-9A-Za-zА-Яа-я-]/g, '') || '001';
+      const targetSku = `${spec.brandId === 'NA_TELE' ? 'NT' : 'BRN'}-${cleanCode}`;
+      const mainPhotoUrl =
+        (spec.gallery.find((g) => g.isMain && g.url) ||
+          spec.gallery.find((g) => Boolean(g.url)))?.url ||
+        spec.palettes.find((p) => Boolean(p.imageUrl))?.imageUrl;
+
+      const existing = products.find(
+        (p) =>
+          !p.isArchived &&
+          (p.sku.toUpperCase() === targetSku.toUpperCase() ||
+            p.name.toUpperCase() === spec.title.toUpperCase())
+      );
+
+      if (!existing) {
+        createProduct({
+          sku: targetSku,
+          name: spec.title,
+          brandId: spec.brandId,
+          category: 'Боксеры',
+          productType: 'Базовая коллекция',
+          priceSegment: 'Middle+',
+          collection: `${spec.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} 2027`,
+          materials: spec.fabric.composition,
+          fitType: `${spec.subtitle} · резинка ${spec.waistband.width}`,
+          imageUrl: mainPhotoUrl || undefined,
+          economics: {
+            currency: 'RUB',
+            plannedRetailPrice: spec.retailPriceRub,
+            actualRetailPrice: spec.retailPriceRub,
+            discountPct: 0,
+            vatPct: 20,
+            returnRatePct: 3.5,
+            unitCostPrice: spec.unitCostRub,
+            marketplaceCommissionRub: Math.round(
+              (spec.retailPriceRub * spec.marketplaceFeePct) / 100
+            ),
+            logisticsRub: spec.logisticsRub,
+            advertisingRub: Math.round((spec.retailPriceRub * spec.adsPct) / 100),
+            otherVariableRub: 0,
+          },
+        });
+      } else if (
+        (mainPhotoUrl && existing.imageUrl !== mainPhotoUrl) ||
+        existing.name !== spec.title
+      ) {
+        updateProduct(existing.id, {
+          name: spec.title,
+          ...(mainPhotoUrl
+            ? {
+                imageUrl: mainPhotoUrl,
+                galleryUrls: [mainPhotoUrl],
+              }
+            : {}),
+        });
+      }
+    });
+  }, [scenarioModels]);
+
   const handleDeleteScenarioModel = (modelToDelete: ScenarioModelSpec) => {
     const next = scenarioModels.filter((x) => x.id !== modelToDelete.id);
     setScenarioModels(next);
@@ -233,6 +296,36 @@ export function ProductCatalogView() {
         otherVariableRub: 45,
       },
     });
+
+    // Также автоматически регистрируем новую модель в «Сценариях роста» (единая база карточек)
+    const nextNum = String(scenarioModels.length + 1).padStart(3, '0');
+    const createdScenarioModel: ScenarioModelSpec = {
+      ...INITIAL_SCENARIO_MODELS[0],
+      id: `scen-model-${Date.now()}`,
+      code: `№${nextNum}`,
+      title: newSkuForm.name.trim().toUpperCase(),
+      subtitle: `${newSkuForm.category} · ${newSkuForm.productType}`,
+      brandId: newSkuForm.brandId === 'NA_TELE' ? 'NA_TELE' : 'BORNERS',
+      launchStatus: 'В разработке',
+      unitsInPack: 4,
+      retailPriceRub: retail,
+      unitCostRub: cost,
+      hasActualSalesOrPurchases: false,
+      gallery: [
+        {
+          id: `g-main-${Date.now()}`,
+          category: 'pack',
+          label: 'Главное фото',
+          url: newSkuForm.imageUrl || undefined,
+          isMain: true,
+        },
+      ],
+    };
+    const nextScenarioList = [...scenarioModels, createdScenarioModel];
+    setScenarioModels(nextScenarioList);
+    safeSetStorageJson(STORAGE_KEY_MODELS, nextScenarioList);
+    window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+
     setCreateModalOpen(false);
   };
 
@@ -432,10 +525,15 @@ export function ProductCatalogView() {
                         </button>
                       </div>
                     </div>
-                    <div className="h-24 my-2 rounded-[12px] bg-white border border-[#EFECE6] flex items-center justify-center p-2">
+                    <div className="h-24 my-2 rounded-[12px] bg-white border border-[#EFECE6] flex items-center justify-center p-2 overflow-hidden">
                       <BoxerPackStackSvg
                         colors={colors}
                         brandLabel={m.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
+                        customPhotoUrl={
+                          (m.gallery.find((g) => g.isMain && g.url) ||
+                            m.gallery.find((g) => Boolean(g.url)))?.url ||
+                          m.palettes.find((p) => Boolean(p.imageUrl))?.imageUrl
+                        }
                       />
                     </div>
                     <div className="text-[14px] font-extrabold text-[#1D1D1F] leading-snug">

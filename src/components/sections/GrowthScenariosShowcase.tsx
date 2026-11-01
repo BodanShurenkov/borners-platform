@@ -38,8 +38,15 @@ export function GrowthScenariosShowcase({
   initialScreen = 'scenarios',
   initialModelId,
 }: GrowthScenariosShowcaseProps = {}) {
-  const { concepts, products, createProduct, archiveEntity, pushScenarioStep, notify } =
-    usePlatform();
+  const {
+    concepts,
+    products,
+    createProduct,
+    updateProduct,
+    archiveEntity,
+    pushScenarioStep,
+    notify,
+  } = usePlatform();
 
   // Архитектура из 3 экранов (п. 02 ТЗ):
   // 'scenarios' (Экран №1) -> 'model' (Экран №2) -> 'sales-plan' (Экран №3)
@@ -295,8 +302,84 @@ export function GrowthScenariosShowcase({
     });
   }, [models, currentScenario, brandFilterLocal, statusFilterLocal, searchQuery]);
 
+  // Единая синхронизация модели сценария с основным Каталогом моделей (SKU)
+  const syncScenarioModelToCatalog = useCallback(
+    (spec: ScenarioModelSpec) => {
+      const cleanCode = spec.code.replace(/[^0-9A-Za-zА-Яа-я-]/g, '') || '001';
+      const targetSku = `${spec.brandId === 'NA_TELE' ? 'NT' : 'BRN'}-${cleanCode}`;
+      const mainPhotoUrl =
+        (spec.gallery.find((g) => g.isMain && g.url) ||
+          spec.gallery.find((g) => Boolean(g.url)))?.url ||
+        spec.palettes.find((p) => Boolean(p.imageUrl))?.imageUrl;
+
+      const existing = products.find(
+        (p) =>
+          !p.isArchived &&
+          (p.sku.toUpperCase() === targetSku.toUpperCase() ||
+            p.name.toUpperCase() === spec.title.toUpperCase())
+      );
+
+      if (existing) {
+        updateProduct(existing.id, {
+          sku: targetSku,
+          name: spec.title,
+          brandId: spec.brandId,
+          materials: spec.fabric.composition,
+          fitType: `${spec.subtitle} · резинка ${spec.waistband.width}`,
+          ...(mainPhotoUrl
+            ? {
+                imageUrl: mainPhotoUrl,
+                galleryUrls: [mainPhotoUrl],
+              }
+            : {}),
+          economics: {
+            ...existing.economics,
+            plannedRetailPrice: spec.retailPriceRub,
+            actualRetailPrice: spec.retailPriceRub,
+            unitCostPrice: spec.unitCostRub,
+            marketplaceCommissionRub: Math.round(
+              (spec.retailPriceRub * spec.marketplaceFeePct) / 100
+            ),
+            logisticsRub: spec.logisticsRub,
+            advertisingRub: Math.round((spec.retailPriceRub * spec.adsPct) / 100),
+          },
+        });
+      } else {
+        createProduct({
+          sku: targetSku,
+          name: spec.title,
+          brandId: spec.brandId,
+          category: 'Боксеры',
+          productType: 'Базовая коллекция',
+          priceSegment: 'Middle+',
+          collection: `${spec.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} 2027`,
+          materials: spec.fabric.composition,
+          fitType: `${spec.subtitle} · резинка ${spec.waistband.width}`,
+          imageUrl: mainPhotoUrl || undefined,
+          economics: {
+            currency: 'RUB',
+            plannedRetailPrice: spec.retailPriceRub,
+            actualRetailPrice: spec.retailPriceRub,
+            discountPct: 0,
+            vatPct: 20,
+            returnRatePct: 3.5,
+            unitCostPrice: spec.unitCostRub,
+            marketplaceCommissionRub: Math.round(
+              (spec.retailPriceRub * spec.marketplaceFeePct) / 100
+            ),
+            logisticsRub: spec.logisticsRub,
+            advertisingRub: Math.round((spec.retailPriceRub * spec.adsPct) / 100),
+            otherVariableRub: 0,
+          },
+        });
+      }
+    },
+    [products, updateProduct, createProduct]
+  );
+
   const handleUpdateModel = (updated: ScenarioModelSpec) => {
     commitModels((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    syncScenarioModelToCatalog(updated);
   };
 
   // Дублирование модели (п. 4.1)
@@ -311,6 +394,7 @@ export function GrowthScenariosShowcase({
       hasActualSalesOrPurchases: false,
     };
     commitModels((prev) => [...prev, copy]);
+    syncScenarioModelToCatalog(copy);
     setSelectedModelId(copy.id);
     notify('success', `Создана и сохранена копия модели ${copy.code} · ${copy.title}`);
   };
@@ -379,6 +463,14 @@ export function GrowthScenariosShowcase({
       retailPriceRub: draftRetailPrice || 1290,
       unitCostRub: draftUnitCost || 410,
       hasActualSalesOrPurchases: false,
+      gallery: [
+        {
+          id: `g-main-${Date.now()}`,
+          category: 'pack',
+          label: 'Главное фото',
+          isMain: true,
+        },
+      ],
       plansByScenario,
     };
 
@@ -388,34 +480,7 @@ export function GrowthScenariosShowcase({
     setDraftTitle('');
 
     // Автоматически синхронизируем созданную модель с разделом «Модели (SKU)»
-    createProduct({
-      sku: `${draftBrand === 'NA_TELE' ? 'NT' : 'BRN'}-${created.code.replace('№', '')}`,
-      name: created.title,
-      brandId: draftBrand,
-      category: 'Боксеры',
-      productType: 'Базовая коллекция',
-      priceSegment: 'Middle+',
-      collection: `${draftBrand === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} 2027`,
-      materials: created.fabric.composition,
-      fitType: `${created.subtitle} · резинка ${created.waistband.width}`,
-      economics: {
-        currency: 'RUB',
-        plannedRetailPrice: created.retailPriceRub,
-        actualRetailPrice: created.retailPriceRub,
-        discountPct: 0,
-        vatPct: 20,
-        returnRatePct: 3.5,
-        unitCostPrice: created.unitCostRub,
-        marketplaceCommissionRub: Math.round(
-          (created.retailPriceRub * created.marketplaceFeePct) / 100
-        ),
-        logisticsRub: created.logisticsRub,
-        advertisingRub: Math.round(
-          (created.retailPriceRub * created.adsPct) / 100
-        ),
-        otherVariableRub: 0,
-      },
-    });
+    syncScenarioModelToCatalog(created);
 
     if (openCardAfterSave) {
       navigateScreen('model', created.id);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   ChevronRight,
@@ -16,10 +16,20 @@ import {
   Info,
   FileText,
   Sparkles,
+  Plus,
+  X,
+  Image as ImageIcon,
+  Palette,
+  ExternalLink,
+  Download,
+  Eye,
 } from 'lucide-react';
 import {
+  AttachedModelPdf,
   GrowthScenarioDef,
   MONTHS_SHORT_RU,
+  PackColor,
+  PalettePack,
   ScenarioModelSpec,
   computeModelScenarioMetrics,
 } from '@/lib/scenarioData';
@@ -28,6 +38,11 @@ import {
   TechnicalFlatDrawingSvg,
 } from '@/components/sections/ScenarioVisualParts';
 import { compressImageFileToDataUrl } from '@/lib/document-export';
+import {
+  savePdfBlobToIdb,
+  loadPdfBlobUrlFromIdb,
+  deletePdfBlobFromIdb,
+} from '@/lib/safeStorage';
 
 interface ScenarioModelCardScreenProps {
   model: ScenarioModelSpec;
@@ -65,6 +80,37 @@ export function ScenarioModelCardScreen({
   ]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
+  const [pdfUrlsById, setPdfUrlsById] = useState<Record<string, string>>({});
+  const [previewPdfId, setPreviewPdfId] = useState<string | null>(null);
+
+  const attachedPdfs = model.attachedPdfs || [];
+
+  useEffect(() => {
+    let cancelled = false;
+    async function hydratePdfs() {
+      const list = model.attachedPdfs || [];
+      const nextMap: Record<string, string> = {};
+      for (const item of list) {
+        if (item.staticUrl) {
+          nextMap[item.id] = item.staticUrl;
+        } else {
+          const blobUrl = await loadPdfBlobUrlFromIdb(item.id);
+          if (blobUrl) nextMap[item.id] = blobUrl;
+        }
+      }
+      if (!cancelled) {
+        setPdfUrlsById(nextMap);
+        if (list.length > 0 && !previewPdfId) {
+          setPreviewPdfId(list[0].id);
+        }
+      }
+    }
+    hydratePdfs();
+    return () => {
+      cancelled = true;
+    };
+  }, [model.id, model.attachedPdfs]);
 
   const metrics = computeModelScenarioMetrics(model, scenario);
   const activeGalleryItem =
@@ -86,10 +132,122 @@ export function ScenarioModelCardScreen({
     notify('success', 'Главное фото карточки модели обновлено и сохранено');
   };
 
+  const handleRenameGalleryItem = (galleryId: string, newLabel: string) => {
+    const nextGallery = model.gallery.map((g) =>
+      g.id === galleryId ? { ...g, label: newLabel } : g
+    );
+    onUpdateModel({
+      ...model,
+      gallery: nextGallery,
+    });
+  };
+
+  const handleDeleteGalleryItem = (galleryId: string) => {
+    const filtered = model.gallery.filter((g) => g.id !== galleryId);
+    const nextGallery: ScenarioModelSpec['gallery'] =
+      filtered.length > 0
+        ? filtered.map((g, idx) => ({
+            ...g,
+            isMain: filtered.some((item) => item.isMain) ? g.isMain : idx === 0,
+          }))
+        : [
+            {
+              id: `g-main-${Date.now()}`,
+              category: 'pack',
+              label: 'Главное фото',
+              isMain: true,
+            },
+          ];
+    onUpdateModel({
+      ...model,
+      gallery: nextGallery,
+    });
+    if (selectedGalleryId === galleryId || !nextGallery.some((g) => g.id === selectedGalleryId)) {
+      const nextActive = nextGallery.find((g) => g.isMain) || nextGallery[0];
+      if (nextActive) setSelectedGalleryId(nextActive.id);
+    }
+    notify('warning', 'Строка галереи удалена');
+  };
+
+  const handleAddGalleryItem = () => {
+    const newId = `g-custom-${Date.now()}`;
+    const newItem: ScenarioModelSpec['gallery'][number] = {
+      id: newId,
+      category: 'pack',
+      label: `Фото ${model.gallery.length + 1}`,
+      isMain: model.gallery.length === 0,
+    };
+    const nextGallery = [...model.gallery, newItem];
+    onUpdateModel({
+      ...model,
+      gallery: nextGallery,
+    });
+    setSelectedGalleryId(newId);
+    setEditingGalleryId(newId);
+  };
+
+  const handleClearTemplateGalleryItems = () => {
+    const withPhotos = model.gallery.filter((g) => Boolean(g.url));
+    const nextGallery: ScenarioModelSpec['gallery'] =
+      withPhotos.length > 0
+        ? withPhotos.map((g, idx) => ({
+            ...g,
+            isMain: withPhotos.some((item) => item.isMain) ? g.isMain : idx === 0,
+          }))
+        : [
+            {
+              id: `g-main-${Date.now()}`,
+              category: 'pack',
+              label: 'Главное фото',
+              isMain: true,
+            },
+          ];
+    onUpdateModel({
+      ...model,
+      gallery: nextGallery,
+    });
+    const nextActive = nextGallery.find((g) => g.isMain) || nextGallery[0];
+    if (nextActive) setSelectedGalleryId(nextActive.id);
+    notify('success', 'Шаблонные вкладки очищены');
+  };
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+
+    // Если выбрана пустая вкладка без фото и загружается 1 файл — подставляем фото прямо в неё
+    if (files.length === 1 && activeGalleryItem && !activeGalleryItem.url) {
+      try {
+        const dataUrl = await compressImageFileToDataUrl(files[0], 680, 0.78);
+        if (dataUrl) {
+          const hasAnyUploadedMain = model.gallery.some((g) => g.url && g.isMain);
+          const nextGallery = model.gallery.map((g) =>
+            g.id === activeGalleryItem.id
+              ? {
+                  ...g,
+                  url: dataUrl,
+                  isMain: !hasAnyUploadedMain ? true : g.isMain,
+                }
+              : !hasAnyUploadedMain
+                ? { ...g, isMain: false }
+                : g
+          );
+          onUpdateModel({
+            ...model,
+            gallery: nextGallery,
+          });
+          setSelectedGalleryId(activeGalleryItem.id);
+          notify('success', `Фото загружено в «${activeGalleryItem.label}»`);
+        }
+      } catch {
+        // ignore broken image
+      }
+      e.target.value = '';
+      return;
+    }
+
     const uploadedItems: ScenarioModelSpec['gallery'] = [];
+    const existingUploadedCount = model.gallery.filter((g) => Boolean(g.url)).length;
     for (let idx = 0; idx < files.length; idx++) {
       const file = files[idx];
       try {
@@ -98,16 +256,20 @@ export function ScenarioModelCardScreen({
         uploadedItems.push({
           id: `g-upload-${Date.now()}-${idx}`,
           category: 'pack' as const,
-          label: file.name.slice(0, 18),
+          label: `Фото ${existingUploadedCount + idx + 1}`,
           url: dataUrl,
-          isMain: false,
+          isMain: existingUploadedCount === 0 && idx === 0,
         });
       } catch {
         // ignore broken image
       }
     }
     if (uploadedItems.length > 0) {
-      const nextGallery = [...model.gallery, ...uploadedItems];
+      const promoteFirstUploaded = existingUploadedCount === 0;
+      const baseGallery = promoteFirstUploaded
+        ? model.gallery.map((g) => ({ ...g, isMain: false }))
+        : model.gallery;
+      const nextGallery = [...baseGallery, ...uploadedItems];
       onUpdateModel({
         ...model,
         gallery: nextGallery,
@@ -132,6 +294,164 @@ export function ScenarioModelCardScreen({
     setExpandedPaletteIds((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
+  };
+
+  /* --- УПРАВЛЕНИЕ ПАЛИТРАМИ И ЦВЕТАМИ / ФОТО ПАЛИТРЫ --- */
+  const handleAddPalette = () => {
+    const newPalId = `pal-${Date.now()}`;
+    const newPal: PalettePack = {
+      id: newPalId,
+      title: `ПАЛИТРА №${model.palettes.length + 1} — НОВЫЙ НАБОР`,
+      subtitle: `${model.unitsInPack} шт. в комплекте`,
+      statusLabel: 'В работе',
+      colors: [
+        {
+          nameRu: 'Цвет 1',
+          pantone: 'PANTONE 11-0601 TCX',
+          hex: '#F3F3F1',
+          bandHex: '#DCDCD8',
+          textHex: '#1D1D1F',
+        },
+      ],
+    };
+    const nextPalettes = [...model.palettes, newPal];
+    onUpdateModel({ ...model, palettes: nextPalettes });
+    setExpandedPaletteIds((prev) => [...prev, newPalId]);
+    notify('success', 'Добавлена новая палитра');
+  };
+
+  const handleDeletePalette = (palId: string) => {
+    const nextPalettes = model.palettes.filter((p) => p.id !== palId);
+    onUpdateModel({ ...model, palettes: nextPalettes });
+    notify('warning', 'Палитра удалена');
+  };
+
+  const handleUpdatePalette = (palId: string, patch: Partial<PalettePack>) => {
+    const nextPalettes = model.palettes.map((p) =>
+      p.id === palId ? { ...p, ...patch } : p
+    );
+    onUpdateModel({ ...model, palettes: nextPalettes });
+  };
+
+  const handlePalettePhotoUpload = async (
+    palId: string,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compressImageFileToDataUrl(file, 760, 0.8);
+      if (dataUrl) {
+        handleUpdatePalette(palId, { imageUrl: dataUrl });
+        if (!expandedPaletteIds.includes(palId)) {
+          setExpandedPaletteIds((prev) => [...prev, palId]);
+        }
+        notify('success', 'Фото раскладки палитры загружено и сохранено');
+      }
+    } catch {
+      // ignore
+    }
+    e.target.value = '';
+  };
+
+  const handleAddColorToPalette = (palId: string) => {
+    const nextPalettes = model.palettes.map((p) => {
+      if (p.id !== palId) return p;
+      const idx = p.colors.length + 1;
+      const newColor: PackColor = {
+        nameRu: `Цвет ${idx}`,
+        pantone: 'PANTONE TCX',
+        hex: '#C7BEB2',
+        bandHex: '#B2A89B',
+        textHex: '#1D1D1F',
+      };
+      return { ...p, colors: [...p.colors, newColor] };
+    });
+    onUpdateModel({ ...model, palettes: nextPalettes });
+    if (!expandedPaletteIds.includes(palId)) {
+      setExpandedPaletteIds((prev) => [...prev, palId]);
+    }
+  };
+
+  const handleUpdatePaletteColor = (
+    palId: string,
+    colorIdx: number,
+    patch: Partial<PackColor>
+  ) => {
+    const nextPalettes = model.palettes.map((p) => {
+      if (p.id !== palId) return p;
+      const nextColors = p.colors.map((c, idx) =>
+        idx === colorIdx
+          ? {
+              ...c,
+              ...patch,
+              bandHex: patch.hex ? patch.hex : c.bandHex,
+            }
+          : c
+      );
+      return { ...p, colors: nextColors };
+    });
+    onUpdateModel({ ...model, palettes: nextPalettes });
+  };
+
+  const handleDeletePaletteColor = (palId: string, colorIdx: number) => {
+    const nextPalettes = model.palettes.map((p) => {
+      if (p.id !== palId) return p;
+      return { ...p, colors: p.colors.filter((_, idx) => idx !== colorIdx) };
+    });
+    onUpdateModel({ ...model, palettes: nextPalettes });
+  };
+
+  /* --- ЗАГРУЗКА И ПРОСМОТР PDF-ФАЙЛОВ В КАРТОЧКЕ МОДЕЛИ --- */
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const addedMeta: AttachedModelPdf[] = [];
+    const addedUrls: Record<string, string> = {};
+
+    for (let idx = 0; idx < files.length; idx++) {
+      const file = files[idx];
+      const pdfId = `pdf-${model.id}-${Date.now()}-${idx}`;
+      await savePdfBlobToIdb(pdfId, file);
+      const blobUrl = URL.createObjectURL(file);
+      addedUrls[pdfId] = blobUrl;
+      addedMeta.push({
+        id: pdfId,
+        name: file.name,
+        sizeBytes: file.size,
+        uploadedAt: new Date().toLocaleDateString('ru-RU'),
+      });
+    }
+
+    if (addedMeta.length > 0) {
+      const nextPdfs = [...(model.attachedPdfs || []), ...addedMeta];
+      setPdfUrlsById((prev) => ({ ...prev, ...addedUrls }));
+      setPreviewPdfId(addedMeta[addedMeta.length - 1].id);
+      onUpdateModel({
+        ...model,
+        attachedPdfs: nextPdfs,
+      });
+      notify(
+        'success',
+        `✓ PDF загружен в карточку: ${addedMeta.map((p) => p.name).join(', ')}`,
+        'Документ сохранён в карточке модели и доступен для просмотра и скачивания.'
+      );
+    }
+    e.target.value = '';
+  };
+
+  const handleDeleteAttachedPdf = async (pdfId: string) => {
+    await deletePdfBlobFromIdb(pdfId);
+    const nextPdfs = (model.attachedPdfs || []).filter((p) => p.id !== pdfId);
+    onUpdateModel({
+      ...model,
+      attachedPdfs: nextPdfs,
+    });
+    if (previewPdfId === pdfId) {
+      setPreviewPdfId(nextPdfs[0]?.id || null);
+    }
+    notify('warning', 'PDF-файл удалён из карточки');
   };
 
   return (
@@ -160,14 +480,72 @@ export function ScenarioModelCardScreen({
               {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} {model.code}
             </span>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-[22px] md:text-[26px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-              {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} {model.code} /{' '}
-              {model.title}
-            </h2>
-            <span className="px-2.5 py-1 rounded-full bg-[#EFECE4] text-[#5A564F] text-[11.5px] font-semibold">
-              {model.subtitle}
-            </span>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {isEditing ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={model.brandId}
+                  onChange={(e) =>
+                    onUpdateModel({
+                      ...model,
+                      brandId: e.target.value as 'BORNERS' | 'NA_TELE',
+                    })
+                  }
+                  className="h-9 px-2.5 rounded-[10px] bg-white border border-[#C8A97E] text-[14px] font-bold text-[#1D1D1F] cursor-pointer"
+                >
+                  <option value="BORNERS">BORNERS</option>
+                  <option value="NA_TELE">НА ТЕЛЕ</option>
+                </select>
+                <input
+                  type="text"
+                  value={model.code}
+                  onChange={(e) => onUpdateModel({ ...model, code: e.target.value })}
+                  placeholder="№003"
+                  className="h-9 w-24 px-2.5 rounded-[10px] bg-white border border-[#C8A97E] text-[15px] font-bold text-[#1D1D1F]"
+                  title="Артикул / номер модели"
+                />
+                <span className="text-[18px] font-bold text-[#8A857C]">/</span>
+                <input
+                  type="text"
+                  value={model.title}
+                  onChange={(e) => onUpdateModel({ ...model, title: e.target.value })}
+                  placeholder="Название модели"
+                  className="h-9 w-48 sm:w-64 px-2.5 rounded-[10px] bg-white border border-[#C8A97E] text-[15px] font-bold text-[#1D1D1F]"
+                  title="Название модели"
+                />
+                <input
+                  type="text"
+                  value={model.subtitle}
+                  onChange={(e) => onUpdateModel({ ...model, subtitle: e.target.value })}
+                  placeholder="Боксеры (trunks) · 4 шт. в комплекте"
+                  className="h-9 w-64 sm:w-80 px-3 rounded-full bg-[#EFECE4] border border-[#C8A97E] text-[#1D1D1F] text-[12px] font-semibold"
+                  title="Подзаголовок / тип и комплектация"
+                />
+              </div>
+            ) : (
+              <>
+                <h2
+                  onClick={() => setIsEditing(true)}
+                  title="Нажмите, чтобы редактировать бренд, номер и название модели"
+                  className="text-[22px] md:text-[26px] font-bold tracking-[-0.02em] text-[#1D1D1F] hover:text-[#8B6F47] transition cursor-pointer inline-flex items-center gap-2 group"
+                >
+                  <span>
+                    {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} {model.code} /{' '}
+                    {model.title}
+                  </span>
+                  <Edit3 className="h-4 w-4 text-[#8B6F47] opacity-60 group-hover:opacity-100 transition" />
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  title="Нажмите, чтобы изменить описание комплектации и типа изделия"
+                  className="px-2.5 py-1 rounded-full bg-[#EFECE4] hover:bg-[#E5DFD3] text-[#5A564F] text-[11.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
+                >
+                  <span>{model.subtitle}</span>
+                  <Edit3 className="h-3 w-3 text-[#8B6F47]" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -275,7 +653,37 @@ export function ScenarioModelCardScreen({
 
       {/* Быстрая панель редактирования основных параметров, если включён режим «Редактировать» */}
       {isEditing && (
-        <div className="rounded-[16px] bg-white border border-[#C8A97E] p-4 grid grid-cols-1 sm:grid-cols-4 gap-3 shadow-xs">
+        <div className="rounded-[16px] bg-white border border-[#C8A97E] p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 shadow-xs">
+          <div>
+            <label className="text-[11px] font-semibold text-[#6E6E73]">
+              Бренд
+            </label>
+            <select
+              value={model.brandId}
+              onChange={(e) =>
+                onUpdateModel({
+                  ...model,
+                  brandId: e.target.value as 'BORNERS' | 'NA_TELE',
+                })
+              }
+              className="w-full h-8 px-2 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold bg-white"
+            >
+              <option value="BORNERS">BORNERS</option>
+              <option value="NA_TELE">НА ТЕЛЕ</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-[#6E6E73]">
+              Код / № модели
+            </label>
+            <input
+              type="text"
+              value={model.code}
+              onChange={(e) => onUpdateModel({ ...model, code: e.target.value })}
+              placeholder="№003"
+              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
+            />
+          </div>
           <div>
             <label className="text-[11px] font-semibold text-[#6E6E73]">
               Название модели
@@ -287,9 +695,21 @@ export function ScenarioModelCardScreen({
               className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
             />
           </div>
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="text-[11px] font-semibold text-[#6E6E73]">
+              Подзаголовок в шапке
+            </label>
+            <input
+              type="text"
+              value={model.subtitle}
+              onChange={(e) => onUpdateModel({ ...model, subtitle: e.target.value })}
+              placeholder="Боксеры (trunks) · 4 шт."
+              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
+            />
+          </div>
           <div>
             <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Комплектация (шт. в наборе)
+              Комплектация (шт.)
             </label>
             <input
               type="number"
@@ -307,7 +727,7 @@ export function ScenarioModelCardScreen({
           </div>
           <div>
             <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Розничная цена (₽ / компл.)
+              Розничная цена (₽)
             </label>
             <input
               type="number"
@@ -334,7 +754,7 @@ export function ScenarioModelCardScreen({
           </div>
           <div>
             <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Закупочная себестоимость (₽ / компл.)
+              Себестоимость (₽)
             </label>
             <input
               type="number"
@@ -355,36 +775,106 @@ export function ScenarioModelCardScreen({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Левая половина (6 колонок): Вертикальная галерея миниатюр + Крупное главное фото */}
         <div className="lg:col-span-6 rounded-[20px] bg-white border border-[#E6E0D4] p-4 flex flex-col sm:flex-row gap-3.5 shadow-2xs">
-          {/* Вертикальная галерея миниатюр (Весь комплект, Отдельное изделие, Резинка, Ткань, Посадка, Видео + Загрузка) */}
-          <div className="sm:w-[135px] flex sm:flex-col gap-1.5 overflow-x-auto sm:overflow-visible shrink-0">
+          {/* Вертикальная галерея миниатюр (с возможностью переименования и удаления любой строки) */}
+          <div className="sm:w-[162px] flex sm:flex-col gap-1.5 overflow-x-auto sm:overflow-visible shrink-0">
             {model.gallery.map((item) => {
               const isSelected = item.id === activeGalleryItem?.id;
+              const isRenaming = editingGalleryId === item.id;
               return (
-                <button
+                <div
                   key={item.id}
-                  type="button"
                   onClick={() => setSelectedGalleryId(item.id)}
-                  className={`px-2.5 py-2 rounded-[10px] border text-left transition cursor-pointer flex items-center justify-between gap-1.5 shrink-0 ${
+                  onDoubleClick={() => setEditingGalleryId(item.id)}
+                  className={`group px-2 py-1.5 rounded-[10px] border text-left transition cursor-pointer flex items-center justify-between gap-1 shrink-0 ${
                     isSelected
                       ? 'bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-2xs'
                       : 'bg-[#FAF8F4] hover:bg-[#F2EFE8] text-[#4A4740] border-[#E6E0D4]'
                   }`}
                 >
-                  <span className="text-[11.5px] font-semibold truncate">
-                    {item.label}
-                  </span>
-                  {item.isMain && (
-                    <Star
-                      className={`h-3 w-3 shrink-0 ${
+                  {isRenaming ? (
+                    <input
+                      type="text"
+                      autoFocus
+                      value={item.label}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => handleRenameGalleryItem(item.id, e.target.value)}
+                      onBlur={() => setEditingGalleryId(null)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === 'Escape') {
+                          setEditingGalleryId(null);
+                        }
+                      }}
+                      className={`w-full h-6 px-1.5 rounded-[6px] text-[11px] font-semibold outline-none ${
                         isSelected
-                          ? 'text-[#E5B869] fill-[#E5B869]'
-                          : 'text-[#C89D54] fill-[#C89D54]'
+                          ? 'bg-white/15 text-white border border-white/30'
+                          : 'bg-white text-[#1D1D1F] border border-[#C8A97E]'
                       }`}
                     />
+                  ) : (
+                    <span
+                      className="text-[11.5px] font-semibold truncate flex-1"
+                      title={`${item.label} (двойной клик или ✎ — переименовать)`}
+                    >
+                      {item.label}
+                    </span>
                   )}
-                </button>
+
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    {item.isMain && (
+                      <Star
+                        className={`h-3 w-3 shrink-0 ${
+                          isSelected
+                            ? 'text-[#E5B869] fill-[#E5B869]'
+                            : 'text-[#C89D54] fill-[#C89D54]'
+                        }`}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedGalleryId(item.id);
+                        setEditingGalleryId(
+                          editingGalleryId === item.id ? null : item.id
+                        );
+                      }}
+                      title="Переименовать эту строку"
+                      className={`p-0.5 rounded hover:bg-black/10 transition cursor-pointer ${
+                        isSelected
+                          ? 'text-white/75 hover:text-white'
+                          : 'text-[#8A857C] hover:text-[#1D1D1F]'
+                      }`}
+                    >
+                      <Edit3 className="h-2.5 w-2.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteGalleryItem(item.id);
+                      }}
+                      title="Удалить эту строку"
+                      className={`p-0.5 rounded transition cursor-pointer ${
+                        isSelected
+                          ? 'text-white/75 hover:text-[#FF8A80] hover:bg-white/10'
+                          : 'text-[#8A857C] hover:text-[#C93B2B] hover:bg-[#FFF0EE]'
+                      }`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
               );
             })}
+
+            <button
+              type="button"
+              onClick={handleAddGalleryItem}
+              className="px-2.5 py-1.5 rounded-[10px] border border-[#E6E0D4] bg-white hover:bg-[#FAF8F4] text-[#4A4740] text-[11px] font-semibold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0"
+            >
+              <Plus className="h-3 w-3" />
+              <span>Добавить строку</span>
+            </button>
 
             <label className="px-2.5 py-2 rounded-[10px] border border-dashed border-[#C8A97E] bg-[#FAF6EE] hover:bg-[#F3ECE0] text-[#7A5C38] text-[11px] font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer transition shrink-0">
               <Upload className="h-3.5 w-3.5" />
@@ -397,30 +887,66 @@ export function ScenarioModelCardScreen({
                 className="hidden"
               />
             </label>
+
+            {model.gallery.some((g) => !g.url) && model.gallery.length > 1 && (
+              <button
+                type="button"
+                onClick={handleClearTemplateGalleryItems}
+                title="Удалить все пустые шаблонные вкладки без загруженных фото"
+                className="px-2 py-1 rounded-[8px] text-[10px] font-semibold text-[#C93B2B] hover:bg-[#FFF4F2] transition cursor-pointer text-center shrink-0"
+              >
+                Очистить пустые вкладки
+              </button>
+            )}
           </div>
 
-          {/* Крупное главное изображение товара + кнопка «Назначить главным» (Тест 09) */}
+          {/* Крупное главное изображение товара + прямое редактирование названия вкладки + кнопка «Назначить главным» */}
           <div className="flex-1 rounded-[16px] bg-gradient-to-b from-[#FAF7F0] to-[#F2ECE1] border border-[#EAE3D5] p-4 flex flex-col justify-between relative">
-            <div className="flex items-center justify-between gap-2 z-10">
-              <span className="px-2.5 py-1 rounded-full bg-white/90 border border-[#E5DEC9] text-[11px] font-semibold text-[#1D1D1F]">
-                {activeGalleryItem?.label || 'Весь комплект'}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 z-10">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 border border-[#E5DEC9] shadow-2xs">
+                <Edit3 className="h-3 w-3 text-[#8B6F47] shrink-0" />
+                <input
+                  type="text"
+                  value={activeGalleryItem?.label || ''}
+                  onChange={(e) => {
+                    if (activeGalleryItem) {
+                      handleRenameGalleryItem(activeGalleryItem.id, e.target.value);
+                    }
+                  }}
+                  placeholder="Название вкладки..."
+                  title="Нажмите и введите своё название для этого фото/вкладки"
+                  className="text-[11.5px] font-semibold text-[#1D1D1F] bg-transparent outline-none w-32 sm:w-40"
+                />
+              </div>
 
-              {activeGalleryItem && !activeGalleryItem.isMain ? (
-                <button
-                  type="button"
-                  onClick={() => handleSetMainGallery(activeGalleryItem.id)}
-                  className="h-7 px-2.5 rounded-full bg-[#1D1D1F] text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer shadow-2xs"
-                >
-                  <Star className="h-3 w-3 text-[#E5B869]" />
-                  <span>Назначить главным</span>
-                </button>
-              ) : (
-                <span className="px-2.5 py-1 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[11px] font-bold inline-flex items-center gap-1">
-                  <Star className="h-3 w-3 fill-[#2E6B4E]" />
-                  Главное фото
-                </span>
-              )}
+              <div className="flex items-center gap-1.5">
+                {activeGalleryItem && !activeGalleryItem.isMain ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSetMainGallery(activeGalleryItem.id)}
+                    className="h-7 px-2.5 rounded-full bg-[#1D1D1F] text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer shadow-2xs"
+                  >
+                    <Star className="h-3 w-3 text-[#E5B869]" />
+                    <span>Назначить главным</span>
+                  </button>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[11px] font-bold inline-flex items-center gap-1">
+                    <Star className="h-3 w-3 fill-[#2E6B4E]" />
+                    Главное фото
+                  </span>
+                )}
+
+                {activeGalleryItem && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteGalleryItem(activeGalleryItem.id)}
+                    title="Удалить это фото / вкладку"
+                    className="h-7 w-7 rounded-full bg-white/90 hover:bg-[#FFF0EE] border border-[#E5DEC9] hover:border-[#F0C7C2] text-[#C93B2B] flex items-center justify-center cursor-pointer transition"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="my-auto py-2">
@@ -619,87 +1145,233 @@ export function ScenarioModelCardScreen({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onOpenPdfModal}
-          className="h-8 px-3.5 rounded-[9px] bg-white hover:bg-[#F3F0E8] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer"
-        >
-          <Printer className="h-3.5 w-3.5 text-[#8B6F47]" />
-          <span>Скачать техническое задание PDF</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="h-8 px-3.5 rounded-[9px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs">
+            <Upload className="h-3.5 w-3.5 text-[#E5B869]" />
+            <span>+ Загрузить PDF в карточку</span>
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              multiple
+              onChange={handlePdfUpload}
+              className="hidden"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={onOpenPdfModal}
+            className="h-8 px-3.5 rounded-[9px] bg-white hover:bg-[#F3F0E8] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer"
+          >
+            <Printer className="h-3.5 w-3.5 text-[#8B6F47]" />
+            <span>Скачать техническое задание PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* СОДЕРЖИМОЕ ВЫБРАННОЙ ВКЛАДКИ (ВСЕГДА ТОЛЬКО ОДНА АКТИВНАЯ ВКЛАДКА) */}
       {activeTab === 'overview' && (
         <div className="space-y-5">
-          {/* Верхняя сводка обзора + 3 технических блока (Характеристики, Состав, Резинка) как на макете Стр. 14 */}
+          {/* Верхняя сводка обзора + 3 технических блока (Характеристики, Состав, Резинка) — кликабельно и редактируемо */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">
-              <div className="text-[13.5px] font-bold text-[#1D1D1F]">Характеристики</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[13.5px] font-bold text-[#1D1D1F]">Характеристики</div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing((v) => !v)}
+                  className="text-[11px] font-semibold text-[#8B6F47] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>{isEditing ? 'Готово' : 'Изменить'}</span>
+                </button>
+              </div>
               <div className="space-y-1.5 text-[12px]">
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Тип изделия:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.construction.type}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.construction.type}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          construction: { ...model.construction, type: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.construction.type}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Комплектация:</span>
                   <span className="font-semibold text-[#1D1D1F] text-right">
                     1 комплект = {model.unitsInPack} шт.
                   </span>
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Посадка:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.construction.fit}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.construction.fit}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          construction: { ...model.construction, fit: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.construction.fit}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Передняя панель:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.construction.frontPanel}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.construction.frontPanel}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          construction: { ...model.construction, frontPanel: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.construction.frontPanel}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Ластовица:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.construction.gusset}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.construction.gusset}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          construction: { ...model.construction, gusset: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.construction.gusset}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">
-              <div className="text-[13.5px] font-bold text-[#1D1D1F]">
-                Состав и материалы
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[13.5px] font-bold text-[#1D1D1F]">
+                  Состав и материалы
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing((v) => !v)}
+                  className="text-[11px] font-semibold text-[#8B6F47] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>{isEditing ? 'Готово' : 'Изменить'}</span>
+                </button>
               </div>
               <div className="space-y-1.5 text-[12px]">
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Основное полотно:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.fabric.composition}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.fabric.composition}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          fabric: { ...model.fabric, composition: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.fabric.composition}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Плотность:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.fabric.density}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.fabric.density}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          fabric: { ...model.fabric, density: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.fabric.density}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Переплетение:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.fabric.knitType}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.fabric.knitType}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          fabric: { ...model.fabric, knitType: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.fabric.knitType}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Тактильность:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.fabric.touchFeel}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.fabric.touchFeel}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          fabric: { ...model.fabric, touchFeel: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.fabric.touchFeel}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Старт продаж:</span>
                   <span className="font-bold text-[#2E6B4E] text-right">
                     {MONTHS_SHORT_RU[metrics.plan.salesStartMonthIdx]} {scenario.year}
@@ -709,27 +1381,79 @@ export function ScenarioModelCardScreen({
             </div>
 
             <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">
-              <div className="text-[13.5px] font-bold text-[#1D1D1F]">
-                Резинка {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[13.5px] font-bold text-[#1D1D1F]">
+                  Резинка {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing((v) => !v)}
+                  className="text-[11px] font-semibold text-[#8B6F47] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Edit3 className="h-3 w-3" />
+                  <span>{isEditing ? 'Готово' : 'Изменить'}</span>
+                </button>
               </div>
               <div className="space-y-1.5 text-[12px]">
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Ширина:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.waistband.width}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.waistband.width}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          waistband: { ...model.waistband, width: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.waistband.width}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Цвет резинки:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.waistband.colorRule}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.waistband.colorRule}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          waistband: { ...model.waistband, colorRule: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.waistband.colorRule}
+                    </span>
+                  )}
                 </div>
-                <div className="flex justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-[#6E6E73]">Логотип:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    {model.waistband.logoRepeat}
-                  </span>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={model.waistband.logoRepeat}
+                      onChange={(e) =>
+                        onUpdateModel({
+                          ...model,
+                          waistband: { ...model.waistband, logoRepeat: e.target.value },
+                        })
+                      }
+                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
+                    />
+                  ) : (
+                    <span className="font-semibold text-[#1D1D1F] text-right">
+                      {model.waistband.logoRepeat}
+                    </span>
+                  )}
                 </div>
               </div>
               <div
@@ -746,79 +1470,330 @@ export function ScenarioModelCardScreen({
             </div>
           </div>
 
-          {/* Цветовые палитры SORBET CLUB и RIVIERA (Тест 08: сворачивание/разворачивание с Pantone) */}
+          {/* Цветовые палитры и наборы: загрузка фото палитры + добавление/редактирование/удаление цветов и палитр */}
           <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-[15px] font-bold text-[#1D1D1F]">
-                  Цветовые палитры и наборы ({model.palettes.length} палитры)
+                  Цветовые палитры и наборы ({model.palettes.length})
                 </h3>
                 <p className="text-[11.5px] text-[#6E6E73]">
-                  Кликните на палитру, чтобы свернуть или развернуть коды Pantone
+                  Вы можете загрузить фото раскладки комплекта или добавить/изменить цвета и коды Pantone в каждой палитре
                 </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddPalette}
+                className="h-8 px-3.5 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>+ Добавить палитру / набор</span>
+              </button>
+            </div>
+
+            {model.palettes.length === 0 ? (
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-dashed border-[#D6CEC0] p-6 text-center space-y-2">
+                <div className="text-[13px] font-semibold text-[#4A4740]">
+                  В этой модели пока нет цветовых палитр
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddPalette}
+                  className="h-8 px-4 rounded-[10px] bg-[#1D1D1F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Создать первую палитру</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {model.palettes.map((pal) => {
+                  const isExpanded = expandedPaletteIds.includes(pal.id);
+                  return (
+                    <div
+                      key={pal.id}
+                      className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-3"
+                    >
+                      {/* Шапка палитры: редактируемое название + кнопки Загрузить фото / Добавить цвет / Удалить */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                          <input
+                            type="text"
+                            value={pal.title}
+                            onChange={(e) =>
+                              handleUpdatePalette(pal.id, { title: e.target.value })
+                            }
+                            placeholder="Название палитры..."
+                            title="Нажмите, чтобы переименовать палитру"
+                            className="text-[12.5px] font-bold text-[#1D1D1F] bg-white px-2.5 py-1 rounded-[8px] border border-[#E2DBD0] focus:border-[#8B6F47] outline-none flex-1"
+                          />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <label className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3ECE0] border border-[#D4CDC2] text-[#7A5C38] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition">
+                            <ImageIcon className="h-3 w-3" />
+                            <span>{pal.imageUrl ? 'Заменить фото' : '+ Фото'}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handlePalettePhotoUpload(pal.id, e)}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => handleAddColorToPalette(pal.id)}
+                            className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3F0E8] border border-[#D4CDC2] text-[#1D1D1F] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition"
+                          >
+                            <Plus className="h-3 w-3" />
+                            <span>+ Цвет</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => togglePaletteExpand(pal.id)}
+                            className="h-7 px-2 rounded-[8px] bg-white border border-[#E2DBD0] text-[11px] font-semibold text-[#8B6F47] cursor-pointer"
+                          >
+                            {isExpanded ? 'Свернуть' : 'Развернуть'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePalette(pal.id)}
+                            title="Удалить эту палитру"
+                            className="h-7 w-7 rounded-[8px] bg-white hover:bg-[#FFF0EE] border border-[#E2DBD0] hover:border-[#F0C7C2] text-[#C93B2B] flex items-center justify-center cursor-pointer transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Если загружено фото палитры / раскладки комплекта — показываем его */}
+                      {pal.imageUrl && (
+                        <div className="relative rounded-[12px] overflow-hidden bg-white border border-[#E5DEC9] p-2">
+                          <img
+                            src={pal.imageUrl}
+                            alt={pal.title}
+                            className="w-full max-h-56 object-contain rounded-[8px] mx-auto"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleUpdatePalette(pal.id, { imageUrl: undefined })
+                            }
+                            title="Убрать фото палитры"
+                            className="absolute top-3 right-3 h-7 px-2 rounded-full bg-black/70 hover:bg-black text-white text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <X className="h-3 w-3" />
+                            <span>Убрать фото</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Карточки цветов палитры (редактируемые цвет HEX, название и Pantone) */}
+                      {isExpanded && pal.colors.length > 0 && (
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                          {pal.colors.map((c, colorIdx) => (
+                            <div
+                              key={`${pal.id}-c-${colorIdx}`}
+                              className="rounded-[12px] bg-white border border-[#E5DEC9] p-2.5 space-y-1.5 relative group"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePaletteColor(pal.id, colorIdx)}
+                                title="Удалить этот цвет"
+                                className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-white/90 hover:bg-[#FFF0EE] border border-[#E2DBD0] text-[#C93B2B] flex items-center justify-center opacity-80 group-hover:opacity-100 cursor-pointer z-10"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+
+                              <label
+                                title="Нажмите, чтобы выбрать оттенок"
+                                className="block h-10 rounded-[8px] border border-black/10 cursor-pointer relative overflow-hidden"
+                                style={{ backgroundColor: c.hex }}
+                              >
+                                <input
+                                  type="color"
+                                  value={c.hex.startsWith('#') && c.hex.length === 7 ? c.hex : '#C7BEB2'}
+                                  onChange={(e) =>
+                                    handleUpdatePaletteColor(pal.id, colorIdx, {
+                                      hex: e.target.value.toUpperCase(),
+                                    })
+                                  }
+                                  className="opacity-0 inset-0 w-full h-full cursor-pointer"
+                                />
+                              </label>
+
+                              <input
+                                type="text"
+                                value={c.nameRu}
+                                onChange={(e) =>
+                                  handleUpdatePaletteColor(pal.id, colorIdx, {
+                                    nameRu: e.target.value,
+                                  })
+                                }
+                                placeholder="Название цвета"
+                                className="w-full text-[11px] font-bold text-[#1D1D1F] bg-transparent border-b border-transparent focus:border-[#C8A97E] outline-none leading-tight"
+                              />
+                              <input
+                                type="text"
+                                value={c.pantone}
+                                onChange={(e) =>
+                                  handleUpdatePaletteColor(pal.id, colorIdx, {
+                                    pantone: e.target.value,
+                                  })
+                                }
+                                placeholder="PANTONE / HEX"
+                                className="w-full text-[10px] font-mono text-[#6E6E73] bg-transparent border-b border-transparent focus:border-[#C8A97E] outline-none"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* БЛОК ЗАГРУЗКИ И ПРОСМОТРА PDF-ФАЙЛОВ ПРЯМО В КАРТОЧКЕ МОДЕЛИ */}
+          <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-4 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-[12px] bg-[#FAF6EE] border border-[#E5DEC9] flex items-center justify-center text-[#8B6F47]">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold text-[#1D1D1F]">
+                    Прикреплённые PDF-файлы и техзадания ({attachedPdfs.length})
+                  </h3>
+                  <p className="text-[11.5px] text-[#6E6E73]">
+                    Загрузите готовый PDF-паспорт или техзадание для фабрики — файл сохранится прямо в карточке модели
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="h-9 px-4 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs">
+                  <Upload className="h-3.5 w-3.5 text-[#E5B869]" />
+                  <span>+ Загрузить PDF файл</span>
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    multiple
+                    onChange={handlePdfUpload}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {model.palettes.map((pal) => {
-                const isExpanded = expandedPaletteIds.includes(pal.id);
-                return (
-                  <div
-                    key={pal.id}
-                    className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-3"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => togglePaletteExpand(pal.id)}
-                      className="w-full flex items-center justify-between gap-2 text-left cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[12.5px] font-bold text-[#1D1D1F]">
-                          {pal.title}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[10px] font-bold">
-                          {pal.statusLabel}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {pal.colors.map((c) => (
-                          <span
-                            key={c.nameRu}
-                            className="h-4 w-4 rounded-full border border-black/15"
-                            style={{ backgroundColor: c.hex }}
-                          />
-                        ))}
-                        <span className="text-[11px] font-semibold text-[#8B6F47] ml-1">
-                          {isExpanded ? 'Свернуть' : 'Pantone ↓'}
-                        </span>
-                      </div>
-                    </button>
-
-                    {isExpanded && (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                        {pal.colors.map((c) => (
-                          <div
-                            key={c.nameRu}
-                            className="rounded-[12px] bg-white border border-[#E5DEC9] p-2.5 space-y-1.5"
-                          >
-                            <div
-                              className="h-10 rounded-[8px] border border-black/10"
-                              style={{ backgroundColor: c.hex }}
-                            />
-                            <div className="text-[11px] font-bold text-[#1D1D1F] leading-tight">
-                              {c.nameRu}
+            {attachedPdfs.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {attachedPdfs.map((pdf) => {
+                    const url = pdfUrlsById[pdf.id];
+                    const isPreviewing = previewPdfId === pdf.id;
+                    return (
+                      <div
+                        key={pdf.id}
+                        className={`rounded-[12px] border px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 flex-1 min-w-[260px] ${
+                          isPreviewing
+                            ? 'bg-[#FAF6EE] border-[#C8A97E]'
+                            : 'bg-[#FAF8F4] border-[#E6E0D4]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <FileText className="h-4 w-4 text-[#8B6F47] shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-[12.5px] font-bold text-[#1D1D1F] truncate">
+                              {pdf.name}
                             </div>
-                            <div className="text-[10px] font-mono text-[#6E6E73]">
-                              {c.pantone}
+                            <div className="text-[10.5px] text-[#6E6E73]">
+                              {(pdf.sizeBytes / 1024 / 1024).toFixed(2)} МБ · Загружен {pdf.uploadedAt}
                             </div>
                           </div>
-                        ))}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewPdfId(isPreviewing ? null : pdf.id)
+                            }
+                            className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3ECE0] border border-[#D4CDC2] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye className="h-3 w-3 text-[#8B6F47]" />
+                            <span>{isPreviewing ? 'Скрыть превью' : 'Смотреть в карточке'}</span>
+                          </button>
+
+                          {url && (
+                            <>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Открыть PDF в новой вкладке"
+                                className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3F0E8] border border-[#D4CDC2] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                <span>Открыть</span>
+                              </a>
+                              <a
+                                href={url}
+                                download={pdf.name}
+                                title="Скачать PDF"
+                                className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3F0E8] border border-[#D4CDC2] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1"
+                              >
+                                <Download className="h-3 w-3" />
+                              </a>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAttachedPdf(pdf.id)}
+                            title="Удалить PDF из карточки"
+                            className="h-7 w-7 rounded-[8px] bg-white hover:bg-[#FFF0EE] border border-[#D4CDC2] hover:border-[#F0C7C2] text-[#C93B2B] flex items-center justify-center cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+
+                {previewPdfId && pdfUrlsById[previewPdfId] && (
+                  <div className="rounded-[14px] overflow-hidden border border-[#DED8CC] bg-[#323639]">
+                    <iframe
+                      src={pdfUrlsById[previewPdfId]}
+                      title="PDF Preview"
+                      className="w-full h-[680px]"
+                    />
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            ) : (
+              <label className="rounded-[14px] border border-dashed border-[#C8A97E] bg-[#FAF8F4] hover:bg-[#FAF4EC] p-5 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition text-center">
+                <Upload className="h-5 w-5 text-[#8B6F47]" />
+                <span className="text-[13px] font-bold text-[#1D1D1F]">
+                  Нажмите, чтобы загрузить PDF-файл в карточку модели
+                </span>
+                <span className="text-[11.5px] text-[#6E6E73]">
+                  Поддерживаются многостраничные PDF со схемами, фотографиями и китайско-русской спецификацией
+                </span>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  multiple
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                />
+              </label>
+            )}
           </div>
         </div>
       )}
@@ -1127,14 +2102,28 @@ export function ScenarioModelCardScreen({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onOpenPdfModal}
-              className="h-10 px-5 rounded-[11px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[13px] font-bold inline-flex items-center gap-2 transition cursor-pointer shadow-xs"
-            >
-              <Printer className="h-4 w-4" />
-              <span>Скачать техническое задание PDF</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <label className="h-10 px-4 rounded-[11px] bg-white hover:bg-[#F3ECE0] border border-[#C8A97E] text-[#7A5C38] text-[12.5px] font-bold inline-flex items-center gap-2 transition cursor-pointer">
+                <Upload className="h-4 w-4" />
+                <span>+ Загрузить PDF файл</span>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  multiple
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={onOpenPdfModal}
+                className="h-10 px-5 rounded-[11px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[13px] font-bold inline-flex items-center gap-2 transition cursor-pointer shadow-xs"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Скачать техническое задание PDF</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

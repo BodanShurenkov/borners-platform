@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'BORNERS® — Strategy Platform (2026–2027)',
+  title: 'BORNERS GROUP — Strategy Platform (2026–2027)',
   description:
     'Платформа сценариев роста, разработки продукта, закупок и финансовой аналитики брендов BORNERS и НА ТЕЛЕ.',
 };
