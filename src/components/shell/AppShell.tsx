@@ -720,11 +720,11 @@ export function AppShell() {
                   renderGlyph: () => (
                     <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
                       <path d="M2.5 4.5H13.5" />
-                      <circle cx="5.5" cy="4.5" r="1.4" fill="#FAF8F4" />
+                      <circle cx="5.5" cy="4.5" r="1.35" fill="currentColor" />
                       <path d="M2.5 8H13.5" />
-                      <circle cx="10.5" cy="8" r="1.4" fill="#FAF8F4" />
+                      <circle cx="10.5" cy="8" r="1.35" fill="currentColor" />
                       <path d="M2.5 11.5H13.5" />
-                      <circle cx="6.8" cy="11.5" r="1.4" fill="#FAF8F4" />
+                      <circle cx="6.8" cy="11.5" r="1.35" fill="currentColor" />
                     </svg>
                   ),
                 },
@@ -785,17 +785,17 @@ export function AppShell() {
                         navigateTo(id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`group w-full h-[38px] rounded-[10px] px-3 flex items-center justify-between text-left transition-all duration-150 cursor-pointer outline-none ${
+                      className={`group w-full h-[39px] rounded-[11px] px-3 flex items-center justify-between text-left transition-all duration-150 cursor-pointer outline-none ${
                         isActive
-                          ? 'bg-[#1D1D1F] text-white font-semibold shadow-[0_2px_10px_rgba(24,23,21,0.10)]'
-                          : 'text-[#5A564F] hover:text-[#1D1D1F] hover:bg-[#EFECE4]/75 font-medium'
+                          ? 'bg-[#4E6A85] text-white font-semibold shadow-[0_4px_14px_rgba(78,106,133,0.24)]'
+                          : 'text-[#5A564F] hover:text-[#1D1D1F] hover:bg-[#EFECE4]/80 font-medium'
                       }`}
                     >
                       <span className="flex items-center gap-2.5 min-w-0">
                         <span
                           className={`shrink-0 transition-colors ${
                             isActive
-                              ? 'text-[#C8A97E]'
+                              ? 'text-[#F5E6CE]'
                               : 'text-[#7A756C] group-hover:text-[#1D1D1F]'
                           }`}
                         >
@@ -807,7 +807,7 @@ export function AppShell() {
                       </span>
 
                       {isActive && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#C8A97E] shrink-0" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#F5E6CE] shrink-0" />
                       )}
                     </button>
                   );

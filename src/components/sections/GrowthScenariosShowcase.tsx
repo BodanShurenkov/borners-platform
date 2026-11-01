@@ -486,20 +486,20 @@ export function GrowthScenariosShowcase() {
                   onClick={() => setSelectedScenarioId(sc.id)}
                   className={`rounded-[18px] p-4 text-left transition-all cursor-pointer border relative ${
                     isSelected
-                      ? 'bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-[0_12px_28px_rgba(24,23,21,0.16)]'
+                      ? 'bg-[#4E6A85] text-white border-[#4E6A85] shadow-[0_10px_24px_rgba(78,106,133,0.22)]'
                       : 'bg-white hover:bg-[#F5F2EB] text-[#1D1D1F] border-[#E4DEC9]'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span
                       className={`text-[11.5px] font-semibold ${
-                        isSelected ? 'text-white/70' : 'text-[#6E6E73]'
+                        isSelected ? 'text-white/80' : 'text-[#6E6E73]'
                       }`}
                     >
                       {sc.title} · {sc.scopeLabel}
                     </span>
                     {isSelected && (
-                      <span className="h-5 w-5 rounded-full bg-[#C8A97E] text-[#1D1D1F] flex items-center justify-center">
+                      <span className="h-5 w-5 rounded-full bg-[#F5E6CE] text-[#2C3E50] flex items-center justify-center">
                         <Check className="h-3 w-3 stroke-[3]" />
                       </span>
                     )}
