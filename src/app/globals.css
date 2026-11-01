@@ -77,6 +77,16 @@ table tbody tr + tr {
   box-shadow: 0 2px 14px rgba(20, 20, 24, 0.04) !important;
 }
 
+/* Убираем грубую стандартную синюю обводку браузера при клике */
+button:focus,
+button:focus-visible,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+}
+
 /* Тонкие минималистичные скроллбары */
 ::-webkit-scrollbar {
   width: 6px;

@@ -583,34 +583,40 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР В ПРЕМИАЛЬНОМ СТИЛЕ APPLE PRO (BORNERS® STRATEGY PLATFORM) */}
+        {/* ЛЕВЫЙ САЙДБАР В СВЕТЛОЙ ВОЗДУШНОЙ ЭСТЕТИКЕ APPLE CUPERTINO GLASS (BORNERS® STRATEGY PLATFORM) */}
         <aside
           aria-hidden={sidebarBlurred}
-          className={`fixed inset-y-0 left-0 z-40 w-[240px] bg-[#161822] text-white border-r border-white/[0.08] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.08)] ${
+          className={`fixed inset-y-0 left-0 z-40 w-[252px] bg-[#FAF8F4]/95 backdrop-blur-2xl text-[#1D1D1F] border-r border-[#E6E0D4] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } ${
             sidebarBlurred
-              ? 'lg:-ml-[240px] lg:-translate-x-full lg:opacity-0 lg:blur-[8px] lg:pointer-events-none'
+              ? 'lg:-ml-[252px] lg:-translate-x-full lg:opacity-0 lg:blur-[8px] lg:pointer-events-none'
               : 'lg:ml-0 lg:translate-x-0 lg:opacity-100 lg:blur-none'
           }`}
         >
           <div className="overflow-y-auto flex-1">
-            {/* Фирменный заголовок BORNERS® STRATEGY PLATFORM */}
-            <div className="px-6 pt-7 pb-5 flex items-start justify-between gap-2">
+            {/* Фирменный заголовок BORNERS® STRATEGY PLATFORM в стиле Apple */}
+            <div className="px-5 pt-6 pb-4 flex items-center justify-between gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setPlatformMode('management');
                   navigateTo('dashboard');
                 }}
-                className={`text-left cursor-pointer flex flex-col justify-center group transition-all duration-300 ${
+                className={`text-left cursor-pointer flex items-center gap-3 group transition-all duration-300 outline-none ${
                   sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
                 }`}
               >
-                <span className="text-[21px] font-bold tracking-[0.04em] text-white leading-none">
-                  BORNERS<sup className="text-[11px] font-semibold ml-0.5 opacity-80">®</sup>
+                <span className="h-9 w-9 rounded-[11px] bg-gradient-to-br from-[#1E3A5F] to-[#12243B] text-white shadow-[0_3px_10px_rgba(30,58,95,0.20)] flex items-center justify-center font-bold text-[15px] tracking-tight shrink-0">
+                  B
                 </span>
-                <span className="text-[10.5px] font-medium tracking-[0.14em] text-[#8F96A6] mt-2 uppercase">
-                  STRATEGY PLATFORM
+                <span className="flex flex-col">
+                  <span className="text-[18px] font-bold tracking-[-0.02em] text-[#1D1D1F] leading-none">
+                    BORNERS<sup className="text-[10px] font-semibold ml-0.5 text-[#8E8A82]">®</sup>
+                  </span>
+                  <span className="text-[9.5px] font-semibold tracking-[0.13em] text-[#8E8A82] mt-1 uppercase">
+                    STRATEGY PLATFORM
+                  </span>
                 </span>
               </button>
 
@@ -624,7 +630,7 @@ export function AppShell() {
                       : 'Скрыть левую панель для фокуса на центральной части'
                   }
                   aria-label="Переключить левую панель"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8F96A6] hover:text-white hover:bg-white/10 transition cursor-pointer"
+                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#8E8A82] hover:text-[#1D1D1F] hover:bg-[#EFECE5] transition cursor-pointer outline-none"
                 >
                   {sidebarBlurred ? (
                     <EyeOff className="h-3.5 w-3.5" />
@@ -634,8 +640,9 @@ export function AppShell() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="lg:hidden p-1 text-[#8F96A6] hover:text-white"
+                  className="lg:hidden p-1 text-[#8E8A82] hover:text-[#1D1D1F]"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -651,7 +658,7 @@ export function AppShell() {
                 }
               }}
               title={sidebarBlurred ? 'Нажмите, чтобы вернуть меню' : undefined}
-              className={`px-3.5 py-2 space-y-1 transition-all duration-300 ${
+              className={`px-3.5 py-1.5 space-y-1 transition-all duration-300 ${
                 sidebarBlurred
                   ? 'blur-[6px] opacity-30 select-none cursor-pointer'
                   : ''
@@ -680,26 +687,36 @@ export function AppShell() {
                         navigateTo(id);
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full h-[42px] rounded-[11px] px-3.5 flex items-center gap-3.5 text-left transition-all cursor-pointer ${
+                      className={`group w-full h-[42px] rounded-[13px] px-2.5 flex items-center justify-between text-left transition-all duration-200 cursor-pointer outline-none ${
                         isActive
-                          ? 'bg-white/[0.12] text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]'
-                          : 'text-[#A2A8B8] hover:text-white hover:bg-white/[0.05] font-medium'
+                          ? 'bg-white text-[#1D1D1F] font-semibold shadow-[0_3px_14px_rgba(24,23,21,0.06)] border border-[#E5DEC9]'
+                          : 'text-[#5A564F] hover:text-[#1D1D1F] hover:bg-white/70 border border-transparent font-medium'
                       }`}
                     >
-                      <Icon
-                        className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                          isActive ? 'text-white stroke-[2.1]' : 'text-[#8F96A6] stroke-[1.8]'
-                        }`}
-                      />
-                      <span className="text-[14px] tracking-[-0.01em] truncate">
-                        {label}
+                      <span className="flex items-center gap-3 min-w-0">
+                        <span
+                          className={`h-7 w-7 rounded-[8px] flex items-center justify-center shrink-0 transition-all ${
+                            isActive
+                              ? 'bg-[#1E3A5F] text-white shadow-[0_2px_6px_rgba(30,58,95,0.22)]'
+                              : 'bg-[#F0ECE2] text-[#6E6A62] group-hover:bg-[#E6E0D3] group-hover:text-[#1D1D1F]'
+                          }`}
+                        >
+                          <Icon className="h-[15px] w-[15px] stroke-[2]" />
+                        </span>
+                        <span className="text-[13.5px] tracking-[-0.01em] truncate">
+                          {label}
+                        </span>
                       </span>
+
+                      {isActive && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#C8A97E] mr-1 shrink-0" />
+                      )}
                     </button>
                   );
                 })}
 
-              {/* Компактные системные ссылки внизу списка */}
-              <div className="pt-4 mt-4 border-t border-white/[0.08] space-y-0.5">
+              {/* Компактные дополнительные разделы внизу */}
+              <div className="pt-3.5 mt-3.5 border-t border-[#EAE4D8] space-y-0.5">
                 {[
                   { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' },
                   { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' },
@@ -718,10 +735,10 @@ export function AppShell() {
                           navigateTo(item.id);
                           setMobileMenuOpen(false);
                         }}
-                        className={`w-full h-8 rounded-[9px] px-3.5 flex items-center justify-between text-left text-[12.5px] transition-colors cursor-pointer ${
+                        className={`w-full h-8 rounded-[10px] px-3 flex items-center justify-between text-left text-[12px] transition-colors cursor-pointer outline-none ${
                           isActive
-                            ? 'bg-white/[0.12] text-white font-semibold'
-                            : 'text-[#7D8496] hover:text-[#D0D5E0] hover:bg-white/[0.04]'
+                            ? 'bg-white text-[#1D1D1F] font-semibold border border-[#E5DEC9] shadow-2xs'
+                            : 'text-[#7A756C] hover:text-[#1D1D1F] hover:bg-white/60'
                         }`}
                       >
                         <span className="truncate">{item.label}</span>
@@ -737,7 +754,7 @@ export function AppShell() {
             onClick={() => {
               if (sidebarBlurred) setSidebarBlurred(false);
             }}
-            className={`p-3.5 border-t border-white/[0.08] transition-all duration-300 ${
+            className={`p-3.5 border-t border-[#EAE4D8] transition-all duration-300 ${
               sidebarBlurred ? 'blur-[6px] opacity-30 select-none cursor-pointer' : ''
             }`}
           >
@@ -751,17 +768,17 @@ export function AppShell() {
                 }
                 setPlatformMode(platformMode === 'strategy' ? 'management' : 'strategy');
               }}
-              className={`w-full rounded-[12px] p-3 text-left transition cursor-pointer border ${
+              className={`w-full rounded-[14px] p-3 text-left transition cursor-pointer border outline-none ${
                 platformMode === 'strategy'
-                  ? 'bg-[#C8A97E] text-[#161822] border-[#C8A97E] font-semibold'
-                  : 'bg-white/[0.06] hover:bg-white/[0.11] text-white border-white/[0.1]'
+                  ? 'bg-[#1E3A5F] text-white border-[#1E3A5F] shadow-sm'
+                  : 'bg-white hover:border-[#C8A97E] text-[#1D1D1F] border-[#E5DEC9] shadow-[0_2px_10px_rgba(24,23,21,0.03)]'
               }`}
             >
               <div className="flex items-center justify-between text-[11px] opacity-75">
                 <span>Презентация · 16 слайдов</span>
                 <span>→</span>
               </div>
-              <div className="text-[13.5px] font-semibold mt-0.5 leading-snug">
+              <div className="text-[13px] font-semibold mt-0.5 leading-snug">
                 {platformMode === 'strategy'
                   ? 'Вернуться в систему'
                   : 'Стратегия развития 2027'}
