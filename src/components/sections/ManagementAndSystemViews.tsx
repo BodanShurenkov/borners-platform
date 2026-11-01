@@ -4,6 +4,8 @@ import React, { useState, useMemo } from 'react';
 import {
   ArrowUpRight,
   Download,
+  FileSpreadsheet,
+  FileText,
   GripVertical,
   Paperclip,
   RefreshCw,
@@ -25,6 +27,10 @@ import {
   TASK_STATUS_LABELS_RU,
   canUserViewFinance,
 } from '@/lib/finance';
+import {
+  exportDocumentAsExcel,
+  exportDocumentAsPdf,
+} from '@/lib/document-export';
 import { isSupabaseConfigured } from '@/lib/supabase';
 
 // =============================================================================
@@ -1361,6 +1367,9 @@ const DOC_CATEGORIES: DocumentCategory[] = [
 export function DocumentsView() {
   const {
     documents,
+    products,
+    concepts,
+    financialPlans,
     currentUser,
     brandFilter,
     platformMode,
@@ -1406,35 +1415,42 @@ export function DocumentsView() {
     });
   }, [documents, hasFinanceAccess, brandFilter, categoryFilter, searchQuery]);
 
-  const handleDownloadDocument = (doc: (typeof documents)[number]) => {
-    if (doc.dataUrl) {
+  const handleDownloadPdf = (doc: (typeof documents)[number]) => {
+    if (doc.dataUrl && doc.fileName.toLowerCase().endsWith('.pdf')) {
       const a = document.createElement('a');
       a.href = doc.dataUrl;
       a.download = doc.fileName;
       a.click();
-      notify('success', `Оригинальный файл «${doc.fileName}» выгружен`);
+      notify('success', `PDF «${doc.fileName}» выгружен`);
       return;
     }
+    exportDocumentAsPdf(doc, { products, concepts, financialPlans });
+    notify(
+      'success',
+      `Сформирован брендированный PDF`,
+      `${doc.fileName.replace(/\.[^/.]+$/, '')}.pdf`
+    );
+  };
 
-    const content = [
-      `ДОКУМЕНТ BORNERS GROUP`,
-      `==================================================`,
-      `Название: ${doc.title}`,
-      `Файл: ${doc.fileName}`,
-      `Категория: ${doc.category}`,
-      `Бренд: ${doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}`,
-      `Дата обновления: ${doc.uploadedAt}`,
-      `Автор: ${doc.uploadedBy}`,
-    ].join('\n');
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${doc.fileName.replace(/\.[^/.]+$/, '')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    notify('success', `Файл «${doc.fileName}» выгружен`);
+  const handleDownloadExcel = (doc: (typeof documents)[number]) => {
+    if (
+      doc.dataUrl &&
+      (doc.fileName.toLowerCase().endsWith('.xlsx') ||
+        doc.fileName.toLowerCase().endsWith('.xls'))
+    ) {
+      const a = document.createElement('a');
+      a.href = doc.dataUrl;
+      a.download = doc.fileName;
+      a.click();
+      notify('success', `Таблица «${doc.fileName}» выгружена`);
+      return;
+    }
+    exportDocumentAsExcel(doc, { products, concepts, financialPlans });
+    notify(
+      'success',
+      `Сформирована таблица Excel (.xlsx)`,
+      `${doc.fileName.replace(/\.[^/.]+$/, '')}.xlsx`
+    );
   };
 
   return (
@@ -1511,37 +1527,78 @@ export function DocumentsView() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E8E8E5]">
-            {filteredDocs.map((doc) => (
-              <tr key={doc.id} className="hover:bg-[#F7F7F5]/60 transition">
-                <td className="py-4 px-6">
-                  <div className="font-semibold text-[16px] text-[#171717] dark:text-white">
-                    {doc.title}
-                  </div>
-                  <div className="text-[13px] text-[#737373] mt-0.5">
-                    {doc.fileName} · {Math.round(doc.fileSizeBytes / 1024)} КБ
-                  </div>
-                </td>
-                <td className="py-4 px-4 font-medium capitalize text-[#737373]">
-                  {doc.category}
-                </td>
-                <td className="py-4 px-4 font-semibold">
-                  {doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}
-                </td>
-                <td className="py-4 px-4">
-                  <div className="font-semibold">{doc.uploadedAt}</div>
-                  <div className="text-[13px] text-[#737373]">{doc.uploadedBy}</div>
-                </td>
-                <td className="py-4 px-6 text-right">
-                  <button
-                    onClick={() => handleDownloadDocument(doc)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-[#E8E8E5] px-4 py-2 text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Скачать</span>
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filteredDocs.map((doc) => {
+              const isExcelNative =
+                doc.fileName.toLowerCase().endsWith('.xlsx') ||
+                doc.fileName.toLowerCase().endsWith('.xls') ||
+                doc.category === 'финансы';
+
+              return (
+                <tr key={doc.id} className="hover:bg-[#FAF8F5] transition">
+                  <td className="py-4 px-6">
+                    <div className="font-semibold text-[15.5px] text-[#181715]">
+                      {doc.title}
+                    </div>
+                    <div className="text-[12.5px] text-[#7A756D] mt-0.5">
+                      {doc.fileName} · {Math.round(doc.fileSizeBytes / 1024)} КБ
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 font-medium capitalize text-[#6E6A63]">
+                    {doc.category}
+                  </td>
+                  <td className="py-4 px-4 font-semibold text-[#181715]">
+                    {doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="font-semibold text-[#181715]">{doc.uploadedAt}</div>
+                    <div className="text-[12.5px] text-[#7A756D]">{doc.uploadedBy}</div>
+                  </td>
+                  <td className="py-4 px-6 text-right">
+                    <div className="inline-flex items-center justify-end gap-2">
+                      {isExcelNative ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadExcel(doc)}
+                            className="inline-flex items-center gap-1.5 rounded-[8px] bg-[#181715] text-white px-3.5 py-2 text-[13px] font-medium hover:bg-[#2C2B29] transition cursor-pointer"
+                          >
+                            <FileSpreadsheet className="h-3.5 w-3.5" />
+                            <span>Скачать Excel (.xlsx)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadPdf(doc)}
+                            className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#EAE6DF] bg-[#FAF8F5] text-[#181715] px-3 py-2 text-[13px] font-medium hover:border-[#181715] transition cursor-pointer"
+                          >
+                            <FileText className="h-3.5 w-3.5 text-[#7A756D]" />
+                            <span>PDF</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadPdf(doc)}
+                            className="inline-flex items-center gap-1.5 rounded-[8px] bg-[#181715] text-white px-3.5 py-2 text-[13px] font-medium hover:bg-[#2C2B29] transition cursor-pointer"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            <span>Скачать PDF</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadExcel(doc)}
+                            className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#EAE6DF] bg-[#FAF8F5] text-[#181715] px-3 py-2 text-[13px] font-medium hover:border-[#181715] transition cursor-pointer"
+                          >
+                            <FileSpreadsheet className="h-3.5 w-3.5 text-[#7A756D]" />
+                            <span>Excel (.xlsx)</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -1900,13 +1957,15 @@ export function TeamView() {
 }
 
 // =============================================================================
-// НАСТРОЙКИ СИСТЕМЫ (п. 16 ТЗ)
+// НАСТРОЙКИ СИСТЕМЫ (п. 16 ТЗ — БЕЗ ТЁМНОЙ ТЕМЫ)
 // =============================================================================
 export function SettingsView() {
   const {
     brands,
-    darkMode,
-    setDarkMode,
+    documents,
+    products,
+    concepts,
+    financialPlans,
     updateBrandPalette,
     resetToDemoDefaults,
     notify,
@@ -1914,32 +1973,32 @@ export function SettingsView() {
 
   return (
     <div className="space-y-10 pb-20">
-      <div className="border-b border-[#E8E8E5] pb-6">
-        <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
+      <div className="border-b border-[#EAE6DF] pb-6">
+        <div className="text-[12px] font-medium text-[#8C867E] mb-1.5">
           Конфигурация системы и резервное копирование
         </div>
-        <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-          Настройки
+        <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-normal tracking-[-0.015em] text-[#181715]">
+          Настройки системы
         </h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-5">
-          <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-3">
+        <div className="bg-white rounded-[12px] border border-[#EAE6DF] p-7 space-y-5">
+          <h3 className="text-[20px] font-semibold text-[#181715] border-b border-[#EAE6DF] pb-3">
             Акцентные цвета брендов
           </h3>
 
-          <div className="divide-y divide-[#E8E8E5]">
+          <div className="divide-y divide-[#EAE6DF]">
             {brands.map((brand) => (
               <div
                 key={brand.id}
                 className="py-4 flex items-center justify-between gap-4"
               >
                 <div>
-                  <div className="text-[18px] font-bold text-[#171717] dark:text-white">
+                  <div className="text-[16px] font-semibold text-[#181715]">
                     {brand.name}
                   </div>
-                  <div className="text-[14px] text-[#737373]">{brand.accentColor}</div>
+                  <div className="text-[13px] text-[#7A756D] font-mono">{brand.accentColor}</div>
                 </div>
                 <input
                   type="color"
@@ -1947,46 +2006,65 @@ export function SettingsView() {
                   onChange={(e) =>
                     updateBrandPalette(brand.id, e.target.value, brand.secondaryColor)
                   }
-                  className="h-10 w-16 rounded-lg border border-[#E8E8E5] cursor-pointer"
+                  className="h-9 w-14 rounded-[6px] border border-[#EAE6DF] cursor-pointer"
                 />
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-7 space-y-6">
-          <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
-            <div>
-              <h3 className="text-[22px] font-bold">Тема оформления</h3>
-              <p className="text-[14px] text-[#737373] mt-0.5">
-                Светлая минималистичная (#F7F7F5) или тёмная тема
-              </p>
-            </div>
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[14px] font-semibold cursor-pointer"
-            >
-              {darkMode ? 'Включить светлую' : 'Включить тёмную'}
-            </button>
+        <div className="bg-white rounded-[12px] border border-[#EAE6DF] p-7 space-y-6">
+          <div className="border-b border-[#EAE6DF] pb-4">
+            <h3 className="text-[20px] font-semibold text-[#181715]">
+              Резервное копирование и выгрузка базы
+            </h3>
+            <p className="text-[13.5px] text-[#7A756D] mt-1">
+              {isSupabaseConfigured
+                ? 'Синхронизация с облачной базой Supabase активна'
+                : 'Автосохранение изменений в хранилище браузера активно'}
+            </p>
           </div>
 
           <div className="space-y-4">
-            <div>
-              <h4 className="text-[18px] font-bold text-[#171717]">
-                Резервное копирование данных
-              </h4>
-              <p className="text-[14px] text-[#737373] mt-0.5">
-                {isSupabaseConfigured
-                  ? 'Синхронизация с базой Supabase активна'
-                  : 'Автосохранение в браузере активно'}
-              </p>
-            </div>
+            <p className="text-[13.5px] text-[#5C5852] leading-relaxed">
+              Вы можете выгрузить сводную финансовую и продуктовую ведомость в формате таблицы Excel (<code className="font-mono text-[12px]">.xlsx</code>), сохранить полный снимок базы в JSON или вернуть демонстрационные данные к исходному состоянию.
+            </p>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 pt-2">
               <button
+                type="button"
+                onClick={() => {
+                  const finDoc = documents.find((d) => d.id === 'doc-3') || {
+                    id: 'doc-3',
+                    title: 'Финансовая модель и каталог SKU BORNERS GROUP 2027',
+                    category: 'финансы' as const,
+                    fileName: `BORNERS_GROUP_Сводная_База_${new Date().toISOString().slice(0, 10)}.xlsx`,
+                    fileType: 'XLSX',
+                    fileSizeBytes: 1850000,
+                    brandId: 'ALL',
+                    tags: [],
+                    isFinancialRestricted: true,
+                    minRole: 'Manager' as const,
+                    uploadedBy: 'Система',
+                    uploadedAt: new Date().toISOString().slice(0, 10),
+                    isDemo: false,
+                    isArchived: false,
+                  };
+                  exportDocumentAsExcel(finDoc, { products, concepts, financialPlans });
+                  notify('success', 'Сводная таблица Excel (.xlsx) выгружена');
+                }}
+                className="inline-flex items-center gap-2 h-10 rounded-[8px] bg-[#181715] text-white px-4 text-[13px] font-medium hover:bg-[#2C2B29] transition cursor-pointer"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span>Скачать сводную базу Excel (.xlsx)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => {
                   const raw =
-                    window.localStorage.getItem('borners_group_platform_state_ru_v3') || '{}';
+                    window.localStorage.getItem('borners_group_platform_state_ru_v9_editorial') ||
+                    '{}';
                   const blob = new Blob([raw], { type: 'application/json' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
@@ -1996,13 +2074,14 @@ export function SettingsView() {
                   URL.revokeObjectURL(url);
                   notify('success', 'Резервная копия JSON скачана');
                 }}
-                className="inline-flex items-center gap-2 h-11 rounded-xl border border-[#E8E8E5] px-5 text-[14px] font-semibold hover:bg-[#111111] hover:text-white transition cursor-pointer"
+                className="inline-flex items-center gap-2 h-10 rounded-[8px] border border-[#EAE6DF] bg-[#FAF8F5] px-4 text-[13px] font-medium text-[#181715] hover:border-[#181715] transition cursor-pointer"
               >
                 <Download className="h-4 w-4" />
                 <span>Экспорт базы JSON</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   if (
                     window.confirm(
@@ -2012,7 +2091,7 @@ export function SettingsView() {
                     resetToDemoDefaults();
                   }
                 }}
-                className="inline-flex items-center gap-2 h-11 rounded-xl border border-[#C94B4B] text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white px-5 text-[14px] font-semibold transition cursor-pointer"
+                className="inline-flex items-center gap-2 h-10 rounded-[8px] border border-[#C94B4B]/40 text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white px-4 text-[13px] font-medium transition cursor-pointer"
               >
                 <RefreshCw className="h-4 w-4" />
                 <span>Сбросить демо-данные</span>

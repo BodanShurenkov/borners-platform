@@ -32,6 +32,10 @@ import {
   canUserViewCostPrice,
   formatCurrencyRub,
 } from '@/lib/finance';
+import {
+  exportConceptProductionExcel,
+  exportConceptProductionPdf,
+} from '@/lib/document-export';
 
 export type RnDCardTabId =
   | 'overview'
@@ -1729,14 +1733,50 @@ export function ProductLabCardBody({
         approvedAt: today,
         internalStatus: 'order_placed',
       });
+      exportConceptProductionPdf(concept, {
+        factoryName: currentOrder.factoryName,
+        approvedSampleVersion: currentOrder.approvedSampleVersion,
+        materialAndColors: currentOrder.materialAndColors,
+        packColorComposition:
+          currentOrder.packColorComposition ||
+          '2 × тёмно-синие + 1 × чёрные + 1 × терракотовые',
+        unitsPerPack: unitsInOnePack,
+        packsBySize: packsMap,
+        unitPrice: currentOrder.unitPrice || 320,
+        currency: currentOrder.currency || 'RUB',
+        plannedReadyDate: currentOrder.plannedReadyDate || '2027-02-15',
+        paymentTerms: currentOrder.paymentTerms || '30% депозит / 70% перед отгрузкой',
+        orderVersion: nextVer,
+      });
       notify(
         'success',
-        `Сформирован PDF заказа v${nextVer} (RU / EN / ZH)`,
+        `Выгружен PDF заказа v${nextVer} (RU / EN / ZH)`,
         `Итого: ${totalPacks.toLocaleString('ru-RU')} наборов (${totalPieces.toLocaleString('ru-RU')} шт. белья)`
       );
-      if (typeof window !== 'undefined') {
-        setTimeout(() => window.print(), 150);
-      }
+    };
+
+    const handleExportFactoryExcel = () => {
+      const ver = currentOrder.orderVersion || 1;
+      exportConceptProductionExcel(concept, {
+        factoryName: currentOrder.factoryName,
+        approvedSampleVersion: currentOrder.approvedSampleVersion,
+        materialAndColors: currentOrder.materialAndColors,
+        packColorComposition:
+          currentOrder.packColorComposition ||
+          '2 × тёмно-синие + 1 × чёрные + 1 × терракотовые',
+        unitsPerPack: unitsInOnePack,
+        packsBySize: packsMap,
+        unitPrice: currentOrder.unitPrice || 320,
+        currency: currentOrder.currency || 'RUB',
+        plannedReadyDate: currentOrder.plannedReadyDate || '2027-02-15',
+        paymentTerms: currentOrder.paymentTerms || '30% депозит / 70% перед отгрузкой',
+        orderVersion: ver,
+      });
+      notify(
+        'success',
+        `Выгружена таблица Excel заказа v${ver} (.xlsx)`,
+        `Размерная сетка S–4XL и расчёт партии`
+      );
     };
 
     return (
@@ -1959,14 +1999,24 @@ export function ProductLabCardBody({
               </h4>
             </div>
 
-            <button
-              type="button"
-              onClick={handleExportFactoryPdf}
-              className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-[#111111] hover:bg-[#D97745] text-white text-[13px] font-bold transition cursor-pointer"
-            >
-              <Printer className="h-4 w-4" />
-              <span>Выгрузить PDF заказа (RU / EN / ZH)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={handleExportFactoryPdf}
+                className="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-[#181715] hover:bg-[#B85D35] text-white text-[13px] font-bold transition cursor-pointer"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Скачать PDF заказа (RU / EN / ZH)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleExportFactoryExcel}
+                className="inline-flex items-center gap-2 h-11 px-4 rounded-xl border border-[#EAE6DF] bg-[#FAF8F5] hover:border-[#181715] text-[#181715] text-[13px] font-semibold transition cursor-pointer"
+              >
+                <FileDown className="h-4 w-4 text-[#7A756D]" />
+                <span>Скачать Excel (.xlsx)</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[12px]">

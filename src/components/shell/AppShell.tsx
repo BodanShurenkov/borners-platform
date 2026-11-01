@@ -335,8 +335,8 @@ export function AppShell() {
 
   if (!isAuthenticated) {
     return (
-      <div className={darkMode ? 'dark' : ''}>
-        <div className="min-h-screen bg-[#F7F7F5] dark:bg-zinc-950 text-[#171717] dark:text-zinc-100 flex items-center justify-center p-8">
+      <div>
+        <div className="min-h-screen bg-[#F7F7F5] text-[#171717] flex items-center justify-center p-8">
           <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] dark:border-zinc-800 p-10 space-y-8 shadow-xs">
             <div className="space-y-2 border-b border-[#E8E8E5] pb-6">
               <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373]">
@@ -373,8 +373,8 @@ export function AppShell() {
   }
 
   return (
-    <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-[#F8F6F2] dark:bg-zinc-950 text-[#161615] dark:text-zinc-100 flex">
+    <div>
+      <div className="min-h-screen bg-[#F8F6F2] text-[#161615] flex overflow-x-hidden">
         {/* МОБИЛЬНЫЙ ОВЕРЛЕЙ */}
         {mobileMenuOpen && (
           <div
@@ -383,10 +383,15 @@ export function AppShell() {
           />
         )}
 
-        {/* ЛЕВЫЙ САЙДБАР: спокойная тактильная навигация без рамок вокруг каждого счётчика и без капслок-штампов */}
+        {/* ЛЕВЫЙ САЙДБАР: при нажатии на глазик плавно уходит в блюр и сдвигается влево, освобождая центр экрана */}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-[264px] bg-[#FAF8F5] dark:bg-zinc-900 border-r border-[#EAE6DF] dark:border-zinc-800 flex flex-col justify-between transition-transform lg:static lg:translate-x-0 shrink-0 ${
+          aria-hidden={sidebarBlurred}
+          className={`fixed inset-y-0 left-0 z-40 w-[264px] bg-[#FAF8F5] border-r border-[#EAE6DF] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          } ${
+            sidebarBlurred
+              ? 'lg:-ml-[264px] lg:-translate-x-full lg:opacity-0 lg:blur-[8px] lg:pointer-events-none'
+              : 'lg:ml-0 lg:translate-x-0 lg:opacity-100 lg:blur-none'
           }`}
         >
           <div className="overflow-y-auto flex-1">
@@ -663,8 +668,8 @@ export function AppShell() {
         {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* ВЕРХНЯЯ ПАНЕЛЬ: единая высота h-14, строгая геометрия rounded-[6px], z-50 чтобы выпадающие списки всегда были поверх контента */}
-          <header className="sticky top-0 z-50 h-14 bg-[#FDFCFA]/95 dark:bg-zinc-900/95 backdrop-blur-xs border-b border-[#E5E0D8] dark:border-zinc-800 px-6 md:px-8 flex items-center justify-between gap-4">
-            {/* Левая группа: Назад + Выпадающий список брендов */}
+          <header className="sticky top-0 z-50 h-14 bg-[#FDFCFA]/95 backdrop-blur-xs border-b border-[#E5E0D8] px-6 md:px-8 flex items-center justify-between gap-4">
+            {/* Левая группа: Кнопка возврата панели (Глазик, когда левая колонка скрыта) + Назад + Выпадающий список брендов */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -672,6 +677,18 @@ export function AppShell() {
               >
                 <Menu className="h-4 w-4" />
               </button>
+
+              {sidebarBlurred && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarBlurred(false)}
+                  title="Вернуть левую панель на место"
+                  aria-label="Вернуть левую панель на место"
+                  className="hidden lg:inline-flex items-center justify-center h-9 w-9 rounded-[8px] bg-[#181715] text-white hover:bg-[#2C2B29] shadow-2xs transition cursor-pointer shrink-0 mr-1"
+                >
+                  <EyeOff className="h-4 w-4" />
+                </button>
+              )}
 
               {navHistory.length > 1 && (
                 <button

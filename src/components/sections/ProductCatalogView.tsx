@@ -5,6 +5,7 @@ import {
   Archive,
   ArrowUpRight,
   CalendarPlus,
+  Download,
   FilePlus,
   ImagePlus,
   Lock,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import { Product, ProductStatus } from '@/types/platform';
+import { exportDocumentAsPdf } from '@/lib/document-export';
 import {
   calculateUnitEconomics,
   canUserEditBrand,
@@ -1035,12 +1037,39 @@ export function ProductCatalogView() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {activeProduct.techFiles.map((tf) => (
-                        <span
+                        <button
                           key={tf.id}
-                          className="px-3 py-1.5 rounded-lg bg-[#F7F7F5] border border-[#E8E8E5] text-[13px] font-medium text-[#171717]"
+                          type="button"
+                          onClick={() =>
+                            exportDocumentAsPdf(
+                              {
+                                id: tf.id,
+                                title: `${tf.title} — ${activeProduct.name}`,
+                                fileName: `${activeProduct.sku}_${tf.title.replace(/\s+/g, '_')}.pdf`,
+                                fileType: 'PDF',
+                                fileSizeBytes: 1_450_000,
+                                brandId: activeProduct.brandId,
+                                category: 'производство',
+                                productId: activeProduct.id,
+                                tags: ['Техфайл', activeProduct.sku],
+                                isFinancialRestricted: false,
+                                minRole: 'Viewer',
+                                uploadedBy: 'КБ BORNERS GROUP',
+                                uploadedAt: tf.uploadedAt,
+                                isDemo: false,
+                                isArchived: false,
+                              },
+                              { products, concepts },
+                            )
+                          }
+                          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[#F7F7F5] hover:bg-[#EFECE6] border border-[#E8E8E5] text-[13px] font-medium text-[#171717] transition-colors cursor-pointer"
+                          title="Скачать техническую спецификацию (PDF)"
                         >
-                          {tf.title} ({tf.assetType})
-                        </span>
+                          <Download className="h-3.5 w-3.5 text-[#737373]" />
+                          <span>
+                            {tf.title} ({tf.assetType})
+                          </span>
+                        </button>
                       ))}
                     </div>
                   </div>

@@ -242,12 +242,11 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         const parsedAuth = JSON.parse(savedAuth) as {
           isAuthenticated: boolean;
           currentUserId: string;
-          darkMode?: boolean;
         };
         setIsAuthenticated(parsedAuth.isAuthenticated);
         if (parsedAuth.currentUserId) setCurrentUserId(parsedAuth.currentUserId);
-        if (typeof parsedAuth.darkMode === 'boolean') setDarkMode(parsedAuth.darkMode);
       }
+      setDarkMode(false);
     } catch (err) {
       console.error('Failed to hydrate state from localStorage:', err);
     } finally {

@@ -16,6 +16,10 @@ import {
   validateAndCheckDuplicates,
   validateRnDStageTransition,
 } from '../src/lib/finance.ts';
+import {
+  buildXlsxBytes,
+  buildPdfFromJpegPages,
+} from '../src/lib/document-export.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
   const result = calculateUnitEconomics({
@@ -286,3 +290,51 @@ test('7. Product Lab R&D (п. 15 ТЗ): контроль условий при �
   assert.equal(gateCheck.requiresManagerApproval, true);
   assert.equal(gateCheck.missingFields.length >= 2, true);
 });
+
+test('8. Экспорт документов (PDF и Excel .xlsx): генерация валидных бинарных контейнеров OpenXML ZIP и PDF-1.4', () => {
+  const xlsxBytes = buildXlsxBytes([
+    {
+      name: 'Матрица SKU',
+      colWidths: [18, 32, 16],
+      rows: [
+        {
+          height: 30,
+          mergeAcross: 3,
+          cells: [{ value: 'BORNERS GROUP — МАТРИЦА АССОРТИМЕНТА', style: 1 }],
+        },
+        {
+          height: 24,
+          cells: [
+            { value: 'Артикул', style: 3 },
+            { value: 'Модель', style: 3 },
+            { value: 'Цена РРЦ, ₽', style: 3 },
+          ],
+        },
+        {
+          height: 20,
+          cells: [
+            { value: 'BRN-BX-001', style: 5 },
+            { value: 'Боксеры BORNERS Signature Modal', style: 5 },
+            { value: 1990, style: 9, type: 'number' },
+          ],
+        },
+      ],
+    },
+  ]);
+
+  // Проверка сигнатуры ZIP-архива OpenXML (PK\x03\x04)
+  assert.equal(xlsxBytes[0], 0x50);
+  assert.equal(xlsxBytes[1], 0x4b);
+  assert.equal(xlsxBytes[2], 0x03);
+  assert.equal(xlsxBytes[3], 0x04);
+  assert.equal(xlsxBytes.byteLength > 1500, true);
+
+  // Проверка генерации многостраничного PDF-1.4 контейнера
+  const fakeJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0xff, 0xd9]);
+  const pdfBytes = buildPdfFromJpegPages([{ jpegBytes: fakeJpeg, widthPx: 1654, heightPx: 2339 }]);
+  const pdfHeader = new TextDecoder().decode(pdfBytes.slice(0, 8));
+  const pdfTail = new TextDecoder().decode(pdfBytes.slice(pdfBytes.length - 16));
+  assert.equal(pdfHeader.startsWith('%PDF-1.4'), true);
+  assert.equal(pdfTail.includes('%%EOF'), true);
+});
+
