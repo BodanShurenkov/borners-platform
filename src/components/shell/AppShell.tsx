@@ -609,8 +609,12 @@ export function AppShell() {
                   sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
                 }`}
               >
-                <span className="h-9 w-9 rounded-[11px] bg-[#EAD3B3] text-[#243547] shadow-[0_3px_10px_rgba(0,0,0,0.16)] flex items-center justify-center font-bold text-[15px] tracking-tight shrink-0">
-                  B
+                <span className="h-10 w-10 rounded-[12px] bg-[#F5E6CE] shadow-[0_3px_10px_rgba(0,0,0,0.18)] flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                  <img
+                    src="./images/products/borners-lion-emblem.png"
+                    alt="BORNERS Lion Logo"
+                    className="h-full w-full object-contain"
+                  />
                 </span>
                 <span className="flex flex-col">
                   <span className="text-[18px] font-bold tracking-[-0.02em] text-white leading-none">
@@ -1184,6 +1188,26 @@ export function AppShell() {
                           {trashItems.length}
                         </span>
                       </button>
+
+                      {/* Скачать оригинальный PNG логотип BORNERS со львом */}
+                      <a
+                        href="./images/products/borners-logo-full.png"
+                        download="BORNERS-lion-logo.png"
+                        onClick={() => setToolsMenuOpen(false)}
+                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer border-t border-[#EFECE4] mt-1 pt-2.5"
+                      >
+                        <span className="inline-flex items-center gap-2.5 font-medium">
+                          <img
+                            src="./images/products/borners-lion-emblem.png"
+                            alt=""
+                            className="h-4 w-4 object-contain"
+                          />
+                          <span>Скачать лого BORNERS (PNG)</span>
+                        </span>
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#F2EFE9] text-[#5C5852]">
+                          PNG
+                        </span>
+                      </a>
                     </div>
                   </>
                 )}
