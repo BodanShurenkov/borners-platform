@@ -528,6 +528,13 @@ export interface EditorialPdfSection {
   title: string;
   subtitle?: string;
   rows?: { label: string; value: string; highlight?: boolean }[];
+  bilingualSpecs?: {
+    labelZh: string;
+    labelRu: string;
+    zhLarge: string;
+    ruSmall: string;
+    highlight?: boolean;
+  }[];
   table?: {
     headers: string[];
     rows: string[][];
@@ -545,8 +552,69 @@ export interface EditorialPdfDocumentSpec {
   title: string;
   subtitle: string;
   metaGrid: { label: string; value: string }[];
+  frontPhotoUrl?: string;
+  backPhotoUrl?: string;
+  frontPhotoCaption?: string;
+  backPhotoCaption?: string;
   sections: EditorialPdfSection[];
   footerRight: string;
+}
+
+export async function compressImageFileToDataUrl(
+  file: File,
+  maxDim = 680,
+  quality = 0.78
+): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rawUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!rawUrl || typeof document === 'undefined') {
+        resolve(rawUrl);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(rawUrl);
+          return;
+        }
+        ctx.fillStyle = '#FAF8F5';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(rawUrl);
+      img.src = rawUrl;
+    };
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageForPdf(url?: string): Promise<HTMLImageElement | null> {
+  if (!url || typeof Image === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const timer = window.setTimeout(() => resolve(null), 2500);
+    img.onload = () => {
+      window.clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      window.clearTimeout(timer);
+      resolve(null);
+    };
+    img.src = url;
+  });
 }
 
 function wrapCanvasText(
@@ -574,319 +642,446 @@ function wrapCanvasText(
 export function downloadEditorialPdfDocument(spec: EditorialPdfDocumentSpec): void {
   if (typeof document === 'undefined') return;
 
-  const W = 1654; // A4 @ 200 DPI
-  const H = 2339;
-  const PAD = 104;
-  const CONTENT_W = W - PAD * 2;
+  const runRender = (frontImg: HTMLImageElement | null, backImg: HTMLImageElement | null) => {
+    const W = 1654; // A4 @ 200 DPI
+    const H = 2339;
+    const PAD = 104;
+    const CONTENT_W = W - PAD * 2;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-  const sansFont =
-    '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "PingFang SC", "Heiti SC", sans-serif';
-  const serifFont = 'Georgia, "Cormorant Garamond", "Times New Roman", serif';
-  const monoFont = 'ui-monospace, "SF Mono", Menlo, monospace';
+    const sansFont =
+      '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "PingFang SC", "Heiti SC", sans-serif';
+    const serifFont = 'Georgia, "Cormorant Garamond", "Times New Roman", serif';
+    const monoFont = 'ui-monospace, "SF Mono", Menlo, monospace';
 
-  // Background: warm paper #FAF8F5
-  ctx.fillStyle = '#FAF8F5';
-  ctx.fillRect(0, 0, W, H);
+    // Background: warm paper #FAF8F5
+    ctx.fillStyle = '#FAF8F5';
+    ctx.fillRect(0, 0, W, H);
 
-  // Top dark editorial accent bar
-  ctx.fillStyle = '#181715';
-  ctx.fillRect(0, 0, W, 14);
+    // Top dark editorial accent bar
+    ctx.fillStyle = '#181715';
+    ctx.fillRect(0, 0, W, 14);
 
-  // Outer architectural frame
-  ctx.strokeStyle = '#E5E0D8';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(56, 56, W - 112, H - 112);
+    // Outer architectural frame
+    ctx.strokeStyle = '#CFC8BC';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(56, 56, W - 112, H - 112);
 
-  let y = 112;
+    let y = 108;
 
-  // Header row: Brand & Doc Code
-  ctx.fillStyle = '#8C867E';
-  ctx.font = `600 18px ${monoFont}`;
-  ctx.fillText(
-    `BORNERS GROUP  ·  ${spec.categoryLabel.toUpperCase()}  ·  ${spec.docCode}`,
-    PAD,
-    y
-  );
-
-  // Right pill: Brand
-  const brandPillText = `БРЕНД: ${spec.brandLabel}`;
-  ctx.font = `600 17px ${sansFont}`;
-  const pillW = ctx.measureText(brandPillText).width + 36;
-  ctx.fillStyle = spec.brandLabel.includes('НА ТЕЛЕ') ? '#8C7A6B' : '#181715';
-  ctx.beginPath();
-  ctx.roundRect(W - PAD - pillW, y - 24, pillW, 34, 6);
-  ctx.fill();
-  ctx.fillStyle = '#FAF8F5';
-  ctx.fillText(brandPillText, W - PAD - pillW + 18, y - 1);
-
-  y += 54;
-
-  // Main Document Title
-  ctx.fillStyle = '#181715';
-  ctx.font = `600 44px ${serifFont}`;
-  const titleLines = wrapCanvasText(ctx, spec.title, CONTENT_W);
-  for (const line of titleLines.slice(0, 2)) {
-    ctx.fillText(line, PAD, y);
-    y += 52;
-  }
-
-  // Subtitle
-  ctx.fillStyle = '#6E6A63';
-  ctx.font = `400 21px ${sansFont}`;
-  const subLines = wrapCanvasText(ctx, spec.subtitle, CONTENT_W);
-  for (const line of subLines.slice(0, 2)) {
-    ctx.fillText(line, PAD, y);
-    y += 30;
-  }
-
-  y += 14;
-
-  // 4-Column Architectural Meta Ledger
-  const metaH = 92;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.strokeStyle = '#EAE6DF';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(PAD, y, CONTENT_W, metaH, 10);
-  ctx.fill();
-  ctx.stroke();
-
-  const metaCols = spec.metaGrid.slice(0, 4);
-  const colW = CONTENT_W / (metaCols.length || 1);
-  metaCols.forEach((m, idx) => {
-    const cx = PAD + idx * colW;
-    if (idx > 0) {
-      ctx.beginPath();
-      ctx.moveTo(cx, y + 14);
-      ctx.lineTo(cx, y + metaH - 14);
-      ctx.strokeStyle = '#EAE6DF';
-      ctx.stroke();
-    }
+    // Header row: Brand & Doc Code
     ctx.fillStyle = '#8C867E';
-    ctx.font = `500 15px ${sansFont}`;
-    ctx.fillText(m.label, cx + 22, y + 34);
+    ctx.font = `600 18px ${monoFont}`;
+    ctx.fillText(
+      `BORNERS GROUP  ·  ${spec.categoryLabel.toUpperCase()}  ·  ${spec.docCode}`,
+      PAD,
+      y
+    );
 
-    ctx.fillStyle = '#181715';
-    ctx.font = `600 20px ${sansFont}`;
-    const valLines = wrapCanvasText(ctx, m.value, colW - 36);
-    ctx.fillText(valLines[0] || '—', cx + 22, y + 66);
-  });
-
-  y += metaH + 34;
-
-  // Sections
-  for (const sec of spec.sections) {
-    if (y > H - 220) break;
-
-    // Section card calculation & header
-    ctx.fillStyle = '#EFECE6';
+    // Right pill: Brand
+    const brandPillText = `БРЕНД: ${spec.brandLabel}`;
+    ctx.font = `600 17px ${sansFont}`;
+    const pillW = ctx.measureText(brandPillText).width + 36;
+    ctx.fillStyle = spec.brandLabel.includes('НА ТЕЛЕ') ? '#8C7A6B' : '#181715';
     ctx.beginPath();
-    ctx.roundRect(PAD, y, CONTENT_W, 44, 8);
+    ctx.roundRect(W - PAD - pillW, y - 24, pillW, 34, 6);
     ctx.fill();
+    ctx.fillStyle = '#FAF8F5';
+    ctx.fillText(brandPillText, W - PAD - pillW + 18, y - 1);
 
-    let secTitleX = PAD + 18;
-    if (sec.badge) {
-      ctx.fillStyle = '#B85D35';
-      ctx.font = `700 15px ${monoFont}`;
-      ctx.fillText(sec.badge, secTitleX, y + 28);
-      secTitleX += ctx.measureText(sec.badge).width + 16;
-    }
+    y += 50;
 
+    // Main Document Title
     ctx.fillStyle = '#181715';
-    ctx.font = `600 20px ${sansFont}`;
-    ctx.fillText(sec.title, secTitleX, y + 28);
-
-    if (sec.subtitle) {
-      ctx.fillStyle = '#7A756D';
-      ctx.font = `400 16px ${sansFont}`;
-      const sw = ctx.measureText(sec.subtitle).width;
-      ctx.fillText(sec.subtitle, W - PAD - sw - 18, y + 28);
+    ctx.font = `600 42px ${serifFont}`;
+    const titleLines = wrapCanvasText(ctx, spec.title, CONTENT_W);
+    for (const line of titleLines.slice(0, 2)) {
+      ctx.fillText(line, PAD, y);
+      y += 48;
     }
 
-    y += 56;
-
-    // Key-Value rows (2-column grid)
-    if (sec.rows && sec.rows.length > 0) {
-      const colWidth = (CONTENT_W - 24) / 2;
-      for (let i = 0; i < sec.rows.length; i += 2) {
-        if (y > H - 180) break;
-        const pair = [sec.rows[i], sec.rows[i + 1]].filter(Boolean);
-        let maxRowH = 66;
-
-        pair.forEach((item, pIdx) => {
-          const rx = PAD + pIdx * (colWidth + 24);
-          ctx.fillStyle = item.highlight ? '#FBF3EE' : '#FFFFFF';
-          ctx.strokeStyle = item.highlight ? '#E8C9B5' : '#EAE6DF';
-          ctx.lineWidth = 1.5;
-
-          ctx.font = `500 18px ${sansFont}`;
-          const vLines = wrapCanvasText(ctx, item.value, colWidth - 32).slice(0, 2);
-          const boxH = vLines.length > 1 ? 86 : 66;
-          if (boxH > maxRowH) maxRowH = boxH;
-
-          ctx.beginPath();
-          ctx.roundRect(rx, y, colWidth, boxH, 8);
-          ctx.fill();
-          ctx.stroke();
-
-          ctx.fillStyle = '#8C867E';
-          ctx.font = `500 14px ${sansFont}`;
-          ctx.fillText(item.label, rx + 16, y + 23);
-
-          ctx.fillStyle = item.highlight ? '#B85D35' : '#181715';
-          ctx.font = `600 17.5px ${sansFont}`;
-          vLines.forEach((vl, vlIdx) => {
-            ctx.fillText(vl, rx + 16, y + 48 + vlIdx * 22);
-          });
-        });
-
-        y += maxRowH + 12;
-      }
-      y += 10;
+    // Subtitle
+    ctx.fillStyle = '#6E6A63';
+    ctx.font = `400 20px ${sansFont}`;
+    const subLines = wrapCanvasText(ctx, spec.subtitle, CONTENT_W);
+    for (const line of subLines.slice(0, 2)) {
+      ctx.fillText(line, PAD, y);
+      y += 28;
     }
 
-    // Swatches (for Pantone / Design specs)
-    if (sec.swatches && sec.swatches.length > 0) {
-      const swW = (CONTENT_W - (sec.swatches.length - 1) * 16) / sec.swatches.length;
-      const swH = 128;
-      sec.swatches.forEach((sw, idx) => {
-        const sx = PAD + idx * (swW + 16);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.strokeStyle = '#EAE6DF';
-        ctx.lineWidth = 1.5;
+    y += 12;
+
+    // 4-Column Architectural Meta Ledger
+    const metaH = 88;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#D4CDC2';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(PAD, y, CONTENT_W, metaH, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    const metaCols = spec.metaGrid.slice(0, 4);
+    const colW = CONTENT_W / (metaCols.length || 1);
+    metaCols.forEach((m, idx) => {
+      const cx = PAD + idx * colW;
+      if (idx > 0) {
         ctx.beginPath();
-        ctx.roundRect(sx, y, swW, swH, 8);
+        ctx.moveTo(cx, y + 14);
+        ctx.lineTo(cx, y + metaH - 14);
+        ctx.strokeStyle = '#D4CDC2';
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#8C867E';
+      ctx.font = `500 14.5px ${sansFont}`;
+      ctx.fillText(m.label, cx + 20, y + 32);
+
+      ctx.fillStyle = '#181715';
+      ctx.font = `600 19px ${sansFont}`;
+      const valLines = wrapCanvasText(ctx, m.value, colW - 32);
+      ctx.fillText(valLines[0] || '—', cx + 20, y + 63);
+    });
+
+    y += metaH + 24;
+
+    // Optional Product Photos Row (Лицевая фотография + Вид сзади / Детали)
+    if (frontImg || backImg) {
+      const photoBoxH = 290;
+      const boxW = (CONTENT_W - 24) / 2;
+      const cards = [
+        {
+          img: frontImg,
+          labelZh: '01 · 正面实物图 (FRONT VIEW)',
+          labelRu: spec.frontPhotoCaption || 'Лицевая фотография товара (Вид спереди)',
+        },
+        {
+          img: backImg || frontImg,
+          labelZh: '02 · 背面及工艺细节 (BACK / DETAILS)',
+          labelRu: spec.backPhotoCaption || 'Вид сзади, посадка пояса и детали швов',
+        },
+      ];
+
+      cards.forEach((c, idx) => {
+        const bx = PAD + idx * (boxW + 24);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.strokeStyle = '#CFC8BC';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(bx, y, boxW, photoBoxH, 10);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = sw.hex;
+        // Photo frame inside left side of box
+        const imgAreaW = 240;
+        const imgAreaH = photoBoxH - 28;
+        ctx.fillStyle = '#F3EFE8';
         ctx.beginPath();
-        ctx.roundRect(sx + 10, y + 10, swW - 20, 52, 5);
+        ctx.roundRect(bx + 14, y + 14, imgAreaW, imgAreaH, 8);
         ctx.fill();
 
+        if (c.img) {
+          const iw = c.img.width || 1;
+          const ih = c.img.height || 1;
+          const scale = Math.min((imgAreaW - 12) / iw, (imgAreaH - 12) / ih);
+          const dw = iw * scale;
+          const dh = ih * scale;
+          const dx = bx + 14 + (imgAreaW - dw) / 2;
+          const dy = y + 14 + (imgAreaH - dh) / 2;
+          ctx.drawImage(c.img, dx, dy, dw, dh);
+        }
+
+        // Caption right of photo
+        const tx = bx + imgAreaW + 34;
+        const tw = boxW - imgAreaW - 50;
+        ctx.fillStyle = '#B85D35';
+        ctx.font = `700 15px ${monoFont}`;
+        ctx.fillText(c.labelZh, tx, y + 56);
+
         ctx.fillStyle = '#181715';
-        ctx.font = `600 15px ${sansFont}`;
-        ctx.fillText(sw.name, sx + 12, y + 84);
+        ctx.font = `700 22px ${sansFont}`;
+        ctx.fillText(idx === 0 ? '请按正面图打样生产' : '腰头及四针六线平缝细节', tx, y + 96);
 
-        ctx.fillStyle = '#7A756D';
-        ctx.font = `500 13px ${monoFont}`;
-        ctx.fillText(sw.code, sx + 12, y + 104);
+        ctx.fillStyle = '#5C5852';
+        ctx.font = `500 15.5px ${sansFont}`;
+        const capLines = wrapCanvasText(ctx, c.labelRu, tw);
+        capLines.slice(0, 3).forEach((cl, lIdx) => {
+          ctx.fillText(cl, tx, y + 134 + lIdx * 24);
+        });
 
-        ctx.fillStyle = '#8C867E';
-        ctx.font = `400 12px ${sansFont}`;
-        ctx.fillText(sw.note, sx + 12, y + 120);
+        ctx.fillStyle = '#1F6E50';
+        ctx.font = `600 14px ${sansFont}`;
+        ctx.fillText('✓ Утверждено в заказ · 已确认', tx, y + photoBoxH - 28);
       });
-      y += swH + 22;
+
+      y += photoBoxH + 26;
     }
 
-    // Table
-    if (sec.table) {
-      const colsCount = sec.table.headers.length;
-      const cellW = CONTENT_W / colsCount;
-      const headerH = 40;
+    // Sections
+    for (const sec of spec.sections) {
+      if (y > H - 200) break;
 
-      // Table Header
-      ctx.fillStyle = '#181715';
+      // Section card calculation & header
+      ctx.fillStyle = '#EFECE6';
       ctx.beginPath();
-      ctx.roundRect(PAD, y, CONTENT_W, headerH, 6);
+      ctx.roundRect(PAD, y, CONTENT_W, 42, 8);
       ctx.fill();
 
-      ctx.fillStyle = '#FAF8F5';
-      ctx.font = `600 15px ${sansFont}`;
-      sec.table.headers.forEach((h, cIdx) => {
-        ctx.fillText(h, PAD + cIdx * cellW + 16, y + 26);
-      });
-      y += headerH;
-
-      // Table Rows
-      sec.table.rows.forEach((r, rIdx) => {
-        if (y > H - 175) return;
-        const rowH = 38;
-        ctx.fillStyle = rIdx % 2 === 0 ? '#FFFFFF' : '#F4F1EA';
-        ctx.fillRect(PAD, y, CONTENT_W, rowH);
-        ctx.strokeStyle = '#EAE6DF';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(PAD, y, CONTENT_W, rowH);
-
-        r.forEach((val, cIdx) => {
-          ctx.fillStyle = cIdx === 0 ? '#181715' : '#4A4742';
-          ctx.font = cIdx === 0 ? `600 16px ${sansFont}` : `500 16px ${sansFont}`;
-          const lines = wrapCanvasText(ctx, val, cellW - 24);
-          ctx.fillText(lines[0] || '', PAD + cIdx * cellW + 16, y + 25);
-        });
-        y += rowH;
-      });
-
-      if (sec.table.footer) {
-        const footH = 42;
-        ctx.fillStyle = '#FBF3EE';
-        ctx.fillRect(PAD, y, CONTENT_W, footH);
-        ctx.strokeStyle = '#B85D35';
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(PAD, y, CONTENT_W, footH);
-
-        sec.table.footer.forEach((val, cIdx) => {
-          ctx.fillStyle = cIdx === sec.table!.footer!.length - 1 ? '#B85D35' : '#181715';
-          ctx.font = `700 16.5px ${sansFont}`;
-          ctx.fillText(val, PAD + cIdx * cellW + 16, y + 27);
-        });
-        y += footH;
+      let secTitleX = PAD + 18;
+      if (sec.badge) {
+        ctx.fillStyle = '#B85D35';
+        ctx.font = `700 15px ${monoFont}`;
+        ctx.fillText(sec.badge, secTitleX, y + 27);
+        secTitleX += ctx.measureText(sec.badge).width + 16;
       }
 
-      y += 22;
+      ctx.fillStyle = '#181715';
+      ctx.font = `600 19.5px ${sansFont}`;
+      ctx.fillText(sec.title, secTitleX, y + 27);
+
+      if (sec.subtitle) {
+        ctx.fillStyle = '#7A756D';
+        ctx.font = `400 15.5px ${sansFont}`;
+        const sw = ctx.measureText(sec.subtitle).width;
+        ctx.fillText(sec.subtitle, W - PAD - sw - 18, y + 27);
+      }
+
+      y += 52;
+
+      // Bilingual Chinese-First Rows (Крупный китайский 中文 + подстрочный русский)
+      if (sec.bilingualSpecs && sec.bilingualSpecs.length > 0) {
+        const colWidth = (CONTENT_W - 24) / 2;
+        for (let i = 0; i < sec.bilingualSpecs.length; i += 2) {
+          if (y > H - 175) break;
+          const pair = [sec.bilingualSpecs[i], sec.bilingualSpecs[i + 1]].filter(Boolean);
+          const boxH = 104;
+
+          pair.forEach((item, pIdx) => {
+            const rx = PAD + pIdx * (colWidth + 24);
+            ctx.fillStyle = item.highlight ? '#FBF3EE' : '#FFFFFF';
+            ctx.strokeStyle = item.highlight ? '#B85D35' : '#D4CDC2';
+            ctx.lineWidth = 1.75;
+
+            ctx.beginPath();
+            ctx.roundRect(rx, y, colWidth, boxH, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            // Header label: Chinese + Russian small tag
+            ctx.fillStyle = '#8C867E';
+            ctx.font = `600 13.5px ${sansFont}`;
+            ctx.fillText(`${item.labelZh}  ·  ${item.labelRu}`, rx + 16, y + 24);
+
+            // LARGE BOLD CHINESE (25px bold)
+            ctx.fillStyle = item.highlight ? '#B85D35' : '#181715';
+            ctx.font = `700 24.5px ${sansFont}`;
+            const zhLines = wrapCanvasText(ctx, item.zhLarge, colWidth - 32);
+            ctx.fillText(zhLines[0] || '—', rx + 16, y + 58);
+
+            // SMALLER RUSSIAN SUBTITLE (14.5px)
+            ctx.fillStyle = '#5C5852';
+            ctx.font = `500 14.5px ${sansFont}`;
+            const ruLines = wrapCanvasText(ctx, item.ruSmall, colWidth - 32);
+            ctx.fillText(ruLines[0] || '—', rx + 16, y + 86);
+          });
+
+          y += boxH + 12;
+        }
+        y += 8;
+      }
+
+      // Key-Value rows (2-column grid)
+      if (sec.rows && sec.rows.length > 0) {
+        const colWidth = (CONTENT_W - 24) / 2;
+        for (let i = 0; i < sec.rows.length; i += 2) {
+          if (y > H - 180) break;
+          const pair = [sec.rows[i], sec.rows[i + 1]].filter(Boolean);
+          let maxRowH = 66;
+
+          pair.forEach((item, pIdx) => {
+            const rx = PAD + pIdx * (colWidth + 24);
+            ctx.fillStyle = item.highlight ? '#FBF3EE' : '#FFFFFF';
+            ctx.strokeStyle = item.highlight ? '#E8C9B5' : '#EAE6DF';
+            ctx.lineWidth = 1.5;
+
+            ctx.font = `500 18px ${sansFont}`;
+            const vLines = wrapCanvasText(ctx, item.value, colWidth - 32).slice(0, 2);
+            const boxH = vLines.length > 1 ? 86 : 66;
+            if (boxH > maxRowH) maxRowH = boxH;
+
+            ctx.beginPath();
+            ctx.roundRect(rx, y, colWidth, boxH, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#8C867E';
+            ctx.font = `500 14px ${sansFont}`;
+            ctx.fillText(item.label, rx + 16, y + 23);
+
+            ctx.fillStyle = item.highlight ? '#B85D35' : '#181715';
+            ctx.font = `600 17.5px ${sansFont}`;
+            vLines.forEach((vl, vlIdx) => {
+              ctx.fillText(vl, rx + 16, y + 48 + vlIdx * 22);
+            });
+          });
+
+          y += maxRowH + 12;
+        }
+        y += 10;
+      }
+
+      // Swatches (for Pantone / Design specs)
+      if (sec.swatches && sec.swatches.length > 0) {
+        const swW = (CONTENT_W - (sec.swatches.length - 1) * 16) / sec.swatches.length;
+        const swH = 128;
+        sec.swatches.forEach((sw, idx) => {
+          const sx = PAD + idx * (swW + 16);
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = '#EAE6DF';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(sx, y, swW, swH, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = sw.hex;
+          ctx.beginPath();
+          ctx.roundRect(sx + 10, y + 10, swW - 20, 52, 5);
+          ctx.fill();
+
+          ctx.fillStyle = '#181715';
+          ctx.font = `600 15px ${sansFont}`;
+          ctx.fillText(sw.name, sx + 12, y + 84);
+
+          ctx.fillStyle = '#7A756D';
+          ctx.font = `500 13px ${monoFont}`;
+          ctx.fillText(sw.code, sx + 12, y + 104);
+
+          ctx.fillStyle = '#8C867E';
+          ctx.font = `400 12px ${sansFont}`;
+          ctx.fillText(sw.note, sx + 12, y + 120);
+        });
+        y += swH + 22;
+      }
+
+      // Table
+      if (sec.table) {
+        const colsCount = sec.table.headers.length;
+        const cellW = CONTENT_W / colsCount;
+        const headerH = 40;
+
+        // Table Header
+        ctx.fillStyle = '#181715';
+        ctx.beginPath();
+        ctx.roundRect(PAD, y, CONTENT_W, headerH, 6);
+        ctx.fill();
+
+        ctx.fillStyle = '#FAF8F5';
+        ctx.font = `600 15px ${sansFont}`;
+        sec.table.headers.forEach((h, cIdx) => {
+          ctx.fillText(h, PAD + cIdx * cellW + 16, y + 26);
+        });
+        y += headerH;
+
+        // Table Rows
+        sec.table.rows.forEach((r, rIdx) => {
+          if (y > H - 165) return;
+          const rowH = 36;
+          ctx.fillStyle = rIdx % 2 === 0 ? '#FFFFFF' : '#F4F1EA';
+          ctx.fillRect(PAD, y, CONTENT_W, rowH);
+          ctx.strokeStyle = '#EAE6DF';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(PAD, y, CONTENT_W, rowH);
+
+          r.forEach((val, cIdx) => {
+            ctx.fillStyle = cIdx === 0 ? '#181715' : '#4A4742';
+            ctx.font = cIdx === 0 ? `600 15.5px ${sansFont}` : `500 15.5px ${sansFont}`;
+            const lines = wrapCanvasText(ctx, val, cellW - 24);
+            ctx.fillText(lines[0] || '', PAD + cIdx * cellW + 16, y + 24);
+          });
+          y += rowH;
+        });
+
+        if (sec.table.footer) {
+          const footH = 40;
+          ctx.fillStyle = '#FBF3EE';
+          ctx.fillRect(PAD, y, CONTENT_W, footH);
+          ctx.strokeStyle = '#B85D35';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(PAD, y, CONTENT_W, footH);
+
+          sec.table.footer.forEach((val, cIdx) => {
+            ctx.fillStyle = cIdx === sec.table!.footer!.length - 1 ? '#B85D35' : '#181715';
+            ctx.font = `700 16px ${sansFont}`;
+            ctx.fillText(val, PAD + cIdx * cellW + 16, y + 26);
+          });
+          y += footH;
+        }
+
+        y += 20;
+      }
+
+      if (sec.note && y < H - 155) {
+        ctx.fillStyle = '#6E6A63';
+        ctx.font = `400 15.5px ${sansFont}`;
+        const nLines = wrapCanvasText(ctx, sec.note, CONTENT_W);
+        nLines.slice(0, 2).forEach((nl) => {
+          ctx.fillText(nl, PAD, y + 18);
+          y += 23;
+        });
+        y += 8;
+      }
     }
 
-    if (sec.note && y < H - 160) {
-      ctx.fillStyle = '#6E6A63';
-      ctx.font = `400 16px ${sansFont}`;
-      const nLines = wrapCanvasText(ctx, sec.note, CONTENT_W);
-      nLines.slice(0, 2).forEach((nl) => {
-        ctx.fillText(nl, PAD, y + 18);
-        y += 24;
-      });
-      y += 10;
-    }
+    // Footer
+    const footerY = H - 94;
+    ctx.strokeStyle = '#DCD6CC';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(PAD, footerY - 24);
+    ctx.lineTo(W - PAD, footerY - 24);
+    ctx.stroke();
+
+    ctx.fillStyle = '#8C867E';
+    ctx.font = `500 15.5px ${sansFont}`;
+    ctx.fillText(
+      'BORNERS GROUP (borners-group.ru)  ·  Официальный документ рабочей платформы (2026–2027)',
+      PAD,
+      footerY + 6
+    );
+
+    ctx.fillStyle = '#181715';
+    ctx.font = `600 15.5px ${monoFont}`;
+    const rightW = ctx.measureText(spec.footerRight).width;
+    ctx.fillText(spec.footerRight, W - PAD - rightW, footerY + 6);
+
+    const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    const jpegBytes = dataUrlToUint8Array(jpegDataUrl);
+    const pdfBytes = buildPdfFromJpegPages([{ jpegBytes, widthPx: W, heightPx: H }]);
+
+    const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = spec.fileName.endsWith('.pdf') ? spec.fileName : `${spec.fileName}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (spec.frontPhotoUrl || spec.backPhotoUrl) {
+    Promise.all([
+      loadImageForPdf(spec.frontPhotoUrl),
+      loadImageForPdf(spec.backPhotoUrl || spec.frontPhotoUrl),
+    ]).then(([fImg, bImg]) => {
+      runRender(fImg, bImg);
+    });
+  } else {
+    runRender(null, null);
   }
-
-  // Footer
-  const footerY = H - 96;
-  ctx.strokeStyle = '#DCD6CC';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(PAD, footerY - 24);
-  ctx.lineTo(W - PAD, footerY - 24);
-  ctx.stroke();
-
-  ctx.fillStyle = '#8C867E';
-  ctx.font = `500 16px ${sansFont}`;
-  ctx.fillText(
-    'BORNERS GROUP  ·  Официальный документ рабочей платформы (2026–2027)',
-    PAD,
-    footerY + 6
-  );
-
-  ctx.fillStyle = '#181715';
-  ctx.font = `600 16px ${monoFont}`;
-  const rightW = ctx.measureText(spec.footerRight).width;
-  ctx.fillText(spec.footerRight, W - PAD - rightW, footerY + 6);
-
-  const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.94);
-  const jpegBytes = dataUrlToUint8Array(jpegDataUrl);
-  const pdfBytes = buildPdfFromJpegPages([{ jpegBytes, widthPx: W, heightPx: H }]);
-
-  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = spec.fileName.endsWith('.pdf') ? spec.fileName : `${spec.fileName}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function downloadXlsxWorkbook(fileName: string, sheets: XlsxSheetSpec[]): void {
@@ -1573,64 +1768,78 @@ export function exportConceptProductionPdf(
   });
 
   const totalSum = totalPcs * (orderInfo.unitPrice || 0);
+  const frontPhoto = concept.imageUrl;
+  const backPhoto =
+    concept.galleryPhotos?.[1]?.url ||
+    concept.samples?.[0]?.photos?.[0] ||
+    concept.imageUrl;
 
   downloadEditorialPdfDocument({
     fileName: `ТЗ_Заказ_Фабрика_${concept.code}_v${orderInfo.orderVersion}.pdf`,
     docCode: `${concept.code} · v${orderInfo.orderVersion}`,
-    categoryLabel: 'PRODUCTION ORDER (RU / EN / ZH)',
+    categoryLabel: 'PRODUCTION ORDER (中文 / RU / EN)',
     brandLabel,
-    title: `Заказ на производство: ${concept.name}`,
-    subtitle: `Единая трёхъязычная спецификация заказа для фабрики (${orderInfo.factoryName}) · Образец: ${orderInfo.approvedSampleVersion}`,
+    title: `Заказ на производство: ${concept.name} (${concept.code})`,
+    subtitle: `Двуязычная фабричная спецификация (Крупный китайский 中文 + подстрочный русский) · Фабрика: ${orderInfo.factoryName}`,
     metaGrid: [
-      { label: 'Код модели', value: concept.code },
-      { label: 'Фабрика', value: orderInfo.factoryName },
-      { label: 'Дата готовности', value: orderInfo.plannedReadyDate },
-      { label: 'Условия оплаты', value: orderInfo.paymentTerms },
+      { label: 'Код модели / 款号', value: concept.code },
+      { label: 'Фабрика / 生产工厂', value: orderInfo.factoryName },
+      { label: 'Готовность / 交货日期', value: orderInfo.plannedReadyDate },
+      { label: 'Оплата и валюта / 结算', value: `${orderInfo.currency} · ${orderInfo.paymentTerms}` },
     ],
+    frontPhotoUrl: frontPhoto,
+    backPhotoUrl: backPhoto,
+    frontPhotoCaption: `${concept.name} (${concept.code}) — лицевая фотография товара`,
+    backPhotoCaption: `Вид сзади, резинка пояса и плоские швы (${orderInfo.approvedSampleVersion})`,
     sections: [
       {
-        badge: 'RU / EN / ZH',
-        title: 'Трёхъязычная спецификация изделия и комплектации',
-        rows: [
+        badge: '中文 + РУС · FACTORY SPEC',
+        title: 'Спецификация для фабрики КНР (Крупный китайский 中文 + перевод на русский)',
+        subtitle: 'Раздел 01',
+        bilingualSpecs: [
           {
-            label: 'RU · Модель и состав ткани',
-            value: `${concept.name} · ${orderInfo.materialAndColors}`,
+            labelZh: '款式名称与版型',
+            labelRu: 'Модель и конструкция',
+            zhLarge: concept.techPack?.zh?.construction || '男士3D立体囊袋平角内裤 · 四针六线无骨缝制',
+            ruSmall: `${concept.name} · ${concept.techPack?.ru?.construction || 'Анатомический 3D-крой, плоские швы 4 иглы 6 нитей'}`,
             highlight: true,
           },
           {
-            label: 'RU · Состав набора по цветам',
-            value: `${orderInfo.unitsPerPack} шт. в наборе: ${orderInfo.packColorComposition}`,
-          },
-          {
-            label: 'EN · Style & Fabric Specification',
-            value: `${concept.techPack?.en?.modelName || concept.name} · ${
-              concept.techPack?.en?.compositionAndDensity || '95% Cotton + 5% Elastane (180 GSM)'
-            }`,
-          },
-          {
-            label: 'ZH · 款式与面料工艺 (Для фабрики КНР)',
-            value: `${concept.techPack?.zh?.modelName || concept.code} · ${
-              concept.techPack?.zh?.compositionAndDensity || '95% 棉 + 5% 氨纶 (180克重)，AQL 1.5'
-            }`,
+            labelZh: '面料成分与克重',
+            labelRu: 'Состав ткани и плотность',
+            zhLarge: concept.techPack?.zh?.compositionAndDensity || '95% 精梳棉 + 5% 氨纶 · 克重 180g/m²',
+            ruSmall: orderInfo.materialAndColors || concept.techPack?.ru?.compositionAndDensity || '95% хлопок + 5% эластан · 180 г/м²',
             highlight: true,
+          },
+          {
+            labelZh: '礼盒颜色配比',
+            labelRu: 'Комплектация набора по цветам',
+            zhLarge: `每盒 ${orderInfo.unitsPerPack} 条装 · 颜色按确认色卡配比`,
+            ruSmall: `${orderInfo.unitsPerPack} шт. в наборе: ${orderInfo.packColorComposition}`,
+          },
+          {
+            labelZh: '品控标准与水洗缩率',
+            labelRu: 'Контроль качества и стирка',
+            zhLarge: '执行 AQL 1.5 标准 · 40°C 水洗缩水率 ≤ 2.5%',
+            ruSmall: 'Приёмка AQL 1.5 · Усадка после стирки 40°C не более 2,5% · Маркировка Честный ЗНАК',
           },
         ],
       },
       {
         badge: 'ORDER MATRIX S–4XL',
-        title: 'Размерная сетка заказа (S – 4XL) — единая таблица для RU / EN / ZH',
-        subtitle: `В 1 наборе: ${orderInfo.unitsPerPack} шт.`,
+        title: 'Размерная сетка заказа (S – 4XL) — 尺码与数量明细表',
+        subtitle: `В 1 наборе: ${orderInfo.unitsPerPack} шт. · Валюта: ${orderInfo.currency}`,
         table: {
           headers: [
-            'Размер (Size / 尺码)',
-            'Наборов (Packs / 盒)',
-            'Штук (Pcs / 件)',
-            'Цена за 1 шт.',
-            'Сумма по размеру',
+            'Размер (尺码 / Size)',
+            'Наборов (盒数 / Packs)',
+            'Штук (件数 / Pcs)',
+            `Цена 1 шт. (${orderInfo.currency})`,
+            `Сумма (${orderInfo.currency})`,
           ],
           rows: sizeRows,
           footer: [
-            'ИТОГО (TOTAL / 合计)',
+            'ИТОГО (合计 / TOTAL)',
             `${totalPacks.toLocaleString('ru-RU')} наборов`,
             `${totalPcs.toLocaleString('ru-RU')} штук`,
             `${orderInfo.unitPrice} ${orderInfo.currency}`,

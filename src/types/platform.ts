@@ -348,6 +348,7 @@ export interface StrategyBlock {
   draftContent?: string;
   kpiHighlights: { label: string; value: string }[];
   status: ApprovalStatus;
+  deadline?: string;
   version: number;
   authorName: string;
   updatedAt: string;
@@ -812,5 +813,26 @@ export interface AuditLogEntry {
   entityId: string;
   action: string;
   summary: string;
+  createdAt: string;
+}
+
+export type MiroItemType = 'sticky' | 'photo' | 'voice' | 'concept_link';
+
+export interface MiroBoardItem {
+  id: string;
+  type: MiroItemType;
+  title: string;
+  content: string;
+  brandId: string | 'ALL';
+  color: string;
+  x: number;
+  y: number;
+  width: number;
+  imageUrl?: string;
+  galleryUrls?: string[];
+  audioDataUrl?: string;
+  audioDurationSec?: number;
+  linkedConceptId?: string;
+  authorName: string;
   createdAt: string;
 }

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
   Check,
   Columns3,
+  FileText,
   LayoutGrid,
   Plus,
   Search,
@@ -37,6 +38,8 @@ import {
   RND_CARD_TABS,
   RnDCardTabId,
 } from '@/components/sections/ProductLabTabs';
+import { PdfConstructorModal } from '@/components/sections/PdfConstructorModal';
+import { compressImageFileToDataUrl } from '@/lib/document-export';
 
 export function ProductLabView() {
   const {
@@ -78,6 +81,7 @@ export function ProductLabView() {
   // Индекс выбранного фото в галерее карточки и зум-лайтбокс
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [zoomPhotoUrl, setZoomPhotoUrl] = useState<string | null>(null);
+  const [pdfConstructorOpen, setPdfConstructorOpen] = useState(false);
 
   // Быстрое создание новой идеи (за 30–60 секунд, Стр. 2 и 4 PDF)
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
@@ -108,6 +112,20 @@ export function ProductLabView() {
     missingFields: string[];
     requiresManagerApproval: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (zoomPhotoUrl) setZoomPhotoUrl(null);
+        else if (pdfConstructorOpen) setPdfConstructorOpen(false);
+        else if (stageGateModal) setStageGateModal(null);
+        else if (quickIdeaOpen) setQuickIdeaOpen(false);
+        else if (selectedConceptId) setSelectedConceptId(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [zoomPhotoUrl, pdfConstructorOpen, stageGateModal, quickIdeaOpen, selectedConceptId, setSelectedConceptId]);
 
   const [gateFillForm, setGateFillForm] = useState({
     ownerId: currentUser.id,
@@ -638,6 +656,8 @@ export function ProductLabView() {
                                 <img
                                   src={concept.imageUrl}
                                   alt={concept.name}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
                                 />
                               ) : (
@@ -647,8 +667,8 @@ export function ProductLabView() {
                               )}
                             </div>
 
-                            {/* Ровно 3 чистые строки под фото — без зажатия текста */}
-                            <div className="p-3.5 space-y-1">
+                            {/* Ровно 3 чистые строки под фото + наглядный индикатор пройденных и оставшихся этапов */}
+                            <div className="p-3.5 space-y-1.5">
                               <h4 className="text-[14px] font-medium text-[#181715] leading-snug line-clamp-1">
                                 {concept.name}
                               </h4>
@@ -658,7 +678,38 @@ export function ProductLabView() {
                                 {getUserShortName(concept.ownerId)}
                               </div>
 
-                              <div className="flex items-center justify-between gap-2 pt-1 min-h-[24px]">
+                              {/* Наглядная полоска этапов: какие закончены, какой сейчас и сколько осталось */}
+                              <div className="pt-1 space-y-1">
+                                <div className="grid grid-cols-7 gap-1">
+                                  {SEVEN_KANBAN_STAGES.map((st, idx) => {
+                                    const isDone = idx < stageIdx;
+                                    const isCurr = idx === stageIdx;
+                                    return (
+                                      <span
+                                        key={st}
+                                        title={CONCEPT_STAGE_LABELS_RU[st]}
+                                        className={`h-1.5 rounded-full ${
+                                          isDone
+                                            ? 'bg-[#1F6E50]'
+                                            : isCurr
+                                            ? 'bg-[#B85D35]'
+                                            : 'bg-[#E5E0D8]'
+                                        }`}
+                                      />
+                                    );
+                                  })}
+                                </div>
+                                <div className="flex items-center justify-between text-[10.5px] font-mono">
+                                  <span className="text-[#1F6E50] font-semibold">
+                                    ✓ Готово: {stageIdx}/7
+                                  </span>
+                                  <span className="text-[#7A756D]">
+                                    Осталось: {Math.max(0, 6 - stageIdx)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 pt-0.5 min-h-[24px]">
                                 <span
                                   className={`text-[12px] tabular-nums whitespace-nowrap ${
                                     statusLine.highlight
@@ -757,31 +808,27 @@ export function ProductLabView() {
       ===================================================================== */}
       {activeConcept && (
         <div
+          onClick={() => setSelectedConceptId(null)}
           onPaste={(e) => {
             const items = Array.from(e.clipboardData?.items || []);
-            const urls: string[] = [];
             items.forEach((item) => {
               if (item.type.startsWith('image/')) {
                 const file = item.getAsFile();
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  if (typeof reader.result === 'string') {
-                    appendPhotosToActiveConcept([reader.result]);
-                  }
-                };
-                reader.readAsDataURL(file);
+                compressImageFileToDataUrl(file).then((url) => {
+                  if (url) appendPhotosToActiveConcept([url]);
+                });
               }
             });
-            if (urls.length > 0) {
-              appendPhotosToActiveConcept(urls);
-            }
           }}
           className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]"
         >
-          <div className="w-full max-w-5xl bg-[#FAF8F5] h-full overflow-y-auto p-6 md:p-10 space-y-7 shadow-2xl">
-            {/* ВЕРХНЯЯ СТРОКА: RD-024 / НА ТЕЛЕ / ИДЕЯ + АВТОСОХРАНЕНИЕ + УДАЛИТЬ + ЗАКРЫТЬ */}
-            <div className="rounded-3xl bg-white border border-[#E8E8E5] p-6 md:p-8 space-y-6 shadow-2xs">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-5xl bg-[#FAF8F5] h-full overflow-y-auto p-6 md:p-10 space-y-7 shadow-2xl"
+          >
+            {/* ВЕРХНЯЯ СТРОКА: RD-024 / НА ТЕЛЕ / ИДЕЯ + АВТОСОХРАНЕНИЕ + КОНСТРУКТОР PDF + УДАЛИТЬ + ЗАКРЫТЬ */}
+            <div className="rounded-3xl bg-white border-[1.5px] border-[#CFC8BC] p-6 md:p-8 space-y-6 shadow-2xs">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-1.5 flex-1 min-w-[260px]">
                   <div className="flex flex-wrap items-center gap-2.5 text-[12px] font-bold uppercase tracking-wider text-[#737373]">
@@ -809,7 +856,16 @@ export function ProductLabView() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setPdfConstructorOpen(true)}
+                    className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl bg-[#B85D35] hover:bg-[#9E4D29] text-white text-[13px] font-bold transition cursor-pointer shadow-2xs"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>Выгрузить в PDF (Конструктор · 中文 + ₽/$/¥)</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -820,7 +876,7 @@ export function ProductLabView() {
                     className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-[#E8E8E5] text-[#737373] hover:text-[#DC2626] hover:border-[#DC2626] text-[13px] font-semibold transition cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
-                    <span>Удалить</span>
+                    <span>В корзину</span>
                   </button>
 
                   <button
@@ -1128,30 +1184,80 @@ export function ProductLabView() {
               </div>
 
               {/* ===============================================================
-                  ПОЛОСА 7 ЭТАПОВ НИЖЕ ПАСПОРТА (СТР. 4 PDF):
-                  ИДЕЯ · АНАЛИЗ · ОБРАЗЕЦ · ТЕСТ · РЕШЕНИЕ · ПРОИЗВОДСТВО · ЗАПУСК
+                  ПОЛОСА 7 ЭТАПОВ НИЖЕ ПАСПОРТА:
+                  НАГЛЯДНО ПОКАЗЫВАЕТ КАКИЕ ЭТАПЫ ЗАКОНЧЕНЫ (✓ ГОТОВО), КАКОЙ СЕЙЧАС (● В РАБОТЕ), А КАКИЕ ОСТАЛИСЬ (○ ОСТАЛОСЬ)
               =============================================================== */}
-              <div className="pt-4 border-t border-[#E8E8E5] flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {RND_CARD_TABS.map((t) => {
-                    const isTabActive = activeCardTab === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => setActiveCardTab(t.id)}
-                        className={`px-3.5 py-2 rounded-xl text-[12px] font-extrabold uppercase tracking-wider transition cursor-pointer ${
-                          isTabActive
-                            ? 'bg-[#111111] text-white shadow-2xs'
-                            : 'bg-[#F7F7F5] text-[#737373] hover:text-[#171717]'
-                        }`}
-                      >
-                        {t.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {(() => {
+                const currentNormStage = normalizeConceptStageToSeven(activeConcept.stage);
+                const currentStageIdx = Math.max(
+                  0,
+                  SEVEN_KANBAN_STAGES.indexOf(currentNormStage)
+                );
+                const completedCount = currentStageIdx;
+                const remainingCount = Math.max(0, 6 - currentStageIdx);
+
+                return (
+                  <div className="pt-4 border-t-2 border-[#E5E0D8] space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[12.5px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[#E6F4EE] border border-[#1F6E50]/30 text-[#1F6E50] font-semibold">
+                          ✓ Завершено этапов: {completedCount} из 7
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[#FCE8DF] border border-[#B85D35]/40 text-[#9E4622] font-semibold">
+                          ● Сейчас в работе: {CONCEPT_STAGE_LABELS_RU[currentNormStage]}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] bg-[#F3EFE8] border border-[#D4CDC2] text-[#5C5852] font-medium">
+                          ○ Осталось пройти: {remainingCount}
+                        </span>
+                      </div>
+                      <span className="text-[11.5px] text-[#7A756D]">
+                        Нажмите на любой этап для просмотра или заполнения
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                      {RND_CARD_TABS.map((t, idx) => {
+                        const isTabActive = activeCardTab === t.id;
+                        const isHistoryTab = t.id === 'history';
+                        const isCompleted = !isHistoryTab && idx < currentStageIdx;
+                        const isCurrentStage = !isHistoryTab && idx === currentStageIdx;
+
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setActiveCardTab(t.id)}
+                            className={`rounded-[10px] p-2.5 text-left transition cursor-pointer border-[1.5px] flex flex-col justify-between gap-1 ${
+                              isTabActive
+                                ? 'bg-[#181715] text-white border-[#181715] shadow-xs'
+                                : isCompleted
+                                ? 'bg-[#EBF5F0] text-[#14533C] border-[#1F6E50]/50 hover:border-[#1F6E50]'
+                                : isCurrentStage
+                                ? 'bg-[#FBF3EE] text-[#181715] border-[#B85D35] hover:bg-[#F7E8DE]'
+                                : 'bg-[#FAF8F5] text-[#7A756D] border-dashed border-[#D4CDC2] hover:border-[#181715] hover:text-[#181715]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1 text-[10px] font-mono uppercase">
+                              <span>
+                                {isHistoryTab
+                                  ? 'ЖУРНАЛ'
+                                  : isCompleted
+                                  ? '✓ ГОТОВО'
+                                  : isCurrentStage
+                                  ? '● В РАБОТЕ'
+                                  : '○ ОСТАЛОСЬ'}
+                              </span>
+                            </div>
+                            <div className="text-[12px] font-bold leading-tight truncate">
+                              {t.label}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* ЭКРАН ВЫБРАННОГО ЭТАПА (01 ИДЕЯ ... 07 ЗАПУСК) */}
@@ -1212,8 +1318,12 @@ export function ProductLabView() {
           Перетащить 1–20 фото сразу, вставить Cmd+V, минимум полей
       ===================================================================== */}
       {quickIdeaOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div
+          onClick={() => setQuickIdeaOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
           <div
+            onClick={(e) => e.stopPropagation()}
             onPaste={(e) => {
               const items = Array.from(e.clipboardData?.items || []);
               items.forEach((item) => {
@@ -1502,8 +1612,14 @@ export function ProductLabView() {
           Если данных не хватает — показать перечень недостающего с возможностью заполнить или вернуться
       ===================================================================== */}
       {stageGateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl border border-[#E8E8E5] p-7 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setStageGateModal(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-3xl border border-[#E8E8E5] p-7 space-y-5 shadow-2xl"
+          >
             <div className="flex items-start justify-between gap-3 border-b border-[#E8E8E5] pb-4">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-wider text-[#D97745]">
@@ -1636,6 +1752,18 @@ export function ProductLabView() {
             className="max-h-[90vh] max-w-[90vw] rounded-2xl object-contain bg-white p-4"
           />
         </div>
+      )}
+
+      {/* МОДАЛЬНЫЙ КОНСТРУКТОР PDF С ВЫБОРОМ ВАЛЮТЫ (CNY/USD/RUB), ФОТО Спереди/Сзади И КРУПНЫМ КИТАЙСКИМ */}
+      {pdfConstructorOpen && activeConcept && (
+        <PdfConstructorModal
+          concept={activeConcept}
+          onClose={() => setPdfConstructorOpen(false)}
+          onSaveToConcept={(patch) => {
+            updateConcept(activeConcept.id, patch);
+            notify('success', 'PDF-спецификация выгружена, параметры сохранены в карточку');
+          }}
+        />
       )}
     </div>
   );

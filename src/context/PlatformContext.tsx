@@ -15,6 +15,7 @@ import {
   GrowthExperiment,
   Launch,
   MarketOpportunity,
+  MiroBoardItem,
   NavSectionId,
   PeriodFilter,
   PlatformMode,
@@ -74,6 +75,8 @@ interface PersistedState {
   tasks: TaskItem[];
   documents: DocumentItem[];
   auditLog: AuditLogEntry[];
+  miroItems: MiroBoardItem[];
+  presentationOverrides: Record<string, string>;
 }
 
 interface ToastMessage {
@@ -177,10 +180,80 @@ interface PlatformContextValue extends PersistedState {
   createCompetitor: (input: Omit<Competitor, 'id' | 'isDemo'>) => void;
   createResearch: (input: Omit<ResearchItem, 'id' | 'isDemo'>) => void;
   createDocument: (input: Omit<DocumentItem, 'id' | 'uploadedAt' | 'uploadedBy' | 'isArchived'>) => void;
+  updateDocument: (id: string, patch: Partial<DocumentItem>) => void;
+  restoreEntity: (type: 'product' | 'concept' | 'launch' | 'task' | 'document', id: string) => void;
+  permanentlyDeleteEntity: (type: 'product' | 'concept' | 'launch' | 'task' | 'document', id: string) => void;
+  emptyTrash: () => void;
+  createMiroItem: (input: Omit<MiroBoardItem, 'id' | 'createdAt' | 'authorName'>) => MiroBoardItem;
+  updateMiroItem: (id: string, patch: Partial<MiroBoardItem>) => void;
+  deleteMiroItem: (id: string) => void;
+  updatePresentationOverride: (key: string, value: string) => void;
+  resetPresentationOverrides: () => void;
+  updateBrand: (brandId: string, patch: Partial<Brand>) => void;
   updateBrandPalette: (brandId: string, accentColor: string, secondaryColor: string) => void;
   createBrand: (input: { code: string; name: string; tagline: string; segment: string; accentColor: string }) => void;
   resetToDemoDefaults: () => void;
 }
+
+const INITIAL_MIRO_ITEMS: MiroBoardItem[] = [
+  {
+    id: 'miro-1',
+    type: 'sticky',
+    title: 'Фокус Q1 2027 · Матрица 70/30',
+    content: 'Удерживаем 70% оборота на базовых комплектах (3 шт.) и 30% на сезонных дропах BIG LOVE и капсуле НА ТЕЛЕ.',
+    brandId: 'ALL',
+    color: '#FFF8D6',
+    x: 40,
+    y: 40,
+    width: 280,
+    authorName: 'Алексей Морозов',
+    createdAt: '2026-10-30',
+  },
+  {
+    id: 'miro-2',
+    type: 'photo',
+    title: 'Референс выкладки BORNERS Core Modal',
+    content: 'Лицевая фотография и фактура микромодала 180 г/м² для фабрики Guangdong Apex.',
+    brandId: 'BORNERS',
+    color: '#FAF8F5',
+    x: 350,
+    y: 40,
+    width: 300,
+    imageUrl: 'images/products/borners-editorial-hero.jpg',
+    galleryUrls: ['images/products/borners-editorial-hero.jpg', 'images/products/rnd-soft-boxers.jpg'],
+    authorName: 'Дмитрий Волков',
+    createdAt: '2026-10-31',
+  },
+  {
+    id: 'miro-3',
+    type: 'photo',
+    title: 'Капсула НА ТЕЛЕ · Вторая кожа',
+    content: 'Палитра телесных оттенков (Warm Oat, Almond, Espresso) — согласованы выкрасы Lab Dip.',
+    brandId: 'NA_TELE',
+    color: '#FAF8F5',
+    x: 680,
+    y: 40,
+    width: 300,
+    imageUrl: 'images/products/natele-editorial-hero.jpg',
+    galleryUrls: ['images/products/natele-editorial-hero.jpg', 'images/products/rnd-seamless-base.jpg'],
+    authorName: 'Елена Смирнова',
+    createdAt: '2026-10-31',
+  },
+  {
+    id: 'miro-4',
+    type: 'concept_link',
+    title: 'В приоритете R&D · Мягкие боксеры',
+    content: 'Проверить протокол 4 проверок после 5 циклов стирки и выгрузить PDF с китайским переводом.',
+    brandId: 'NA_TELE',
+    color: '#E6F4EE',
+    x: 40,
+    y: 260,
+    width: 280,
+    linkedConceptId: 'concept-soft-boxers',
+    authorName: 'Елена Смирнова',
+    createdAt: '2026-11-01',
+  },
+];
 
 const DEFAULT_STATE: PersistedState = {
   users: INITIAL_USERS,
@@ -200,6 +273,8 @@ const DEFAULT_STATE: PersistedState = {
   tasks: INITIAL_TASKS,
   documents: INITIAL_DOCUMENTS,
   auditLog: INITIAL_AUDIT_LOG,
+  miroItems: INITIAL_MIRO_ITEMS,
+  presentationOverrides: {},
 };
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
@@ -230,11 +305,27 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const normalized = saved.replaceAll('"/images/products/', '"images/products/');
+        let normalized = saved.replaceAll('"/images/products/', '"images/products/');
+        for (const base of ['rnd-seamless-hero', 'rnd-print-family', 'rnd-seamless-base', 'rnd-soft-boxers']) {
+          normalized = normalized.replaceAll(`images/products/${base}.png`, `images/products/${base}.jpg`);
+        }
         const parsed = JSON.parse(normalized) as Partial<PersistedState>;
         setState((prev) => ({
           ...prev,
           ...parsed,
+          brands: (parsed.brands || prev.brands).map((b) =>
+            b.code === 'BORNERS'
+              ? { ...b, heroImage: 'images/products/borners-editorial-hero.jpg' }
+              : b.code === 'NA_TELE'
+              ? { ...b, heroImage: 'images/products/natele-editorial-hero.jpg' }
+              : b
+          ),
+          strategies: (parsed.strategies || prev.strategies).map((s, idx) => ({
+            ...s,
+            deadline: s.deadline || INITIAL_STRATEGIES[idx]?.deadline || '2027-01-15',
+          })),
+          miroItems: parsed.miroItems?.length ? parsed.miroItems : prev.miroItems,
+          presentationOverrides: parsed.presentationOverrides || {},
         }));
       }
       const savedAuth = window.localStorage.getItem(AUTH_STORAGE_KEY);
@@ -256,11 +347,14 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (err) {
-      console.error('Failed to persist state:', err);
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.error('Failed to persist state:', err);
+      }
+    }, 280);
+    return () => window.clearTimeout(timer);
   }, [state, hydrated]);
 
   useEffect(() => {
@@ -568,16 +662,20 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       const target = state.concepts.find((c) => c.id === id);
       setState((prev) => ({
         ...prev,
-        concepts: prev.concepts.filter((c) => c.id !== id),
+        concepts: prev.concepts.map((c) => (c.id === id ? { ...c, isArchived: true } : c)),
         auditLog: [
-          appendAudit('concept', id, 'deleted', `Удалена карточка «${target?.code || id} · ${target?.name || ''}»`),
+          appendAudit('concept', id, 'deleted', `Перемещена в Корзину удалений карточка «${target?.code || id} · ${target?.name || ''}»`),
           ...prev.auditLog,
         ],
       }));
       if (selectedConceptId === id) {
         setSelectedConceptId(null);
       }
-      notify('warning', `Карточка «${target?.name || id}» удалена`);
+      notify(
+        'warning',
+        `Карточка «${target?.name || id}» перемещена в Корзину`,
+        'Вы можете восстановить её в любой момент через «Корзину удалений» в меню.'
+      );
     },
     [appendAudit, notify, selectedConceptId, state.concepts]
   );
@@ -1277,7 +1375,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
 
   const createDocument = useCallback(
     (input: Omit<DocumentItem, 'id' | 'uploadedAt' | 'uploadedBy' | 'isArchived'>) => {
-      const id = `doc-${Date.now()}`;
+      const id = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const now = new Date().toISOString().slice(0, 10);
       setState((prev) => ({
         ...prev,
@@ -1296,10 +1394,146 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           ...prev.auditLog,
         ],
       }));
-      notify('success', 'Файл проверен и загружен в приватное хранилище', input.fileName);
+      notify('success', 'Файл проверен и загружен в хранилище', input.fileName);
     },
     [currentUser.fullName, appendAudit, notify]
   );
+
+  const updateDocument = useCallback(
+    (id: string, patch: Partial<DocumentItem>) => {
+      setState((prev) => ({
+        ...prev,
+        documents: prev.documents.map((d) => (d.id === id ? { ...d, ...patch } : d)),
+      }));
+      notify('success', 'Привязка и параметры документа обновлены');
+    },
+    [notify]
+  );
+
+  const restoreEntity = useCallback(
+    (type: 'product' | 'concept' | 'launch' | 'task' | 'document', id: string) => {
+      setState((prev) => {
+        const next = { ...prev };
+        if (type === 'product') {
+          next.products = prev.products.map((p) =>
+            p.id === id ? { ...p, isArchived: false, status: 'active' } : p
+          );
+        } else if (type === 'concept') {
+          next.concepts = prev.concepts.map((c) =>
+            c.id === id ? { ...c, isArchived: false } : c
+          );
+        } else if (type === 'launch') {
+          next.launches = prev.launches.map((l) =>
+            l.id === id ? { ...l, isArchived: false } : l
+          );
+        } else if (type === 'task') {
+          next.tasks = prev.tasks.map((t) =>
+            t.id === id ? { ...t, isArchived: false } : t
+          );
+        } else if (type === 'document') {
+          next.documents = prev.documents.map((d) =>
+            d.id === id ? { ...d, isArchived: false } : d
+          );
+        }
+        next.auditLog = [
+          appendAudit(type, id, 'restored', `Восстановлен объект из Корзины удалений (${type}: ${id})`),
+          ...prev.auditLog,
+        ];
+        return next;
+      });
+      notify('success', 'Объект восстановлен из Корзины удалений');
+    },
+    [appendAudit, notify]
+  );
+
+  const permanentlyDeleteEntity = useCallback(
+    (type: 'product' | 'concept' | 'launch' | 'task' | 'document', id: string) => {
+      setState((prev) => {
+        const next = { ...prev };
+        if (type === 'product') {
+          next.products = prev.products.filter((p) => p.id !== id);
+        } else if (type === 'concept') {
+          next.concepts = prev.concepts.filter((c) => c.id !== id);
+        } else if (type === 'launch') {
+          next.launches = prev.launches.filter((l) => l.id !== id);
+        } else if (type === 'task') {
+          next.tasks = prev.tasks.filter((t) => t.id !== id);
+        } else if (type === 'document') {
+          next.documents = prev.documents.filter((d) => d.id !== id);
+        }
+        return next;
+      });
+      notify('warning', 'Объект удалён из корзины навсегда');
+    },
+    [notify]
+  );
+
+  const emptyTrash = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      products: prev.products.filter((p) => !p.isArchived),
+      concepts: prev.concepts.filter((c) => !c.isArchived),
+      launches: prev.launches.filter((l) => !l.isArchived),
+      tasks: prev.tasks.filter((t) => !t.isArchived),
+      documents: prev.documents.filter((d) => !d.isArchived),
+    }));
+    notify('warning', 'Корзина удалений полностью очищена');
+  }, [notify]);
+
+  const createMiroItem = useCallback(
+    (input: Omit<MiroBoardItem, 'id' | 'createdAt' | 'authorName'>): MiroBoardItem => {
+      const id = `miro-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const now = new Date().toISOString().slice(0, 10);
+      const item: MiroBoardItem = {
+        ...input,
+        id,
+        authorName: currentUser.fullName,
+        createdAt: now,
+      };
+      setState((prev) => ({
+        ...prev,
+        miroItems: [...(prev.miroItems || []), item],
+      }));
+      return item;
+    },
+    [currentUser.fullName]
+  );
+
+  const updateMiroItem = useCallback((id: string, patch: Partial<MiroBoardItem>) => {
+    setState((prev) => ({
+      ...prev,
+      miroItems: (prev.miroItems || []).map((m) => (m.id === id ? { ...m, ...patch } : m)),
+    }));
+  }, []);
+
+  const deleteMiroItem = useCallback(
+    (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        miroItems: (prev.miroItems || []).filter((m) => m.id !== id),
+      }));
+      notify('warning', 'Элемент убран со свободной доски');
+    },
+    [notify]
+  );
+
+  const updatePresentationOverride = useCallback((key: string, value: string) => {
+    setState((prev) => ({
+      ...prev,
+      presentationOverrides: {
+        ...(prev.presentationOverrides || {}),
+        [key]: value,
+      },
+    }));
+  }, []);
+
+  const resetPresentationOverrides = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      presentationOverrides: {},
+    }));
+    notify('success', 'Тексты и цифры презентации возвращены к базовым');
+  }, [notify]);
 
   const updateBrandPalette = useCallback(
     (brandId: string, accentColor: string, secondaryColor: string) => {
@@ -1317,6 +1551,21 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       notify('success', `Палитра бренда ${brandId} обновлена`);
     },
     [appendAudit, notify]
+  );
+
+  const updateBrand = useCallback(
+    (brandId: string, patch: Partial<Brand>) => {
+      const now = new Date().toISOString().slice(0, 10);
+      setState((prev) => ({
+        ...prev,
+        brands: prev.brands.map((b) =>
+          b.id === brandId || b.code === brandId
+            ? { ...b, ...patch, updatedAt: now }
+            : b
+        ),
+      }));
+    },
+    []
   );
 
   const createBrand = useCallback(
@@ -1417,7 +1666,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       createCompetitor,
       createResearch,
       createDocument,
+      updateDocument,
+      restoreEntity,
+      permanentlyDeleteEntity,
+      emptyTrash,
+      createMiroItem,
+      updateMiroItem,
+      deleteMiroItem,
+      updatePresentationOverride,
+      resetPresentationOverrides,
       updateBrandPalette,
+      updateBrand,
       createBrand,
       resetToDemoDefaults,
     }),
@@ -1468,7 +1727,17 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
       createCompetitor,
       createResearch,
       createDocument,
+      updateDocument,
+      restoreEntity,
+      permanentlyDeleteEntity,
+      emptyTrash,
+      createMiroItem,
+      updateMiroItem,
+      deleteMiroItem,
+      updatePresentationOverride,
+      resetPresentationOverrides,
       updateBrandPalette,
+      updateBrand,
       createBrand,
       resetToDemoDefaults,
     ]

@@ -14,9 +14,11 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
+  Edit3,
   Expand,
   Minimize2,
   Printer,
+  RotateCcw,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import { ConceptStage, FinancialScenario } from '@/types/platform';
@@ -146,13 +148,22 @@ export function StrategyPresentationDeck({
     setFinancialScenario,
     setPlatformMode,
     navigateTo,
+    updateBrand,
+    updateStrategyBlock,
+    presentationOverrides,
+    updatePresentationOverride,
+    resetPresentationOverrides,
   } = usePlatform();
 
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [viewLayout, setViewLayout] = useState<'slides' | 'all'>('slides');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [strategyBrandTab, setStrategyBrandTab] = useState<'BORNERS' | 'NA_TELE'>('BORNERS');
   const [strategyChapter, setStrategyChapter] = useState<'all' | 'brand' | 'product' | 'growth' | 'finance'>('all');
+
+  const getOverride = (key: string, fallback: string) =>
+    presentationOverrides[key] !== undefined ? presentationOverrides[key] : fallback;
 
   const hasFinance = canUserViewFinance(currentUser);
   const hasCost = canUserViewCostPrice(currentUser);
@@ -437,9 +448,17 @@ export function StrategyPresentationDeck({
                     <div className="text-[11.5px] font-medium text-[#7A756D]">
                       План выручки 2027
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
-                      {hasFinance ? formatCompactRub(totalPlanYearRub) : 'Скрыто'}
-                    </div>
+                    {isEditMode ? (
+                      <input
+                        value={getOverride('kpi_revenue_2027', formatCompactRub(totalPlanYearRub))}
+                        onChange={(e) => updatePresentationOverride('kpi_revenue_2027', e.target.value)}
+                        className="mt-1 h-9 rounded-[6px] border-[1.5px] border-[#B85D35] bg-white px-2.5 font-serif-editorial text-[22px] font-semibold text-[#181715]"
+                      />
+                    ) : (
+                      <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
+                        {hasFinance ? getOverride('kpi_revenue_2027', formatCompactRub(totalPlanYearRub)) : 'Скрыто'}
+                      </div>
+                    )}
                     <div className="text-[11.5px] text-[#8C867E] mt-1.5">
                       Сценарий: {SCENARIO_LABELS_RU[financialScenario]}
                     </div>
@@ -448,20 +467,36 @@ export function StrategyPresentationDeck({
                     <div className="text-[11.5px] font-medium text-[#7A756D]">
                       Операционная прибыль
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
-                      {hasFinance ? formatCompactRub(totalPlanProfitYearRub) : 'Скрыто'}
-                    </div>
+                    {isEditMode ? (
+                      <input
+                        value={getOverride('kpi_profit_2027', formatCompactRub(totalPlanProfitYearRub))}
+                        onChange={(e) => updatePresentationOverride('kpi_profit_2027', e.target.value)}
+                        className="mt-1 h-9 rounded-[6px] border-[1.5px] border-[#B85D35] bg-white px-2.5 font-serif-editorial text-[22px] font-semibold text-[#181715]"
+                      />
+                    ) : (
+                      <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
+                        {hasFinance ? getOverride('kpi_profit_2027', formatCompactRub(totalPlanProfitYearRub)) : 'Скрыто'}
+                      </div>
+                    )}
                     <div className="text-[11.5px] font-medium text-[#2A6F53] mt-1.5">
-                      Средняя маржа SKU: {avgMarginPct}%
+                      Средняя маржа SKU: {getOverride('kpi_avg_margin', `${avgMarginPct}%`)}
                     </div>
                   </div>
                   <div className="p-5 flex flex-col justify-between">
                     <div className="text-[11.5px] font-medium text-[#7A756D]">
                       Моделей в R&amp;D
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
-                      {filteredConcepts.length} моделей
-                    </div>
+                    {isEditMode ? (
+                      <input
+                        value={getOverride('kpi_rnd_models', `${filteredConcepts.length} моделей`)}
+                        onChange={(e) => updatePresentationOverride('kpi_rnd_models', e.target.value)}
+                        className="mt-1 h-9 rounded-[6px] border-[1.5px] border-[#B85D35] bg-white px-2.5 font-serif-editorial text-[22px] font-semibold text-[#181715]"
+                      />
+                    ) : (
+                      <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
+                        {getOverride('kpi_rnd_models', `${filteredConcepts.length} моделей`)}
+                      </div>
+                    )}
                     <div className="text-[11.5px] text-[#8C867E] mt-1.5">
                       В проработке на 7 этапах
                     </div>
@@ -470,9 +505,17 @@ export function StrategyPresentationDeck({
                     <div className="text-[11.5px] font-medium text-[#7A756D]">
                       Состав портфеля
                     </div>
-                    <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
-                      2 + 2 бренда
-                    </div>
+                    {isEditMode ? (
+                      <input
+                        value={getOverride('kpi_portfolio_count', '2 + 2 бренда')}
+                        onChange={(e) => updatePresentationOverride('kpi_portfolio_count', e.target.value)}
+                        className="mt-1 h-9 rounded-[6px] border-[1.5px] border-[#B85D35] bg-white px-2.5 font-serif-editorial text-[22px] font-semibold text-[#181715]"
+                      />
+                    ) : (
+                      <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
+                        {getOverride('kpi_portfolio_count', '2 + 2 бренда')}
+                      </div>
+                    )}
                     <div className="text-[11.5px] text-[#8C867E] mt-1.5">
                       2 активных + Акуша и Liskani
                     </div>
@@ -529,17 +572,43 @@ export function StrategyPresentationDeck({
                         <div className="text-[11.5px] text-[#8C867E]">
                           План 2027
                         </div>
-                        <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
-                          {hasFinance ? formatCompactRub(b.plannedRevenue2027Rub) : 'Скрыто'}
-                        </div>
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={b.plannedRevenue2027Rub}
+                            onChange={(e) =>
+                              updateBrand(b.id, {
+                                plannedRevenue2027Rub: Math.max(0, Number(e.target.value) || 0),
+                              })
+                            }
+                            className="mt-0.5 w-full h-8 rounded-[5px] border-[1.5px] border-[#B85D35] bg-white px-2 text-[13px] font-mono font-semibold text-[#181715]"
+                          />
+                        ) : (
+                          <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
+                            {hasFinance ? formatCompactRub(b.plannedRevenue2027Rub) : 'Скрыто'}
+                          </div>
+                        )}
                       </div>
                       <div className="px-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           Целевая маржа
                         </div>
-                        <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
-                          {hasFinance ? `${b.targetMarginPct}%` : 'Скрыто'}
-                        </div>
+                        {isEditMode ? (
+                          <input
+                            type="number"
+                            value={b.targetMarginPct}
+                            onChange={(e) =>
+                              updateBrand(b.id, {
+                                targetMarginPct: Math.max(0, Number(e.target.value) || 0),
+                              })
+                            }
+                            className="mt-0.5 w-full h-8 rounded-[5px] border-[1.5px] border-[#B85D35] bg-white px-2 text-[13px] font-mono font-semibold text-[#181715]"
+                          />
+                        ) : (
+                          <div className="font-serif-editorial text-[22px] font-medium text-[#181715] mt-0.5 tabular-nums">
+                            {hasFinance ? `${b.targetMarginPct}%` : 'Скрыто'}
+                          </div>
+                        )}
                       </div>
                       <div className="pl-3">
                         <div className="text-[11.5px] text-[#8C867E]">
@@ -1196,7 +1265,7 @@ export function StrategyPresentationDeck({
                   className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between"
                 >
                   <div className="p-6 space-y-3">
-                    <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-3">
+                    <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-3 gap-2">
                       <div className="flex items-baseline gap-2.5">
                         <span className="font-mono text-[12px] text-[#8C867E]">
                           {String(block.sectionOrder).padStart(2, '0')} /
@@ -1205,14 +1274,42 @@ export function StrategyPresentationDeck({
                           {block.titleRu}
                         </h4>
                       </div>
-                      <span className="font-mono text-[10px] uppercase text-[#1F6E50] bg-[#1F6E50]/10 px-2 py-0.5 rounded-[4px]">
-                        v{block.version}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isEditMode ? (
+                          <input
+                            type="date"
+                            value={block.deadline || '2027-03-15'}
+                            onChange={(e) =>
+                              updateStrategyBlock(block.id, { deadline: e.target.value })
+                            }
+                            className="h-7 rounded-[4px] border border-[#B85D35] bg-white px-1.5 text-[11px] font-mono text-[#181715]"
+                          />
+                        ) : (
+                          block.deadline && (
+                            <span className="font-mono text-[10.5px] font-semibold text-[#B85D35] bg-[#FAF8F5] border border-[#CFC8BC] px-2 py-0.5 rounded-[4px]">
+                              Срок: {block.deadline}
+                            </span>
+                          )
+                        )}
+                        <span className="font-mono text-[10px] uppercase text-[#1F6E50] bg-[#1F6E50]/10 px-2 py-0.5 rounded-[4px]">
+                          v{block.version}
+                        </span>
+                      </div>
                     </div>
 
-                    <p className="text-[14px] font-medium text-[#161615] leading-snug">
-                      {block.summary}
-                    </p>
+                    {isEditMode ? (
+                      <input
+                        value={block.summary}
+                        onChange={(e) =>
+                          updateStrategyBlock(block.id, { summary: e.target.value })
+                        }
+                        className="w-full h-9 rounded-[5px] border-[1.5px] border-[#B85D35] bg-white px-2.5 text-[13.5px] font-medium text-[#161615]"
+                      />
+                    ) : (
+                      <p className="text-[14px] font-medium text-[#161615] leading-snug">
+                        {block.summary}
+                      </p>
+                    )}
 
                     <ul className="space-y-1.5 text-[13px] text-[#5C5852]">
                       {points.map((pt, i) => (
@@ -1230,9 +1327,21 @@ export function StrategyPresentationDeck({
                         <div className="font-mono text-[10px] uppercase text-[#8C867E]">
                           {k.label}
                         </div>
-                        <div className="text-[13px] font-semibold text-[#161615] mt-0.5">
-                          {k.value}
-                        </div>
+                        {isEditMode ? (
+                          <input
+                            value={k.value}
+                            onChange={(e) => {
+                              const nextKpis = [...block.kpiHighlights];
+                              nextKpis[idx] = { ...k, value: e.target.value };
+                              updateStrategyBlock(block.id, { kpiHighlights: nextKpis });
+                            }}
+                            className="mt-0.5 w-full h-7 rounded-[4px] border border-[#B85D35] bg-white px-1.5 text-[12px] font-semibold text-[#161615]"
+                          />
+                        ) : (
+                          <div className="text-[13px] font-semibold text-[#161615] mt-0.5">
+                            {k.value}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1633,7 +1742,32 @@ export function StrategyPresentationDeck({
             <span>BORNERS GROUP · Оглавление стратегической презентации (01–08)</span>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsEditMode((v) => !v)}
+              className={`inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] border-[1.5px] text-[12px] font-semibold cursor-pointer transition ${
+                isEditMode
+                  ? 'bg-[#B85D35] border-[#B85D35] text-white'
+                  : 'bg-white border-[#CFC8BC] text-[#181715] hover:border-[#181715]'
+              }`}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              <span>{isEditMode ? 'Готово (Режим редактирования)' : 'Редактировать цифры и текст'}</span>
+            </button>
+
+            {isEditMode && Object.keys(presentationOverrides).length > 0 && (
+              <button
+                type="button"
+                onClick={resetPresentationOverrides}
+                title="Сбросить изменённые заголовки и KPI к исходным"
+                className="inline-flex items-center gap-1 h-8 px-2.5 rounded-[6px] border-[1.5px] border-[#CFC8BC] bg-white hover:border-[#181715] text-[11.5px] font-medium text-[#5C5852] cursor-pointer"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>Сбросить</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setViewLayout(viewLayout === 'slides' ? 'all' : 'slides')}
@@ -1713,14 +1847,40 @@ export function StrategyPresentationDeck({
         <div className="space-y-6">
           {/* Редакционный заголовок текущего слайда с чёткой жирной линией 2px */}
           <div className="border-b-2 border-[#181715] pb-5 flex flex-wrap items-end justify-between gap-4">
-            <div className="space-y-1">
+            <div className="space-y-1.5 flex-1 min-w-[280px]">
               <div className="font-mono text-[11.5px] font-medium uppercase tracking-[0.12em] text-[#7A756D]">
                 Глава {currentSlide.num} из 08 · {currentSlide.kicker}
               </div>
-              <h2 className="font-serif-editorial text-[32px] md:text-[42px] font-medium tracking-[-0.01em] text-[#181715] leading-tight">
-                {currentSlide.title}
-              </h2>
-              <p className="text-[14.5px] text-[#5C5852] max-w-3xl">{currentSlide.subtitle}</p>
+              {isEditMode ? (
+                <div className="space-y-2 max-w-3xl">
+                  <input
+                    value={getOverride(`slide_${currentSlide.id}_title`, currentSlide.title)}
+                    onChange={(e) =>
+                      updatePresentationOverride(`slide_${currentSlide.id}_title`, e.target.value)
+                    }
+                    className="w-full h-11 rounded-[8px] border-[1.5px] border-[#B85D35] bg-white px-3.5 font-serif-editorial text-[26px] font-medium text-[#181715]"
+                  />
+                  <input
+                    value={getOverride(`slide_${currentSlide.id}_subtitle`, currentSlide.subtitle)}
+                    onChange={(e) =>
+                      updatePresentationOverride(
+                        `slide_${currentSlide.id}_subtitle`,
+                        e.target.value
+                      )
+                    }
+                    className="w-full h-9 rounded-[8px] border-[1.5px] border-[#B85D35] bg-white px-3.5 text-[14px] text-[#5C5852]"
+                  />
+                </div>
+              ) : (
+                <>
+                  <h2 className="font-serif-editorial text-[32px] md:text-[42px] font-medium tracking-[-0.01em] text-[#181715] leading-tight">
+                    {getOverride(`slide_${currentSlide.id}_title`, currentSlide.title)}
+                  </h2>
+                  <p className="text-[14.5px] text-[#5C5852] max-w-3xl">
+                    {getOverride(`slide_${currentSlide.id}_subtitle`, currentSlide.subtitle)}
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-2 shrink-0">

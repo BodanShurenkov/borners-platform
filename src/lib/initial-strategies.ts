@@ -1,4 +1,4 @@
-import { StrategyBlock } from '@/types/platform';
+import type { StrategyBlock } from '../types/platform.ts';
 
 const BORNERS_SECTIONS: Omit<StrategyBlock, 'id' | 'brandId'>[] = [
   {
@@ -510,15 +510,34 @@ const NATELE_SECTIONS: Omit<StrategyBlock, 'id' | 'brandId'>[] = [
   },
 ];
 
+const DEFAULT_STRATEGY_DEADLINES = [
+  '2026-11-15',
+  '2026-11-20',
+  '2026-11-28',
+  '2026-12-05',
+  '2026-12-12',
+  '2026-12-18',
+  '2026-12-25',
+  '2027-01-10',
+  '2027-01-18',
+  '2027-01-25',
+  '2027-02-05',
+  '2027-02-14',
+  '2027-02-22',
+  '2027-03-01',
+];
+
 export const INITIAL_STRATEGIES: StrategyBlock[] = [
   ...BORNERS_SECTIONS.map((s, idx) => ({
     ...s,
     id: `strat-borners-${idx + 1}`,
     brandId: 'BORNERS',
+    deadline: s.deadline || DEFAULT_STRATEGY_DEADLINES[idx] || '2027-01-15',
   })),
   ...NATELE_SECTIONS.map((s, idx) => ({
     ...s,
     id: `strat-natele-${idx + 1}`,
     brandId: 'NA_TELE',
+    deadline: s.deadline || DEFAULT_STRATEGY_DEADLINES[idx] || '2027-01-20',
   })),
 ];

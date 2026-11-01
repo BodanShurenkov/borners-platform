@@ -10,8 +10,9 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, LayoutGrid, Sparkles } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
+import { MiroBoardView } from './MiroBoardView';
 import {
   SCENARIO_LABELS_RU,
   SEVEN_KANBAN_STAGES,
@@ -45,6 +46,7 @@ export function DashboardView() {
   } = usePlatform();
 
   const [chartMetric, setChartMetric] = useState<'revenue' | 'profit'>('revenue');
+  const [dashboardMode, setDashboardMode] = useState<'all' | 'miro'>('all');
 
   const hasFinanceAccess = canUserViewFinance(currentUser);
 
@@ -223,6 +225,32 @@ export function DashboardView() {
           </div>
 
           <div className="lg:col-span-5 flex flex-wrap lg:justify-end items-center gap-2.5">
+            <div className="inline-flex rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-[#FAF8F5] p-0.5">
+              <button
+                type="button"
+                onClick={() => setDashboardMode('all')}
+                className={`h-8 px-3 rounded-[6px] text-[12px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+                  dashboardMode === 'all'
+                    ? 'bg-[#181715] text-white'
+                    : 'text-[#5C5852] hover:text-[#181715]'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Дашборд + Miro</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashboardMode('miro')}
+                className={`h-8 px-3 rounded-[6px] text-[12px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+                  dashboardMode === 'miro'
+                    ? 'bg-[#B85D35] text-white'
+                    : 'text-[#5C5852] hover:text-[#181715]'
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Доска Miro (Фото + Голос)</span>
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => navigateTo('roadmap-tasks')}
@@ -378,53 +406,62 @@ export function DashboardView() {
       </div>
 
       {/* =====================================================================
-          3. ДВА ФЛАГМАНСКИХ БРЕНДА — ЗЕРКАЛЬНАЯ СИММЕТРИЯ КАРТОЧЕК И ЛИНИЙ
+          2B. СВОБОДНАЯ ДОСКА ДАШБОРДА MIRO (ФОТО, СТИКЕРЫ И ГОЛОСОВЫЕ ЗАМЕТКИ)
       ===================================================================== */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between border-b-2 border-[#181715] pb-3 px-1">
-          <h2 className="font-serif-editorial text-[28px] font-medium text-[#181715]">
-            Флагманские бренды портфеля
-          </h2>
-          <button
-            type="button"
-            onClick={() => navigateTo('brand-strategy')}
-            className="text-[13px] font-semibold text-[#181715] hover:underline cursor-pointer inline-flex items-center gap-1"
-          >
-            <span>Стратегические паспорта (14 блоков)</span>
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
+      <MiroBoardView />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-          {activeBrands.map((brand) => {
-            const isBorners = brand.code === 'BORNERS';
-            const accentColor = isBorners ? '#B85D35' : '#8C7A6B';
-            const brandProducts = products.filter(
-              (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
-            );
-            const brandConcepts = concepts.filter(
-              (c) =>
-                !c.isArchived &&
-                !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
-                (c.brandId === brand.code || c.brandId === brand.id)
-            );
-
-            return (
-              <div
-                key={brand.id}
-                className={`rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] ${
-                  isBorners ? 'border-t-[#181715]' : 'border-t-[#7D7268]'
-                } overflow-hidden flex flex-col justify-between h-full`}
+      {dashboardMode === 'all' && (
+        <>
+          {/* =====================================================================
+              3. ДВА ФЛАГМАНСКИХ БРЕНДА — ЗЕРКАЛЬНАЯ СИММЕТРИЯ КАРТОЧЕК И ЛИНИЙ
+          ===================================================================== */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b-2 border-[#181715] pb-3 px-1">
+              <h2 className="font-serif-editorial text-[28px] font-medium text-[#181715]">
+                Флагманские бренды портфеля
+              </h2>
+              <button
+                type="button"
+                onClick={() => navigateTo('brand-strategy')}
+                className="text-[13px] font-semibold text-[#181715] hover:underline cursor-pointer inline-flex items-center gap-1"
               >
-                <div>
-                  {/* Студийный редакционный кадр фиксированной высоты h-60 */}
-                  <div className="h-60 w-full bg-[#F3EFE8] border-b-[1.5px] border-[#CFC8BC] overflow-hidden relative">
-                    <img
-                      src={brand.heroImage}
-                      alt={brand.name}
-                      className="h-full w-full object-cover object-center"
-                    />
-                  </div>
+                <span>Стратегические паспорта (14 блоков)</span>
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              {activeBrands.map((brand) => {
+                const isBorners = brand.code === 'BORNERS';
+                const accentColor = isBorners ? '#B85D35' : '#8C7A6B';
+                const brandProducts = products.filter(
+                  (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
+                );
+                const brandConcepts = concepts.filter(
+                  (c) =>
+                    !c.isArchived &&
+                    !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
+                    (c.brandId === brand.code || c.brandId === brand.id)
+                );
+
+                return (
+                  <div
+                    key={brand.id}
+                    className={`rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] ${
+                      isBorners ? 'border-t-[#181715]' : 'border-t-[#7D7268]'
+                    } overflow-hidden flex flex-col justify-between h-full`}
+                  >
+                    <div>
+                      {/* Студийный редакционный кадр фиксированной высоты h-60 */}
+                      <div className="h-60 w-full bg-[#F3EFE8] border-b-[1.5px] border-[#CFC8BC] overflow-hidden relative">
+                        <img
+                          src={brand.heroImage}
+                          alt={brand.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover object-center"
+                        />
+                      </div>
 
                   <div className="p-6 md:p-7 space-y-5">
                     <div className="space-y-2 min-h-[136px]">
@@ -764,6 +801,8 @@ export function DashboardView() {
                       <img
                         src={launch.imageUrl}
                         alt={launch.name}
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -795,6 +834,8 @@ export function DashboardView() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

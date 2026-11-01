@@ -266,44 +266,90 @@ export function LaunchCalendarView() {
                   </div>
                 </div>
 
-                {/* Этапы подготовки (10 стадий запуска по п. 8 ТЗ) */}
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                  {launch.stages.map((st) => {
-                    const isLateAfterStart =
-                      !['sales', 'analysis'].includes(st.code) &&
-                      st.deadline > launch.startDate;
-                    return (
-                      <div
-                        key={st.code}
-                        className={`p-3.5 rounded-xl border text-[14px] ${
-                          isLateAfterStart
-                            ? 'border-[#C94B4B] bg-[#C94B4B]/5'
-                            : st.status === 'Done'
-                            ? 'border-[#E8E8E5] bg-[#F7F7F5]'
-                            : 'border-[#E8E8E5] bg-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between text-[12px] mb-1.5">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              st.status === 'Done'
-                                ? 'bg-[#16805D]'
-                                : st.status === 'In Progress'
-                                ? 'bg-[#D99527]'
-                                : st.status === 'Delayed'
-                                ? 'bg-[#C94B4B]'
-                                : 'bg-[#737373]'
-                            }`}
-                          />
-                          <span className="text-[#737373]">{st.deadline}</span>
+                {/* Этапы подготовки (10 стадий запуска — чёткое разделение: Завершено / В работе / Осталось) */}
+                {(() => {
+                  const doneCount = launch.stages.filter((s) => s.status === 'Done').length;
+                  const inProgressCount = launch.stages.filter(
+                    (s) => s.status === 'In Progress'
+                  ).length;
+                  const remainingCount = launch.stages.filter(
+                    (s) => s.status === 'Pending' || s.status === 'Delayed'
+                  ).length;
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#FAF8F5] border border-[#D4CDC2] px-4 py-2.5 text-[12.5px]">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] bg-[#E6F4EE] border border-[#1F6E50]/40 text-[#1F6E50] font-semibold">
+                            ✓ Завершено: {doneCount} из {launch.stages.length}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] bg-[#FCE8DF] border border-[#B85D35]/40 text-[#9E4622] font-semibold">
+                            ● В работе: {inProgressCount}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] bg-white border border-[#D4CDC2] text-[#5C5852] font-medium">
+                            ○ Осталось этапов: {remainingCount}
+                          </span>
                         </div>
-                        <div className="font-semibold text-[13px] text-[#171717] leading-snug">
-                          {st.label}
-                        </div>
+                        <span className="font-mono text-[11.5px] font-semibold text-[#181715]">
+                          Прогресс: {Math.round((doneCount / Math.max(1, launch.stages.length)) * 100)}%
+                        </span>
                       </div>
-                    );
-                  })}
-                </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        {launch.stages.map((st, stIdx) => {
+                          const isLateAfterStart =
+                            !['sales', 'analysis'].includes(st.code) &&
+                            st.deadline > launch.startDate;
+                          const isDone = st.status === 'Done';
+                          const isInProg = st.status === 'In Progress';
+                          const isDelayed = st.status === 'Delayed' || isLateAfterStart;
+
+                          return (
+                            <div
+                              key={st.code}
+                              onClick={() => setSelectedLaunchId(launch.id)}
+                              className={`p-3.5 rounded-xl border-[1.5px] text-[14px] transition cursor-pointer ${
+                                isDone
+                                  ? 'border-[#1F6E50]/60 bg-[#EBF5F0] text-[#14533C]'
+                                  : isDelayed
+                                  ? 'border-[#C94B4B] bg-[#FBEAEA] text-[#8E2820]'
+                                  : isInProg
+                                  ? 'border-[#B85D35] bg-[#FBF3EE] text-[#181715] shadow-2xs'
+                                  : 'border-dashed border-[#CFC8BC] bg-[#FAF8F5] text-[#6E6A63]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded font-bold uppercase ${
+                                    isDone
+                                      ? 'bg-[#1F6E50] text-white'
+                                      : isDelayed
+                                      ? 'bg-[#C94B4B] text-white'
+                                      : isInProg
+                                      ? 'bg-[#B85D35] text-white'
+                                      : 'bg-[#EAE6DF] text-[#6E6A63]'
+                                  }`}
+                                >
+                                  {isDone
+                                    ? '✓ Готово'
+                                    : isDelayed
+                                    ? '! Срок'
+                                    : isInProg
+                                    ? '● В работе'
+                                    : '○ Осталось'}
+                                </span>
+                                <span className="text-[#6E6A63]">{st.deadline}</span>
+                              </div>
+                              <div className="font-semibold text-[13.5px] text-[#181715] leading-snug">
+                                {stIdx + 1}. {st.label}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Модели релиза */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#E8E8E5] text-[14px]">
@@ -495,8 +541,14 @@ export function LaunchCalendarView() {
 
       {/* Модальное окно переноса даты с проверкой конфликтов */}
       {rescheduleModalLaunch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl">
+        <div
+          onClick={() => setRescheduleModalLaunch(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Перенос даты: {rescheduleModalLaunch.name}
             </h3>
@@ -596,39 +648,96 @@ export function LaunchCalendarView() {
               </button>
             </div>
 
-            {/* Привязанные модели SKU */}
-            <div className="space-y-3">
-              <div className="text-[14px] font-bold text-[#171717]">
-                Модели релиза (SKU в партии):
+            {/* Привязанные модели SKU — аккуратные карточки моделей + выпадающий список добавления */}
+            <div className="rounded-2xl bg-[#FAF8F5] border-[1.5px] border-[#CFC8BC] p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-[11px] font-mono uppercase tracking-wider text-[#7A756D]">
+                    СОСТАВ РЕЛИЗА · ПРИВЯЗАННЫЕ МОДЕЛИ
+                  </div>
+                  <div className="text-[16px] font-bold text-[#181715]">
+                    Модели, входящие в этот запуск ({activeLaunch.productIds.length})
+                  </div>
+                </div>
+
+                {!isStrategyMode && (
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const pid = e.target.value;
+                      if (!pid) return;
+                      if (!activeLaunch.productIds.includes(pid)) {
+                        updateLaunch(activeLaunch.id, {
+                          productIds: [...activeLaunch.productIds, pid],
+                        });
+                      }
+                    }}
+                    className="h-9 rounded-[8px] border-[1.5px] border-[#181715] bg-white px-3 text-[12.5px] font-semibold text-[#181715] cursor-pointer"
+                  >
+                    <option value="">+ Привязать модель из каталога...</option>
+                    {products
+                      .filter(
+                        (p) =>
+                          !p.isArchived &&
+                          !activeLaunch.productIds.includes(p.id)
+                      )
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.sku} · {p.name} ({p.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'})
+                        </option>
+                      ))}
+                  </select>
+                )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {products
-                  .filter((p) => !p.isArchived && p.brandId === activeLaunch.brandId)
-                  .map((p) => {
-                    const isLinked = activeLaunch.productIds.includes(p.id);
-                    return (
-                      <button
+
+              {activeLaunch.productIds.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {products
+                    .filter((p) => activeLaunch.productIds.includes(p.id))
+                    .map((p) => (
+                      <div
                         key={p.id}
-                        type="button"
-                        disabled={isStrategyMode}
-                        onClick={() => {
-                          const nextIds = isLinked
-                            ? activeLaunch.productIds.filter((id) => id !== p.id)
-                            : [...activeLaunch.productIds, p.id];
-                          updateLaunch(activeLaunch.id, { productIds: nextIds });
-                        }}
-                        className={`px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition cursor-pointer ${
-                          isLinked
-                            ? 'bg-[#111111] text-white border-[#111111]'
-                            : 'bg-white text-[#737373] border-[#E8E8E5]'
-                        }`}
+                        className="rounded-xl bg-white border-[1.5px] border-[#D4CDC2] p-3 flex items-center justify-between gap-3"
                       >
-                        {isLinked ? '✓ ' : '+ '}
-                        {p.sku} · {p.name}
-                      </button>
-                    );
-                  })}
-              </div>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="h-12 w-12 rounded-lg object-contain bg-[#F3EFE8] border border-[#E5E0D8] p-1 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-mono text-[11px] font-semibold text-[#B85D35]">
+                              {p.sku}
+                            </div>
+                            <div className="text-[13.5px] font-semibold text-[#181715] truncate">
+                              {p.name}
+                            </div>
+                          </div>
+                        </div>
+
+                        {!isStrategyMode && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateLaunch(activeLaunch.id, {
+                                productIds: activeLaunch.productIds.filter((id) => id !== p.id),
+                              })
+                            }
+                            className="px-2.5 py-1 rounded-[6px] border border-[#D4CDC2] hover:border-[#B93829] hover:text-[#B93829] text-[11.5px] font-medium text-[#6E6A63] shrink-0 cursor-pointer transition"
+                          >
+                            Убрать
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[#D4CDC2] bg-white p-4 text-center text-[13px] text-[#7A756D]">
+                  К этому релизу пока не привязаны модели. Выберите артикул в списке «+ Привязать модель из каталога...» выше.
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -774,8 +883,14 @@ export function LaunchCalendarView() {
 
       {/* Модальное окно создания запуска */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setCreateModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Планирование нового релиза
             </h3>
@@ -1359,8 +1474,14 @@ export function MarketingGrowthView() {
 
       {/* Модальное окно новой кампании */}
       {campModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setCampModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Новая маркетинговая кампания
             </h3>
@@ -1436,8 +1557,14 @@ export function MarketingGrowthView() {
 
       {/* Модальное окно новой гипотезы */}
       {expModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setExpModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Запуск маркетингового теста
             </h3>

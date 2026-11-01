@@ -3,14 +3,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
+  ArrowRight,
   Bell,
   ChevronDown,
   Eye,
   EyeOff,
+  HelpCircle,
   LogOut,
   Menu,
   Plus,
+  RotateCcw,
   Search,
+  Sparkles,
+  Trash2,
   X,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
@@ -175,6 +180,9 @@ export function AppShell() {
     selectedProductId,
     selectedConceptId,
     selectedLaunchId,
+    restoreEntity,
+    permanentlyDeleteEntity,
+    emptyTrash,
     notify,
     toasts,
     dismissToast,
@@ -188,6 +196,81 @@ export function AppShell() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
+  const [trashModalOpen, setTrashModalOpen] = useState(false);
+  const [tourModalOpen, setTourModalOpen] = useState(false);
+  const [tourStepIdx, setTourStepIdx] = useState(0);
+
+  const trashItems = useMemo(() => {
+    const items: {
+      id: string;
+      entityType: 'product' | 'concept' | 'launch' | 'task' | 'document';
+      typeLabel: string;
+      title: string;
+      subtitle: string;
+    }[] = [];
+
+    concepts
+      .filter((c) => c.isArchived)
+      .forEach((c) => {
+        items.push({
+          id: c.id,
+          entityType: 'concept',
+          typeLabel: 'Карточка R&D',
+          title: `${c.code} — ${c.name}`,
+          subtitle: `Бренд: ${c.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · Этап: ${CONCEPT_STAGE_LABELS_RU[c.stage]}`,
+        });
+      });
+
+    products
+      .filter((p) => p.isArchived)
+      .forEach((p) => {
+        items.push({
+          id: p.id,
+          entityType: 'product',
+          typeLabel: 'Модель SKU',
+          title: `${p.sku} — ${p.name}`,
+          subtitle: `Бренд: ${p.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · ${p.collection}`,
+        });
+      });
+
+    launches
+      .filter((l) => l.isArchived)
+      .forEach((l) => {
+        items.push({
+          id: l.id,
+          entityType: 'launch',
+          typeLabel: 'Релиз в календаре',
+          title: l.name,
+          subtitle: `Старт: ${l.startDate} · Готовность ${l.readinessPct}%`,
+        });
+      });
+
+    tasks
+      .filter((t) => t.isArchived)
+      .forEach((t) => {
+        items.push({
+          id: t.id,
+          entityType: 'task',
+          typeLabel: 'Задача CRM',
+          title: t.title,
+          subtitle: `Срок: ${t.deadline} · ${TASK_STATUS_LABELS_RU[t.status]}`,
+        });
+      });
+
+    documents
+      .filter((d) => d.isArchived)
+      .forEach((d) => {
+        items.push({
+          id: d.id,
+          entityType: 'document',
+          typeLabel: 'Документ / ТЗ',
+          title: d.title,
+          subtitle: `${d.fileName} · ${d.category}`,
+        });
+      });
+
+    return items;
+  }, [concepts, products, launches, tasks, documents]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -509,12 +592,15 @@ export function AppShell() {
                   setPlatformMode('management');
                   navigateTo('dashboard');
                 }}
-                className={`text-left cursor-pointer flex items-baseline gap-2 group transition-all duration-300 ${
+                className={`text-left cursor-pointer flex flex-col justify-center group transition-all duration-300 ${
                   sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
                 }`}
               >
-                <span className="font-serif-editorial text-[22px] font-semibold tracking-[0.02em] text-[#181715] dark:text-white leading-none">
+                <span className="font-serif-editorial text-[20px] font-semibold tracking-[0.02em] text-[#181715] leading-none">
                   Borners Group
+                </span>
+                <span className="font-mono text-[9.5px] tracking-[0.06em] text-[#8C867E] mt-0.5">
+                  borners-group.ru
                 </span>
               </button>
 
@@ -996,6 +1082,38 @@ export function AppShell() {
                 </button>
               </div>
 
+              {/* Обучение с подсветкой этапов (как в Peakly) */}
+              <button
+                type="button"
+                onClick={() => {
+                  setTourStepIdx(0);
+                  setTourModalOpen(true);
+                }}
+                title="Интерактивное обучение с подсветкой этапов"
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] bg-[#FAF8F5] border-[1.5px] border-[#D4CDC2] hover:border-[#161615] text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-[#B85D35]" />
+                <span className="hidden xl:inline">Обучение</span>
+              </button>
+
+              {/* Корзина удалений (восстановление удалённых карточек) */}
+              <button
+                type="button"
+                onClick={() => setTrashModalOpen(true)}
+                title="Корзина удалений — восстановить случайно удалённые карточки"
+                className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] border-[1.5px] text-[12.5px] font-medium transition cursor-pointer ${
+                  trashItems.length > 0
+                    ? 'bg-[#FAF8F5] border-[#B85D35] text-[#181715]'
+                    : 'bg-white border-[#D4CDC2] hover:border-[#161615] text-[#161615]'
+                }`}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-[#6E6A63]" />
+                <span className="hidden md:inline">Корзина</span>
+                <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded-[4px] bg-[#F2EFE9] text-[#5C5852]">
+                  {trashItems.length}
+                </span>
+              </button>
+
               {/* Поиск */}
               <button
                 onClick={() => setSearchModalOpen(true)}
@@ -1023,7 +1141,12 @@ export function AppShell() {
                 </button>
 
                 {profileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] shadow-xl p-5 z-50 text-[14px] space-y-4">
+                  <>
+                    <div
+                      onClick={() => setProfileMenuOpen(false)}
+                      className="fixed inset-0 z-40"
+                    />
+                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] shadow-xl p-5 z-50 text-[14px] space-y-4">
                     <div className="border-b border-[#E8E8E5] pb-3">
                       <div className="font-semibold text-[16px] text-[#171717] dark:text-white">
                         {currentUser.fullName}
@@ -1095,6 +1218,7 @@ export function AppShell() {
                       </button>
                     </div>
                   </div>
+                  </>
                 )}
               </div>
             </div>
@@ -1233,7 +1357,306 @@ export function AppShell() {
           </div>
         )}
 
-        {/* УВЕДОМЛЕНИЯ ВНИЗУ ЭКРАНА */}
+        {/* КОРЗИНА УДАЛЕНИЙ (ВОССТАНОВЛЕНИЕ ИЛИ ОКОНЧАТЕЛЬНОЕ УДАЛЕНИЕ) */}
+        {trashModalOpen && (
+          <div
+            onClick={() => setTrashModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl bg-white rounded-2xl border-[1.5px] border-[#181715] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="px-6 py-4 border-b-2 border-[#181715] bg-[#FAF8F5] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2.5">
+                  <Trash2 className="h-5 w-5 text-[#B85D35]" />
+                  <div>
+                    <h3 className="text-[19px] font-bold text-[#181715]">
+                      Корзина удалений ({trashItems.length})
+                    </h3>
+                    <p className="text-[12.5px] text-[#5C5852]">
+                      Случайно удалённые разработки R&amp;D, модели SKU, релизы, задачи и документы можно вернуть в 1 клик
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTrashModalOpen(false)}
+                  className="h-9 px-3.5 rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-white hover:border-[#181715] text-[12.5px] font-semibold text-[#181715] cursor-pointer"
+                >
+                  Закрыть
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                {trashItems.length === 0 ? (
+                  <div className="py-12 text-center space-y-2 rounded-xl border-[1.5px] border-dashed border-[#D4CDC2] bg-[#FAF8F5]">
+                    <div className="text-[16px] font-semibold text-[#181715]">
+                      Корзина удалений пуста
+                    </div>
+                    <div className="text-[13px] text-[#6E6A63]">
+                      Все карточки разработок R&amp;D, модели каталога, запуски и задачи находятся в рабочем контуре
+                    </div>
+                  </div>
+                ) : (
+                  trashItems.map((item) => (
+                    <div
+                      key={`${item.entityType}-${item.id}`}
+                      className="rounded-xl border-[1.5px] border-[#D4CDC2] bg-[#FAF8F5] p-4 flex flex-wrap items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1 min-w-0">
+                        <div className="inline-flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-[4px] bg-white border border-[#CFC8BC] font-mono text-[10.5px] font-semibold uppercase text-[#B85D35]">
+                            {item.typeLabel}
+                          </span>
+                        </div>
+                        <div className="text-[15px] font-bold text-[#181715] truncate">
+                          {item.title}
+                        </div>
+                        <div className="text-[12.5px] text-[#6E6A63] truncate">
+                          {item.subtitle}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => restoreEntity(item.entityType, item.id)}
+                          className="h-9 px-3.5 rounded-[8px] bg-[#1F6E50] hover:bg-[#17563E] text-white text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          <span>Восстановить</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => permanentlyDeleteEntity(item.entityType, item.id)}
+                          className="h-9 px-3 rounded-[8px] border border-[#C94B4B]/40 hover:bg-[#C94B4B] text-[#C94B4B] hover:text-white text-[12px] font-semibold transition cursor-pointer"
+                        >
+                          Удалить навсегда
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {trashItems.length > 0 && (
+                <div className="px-6 py-3.5 border-t-[1.5px] border-[#D4CDC2] bg-[#FAF8F5] flex items-center justify-between">
+                  <span className="text-[12.5px] text-[#5C5852]">
+                    Нажмите на пустое место вокруг окна, чтобы закрыть корзину
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Очистить корзину удалений безвозвратно?')) {
+                        emptyTrash();
+                      }
+                    }}
+                    className="h-9 px-4 rounded-[8px] border border-[#C94B4B] text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white text-[12.5px] font-semibold transition cursor-pointer"
+                  >
+                    Очистить всю корзину
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ИНТЕРАКТИВНАЯ ОБУЧАЛКА С ПОДСВЕТКОЙ ЭТАПОВ (КАК В PEAKLY) */}
+        {tourModalOpen && (
+          <div
+            onClick={() => setTourModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-xs"
+          >
+            {(() => {
+              const TOUR_STEPS = [
+                {
+                  stepNum: '01 / 07',
+                  badge: 'ЭТАП R&D · ЗАПУСК ГИПОТЕЗЫ',
+                  title: '01 Идея → 02 Анализ и расчёт комплекта',
+                  desc: 'Создайте карточку разработки за 15 секунд: загрузите лицевое и оборотное фото, укажите количество штук в комплекте (2 / 3 / 4 / 6 шт.) — система автоматически пересчитает себестоимость за 1 пару и весь набор.',
+                  highlightStages: [0, 1],
+                  targetSection: 'product-lab' as NavSectionId,
+                  ctaLabel: 'Перейти в Лабораторию R&D',
+                },
+                {
+                  stepNum: '02 / 07',
+                  badge: 'ЭТАП R&D · ОБРАЗЕЦ, СТИРКА И РЕШЕНИЕ',
+                  title: '03 Образец (100% состав) → 04 Тест → 05 Решение',
+                  desc: 'Конструктор ткани проверяет сумму волокон ровно на 100%, чек-лист фиксирует 4 протокола стирки и посадки, а на этапе «05 Решение» руководитель утверждает модель в тираж.',
+                  highlightStages: [2, 3, 4],
+                  targetSection: 'product-lab' as NavSectionId,
+                  ctaLabel: 'Открыть карточки на проверке',
+                },
+                {
+                  stepNum: '03 / 07',
+                  badge: 'ЭТАП R&D · СПЕЦИФИКАЦИЯ ФАБРИКЕ (PDF 中文 + ₽/$/¥)',
+                  title: '06 Производство + Конструктор PDF → 07 Запуск',
+                  desc: 'Перед отправкой на фабрику откройте «Конструктор PDF»: выберите лицевое и оборотное фото товара, валюту расчёта (Юани ¥, Доллары $, Рубли ₽) и двуязычные блоки КРУПНЫМ КИТАЙСКИМ + мелким русским шрифтом.',
+                  highlightStages: [5, 6],
+                  targetSection: 'product-lab' as NavSectionId,
+                  ctaLabel: 'Открыть Product Lab и PDF-конструктор',
+                },
+                {
+                  stepNum: '04 / 07',
+                  badge: 'ДАШБОРД · СВОБОДНАЯ ДОСКА MIRO',
+                  title: 'Свободная доска Miro с фото и голосовыми заметками',
+                  desc: 'На главном дашборде расположена интерактивная доска в стиле Miro: перетаскивайте карточки по холсту, загружайте пакетно референсы, записывайте голосовые заметки с микрофона и прикрепляйте аудиофайлы.',
+                  highlightStages: [0, 1, 2, 3, 4, 5, 6],
+                  targetSection: 'dashboard' as NavSectionId,
+                  ctaLabel: 'Перейти на Доску Miro',
+                },
+                {
+                  stepNum: '05 / 07',
+                  badge: 'ОПЕРАЦИОННЫЙ КОНТРОЛЬ · CRM, ТЗ И КОРЗИНА',
+                  title: 'CRM · Задачи, пакетные документы и Корзина удалений',
+                  desc: 'Управляйте поручениями на Канбан-доске CRM, загружайте сразу много ТЗ с привязкой к конкретной карточке R&D/SKU и восстанавливайте случайно удалённые объекты через «Корзину» в верхней панели.',
+                  highlightStages: [0, 1, 2, 3, 4, 5, 6],
+                  targetSection: 'roadmap-tasks' as NavSectionId,
+                  ctaLabel: 'Открыть доску CRM · Задачи',
+                },
+              ];
+
+              const currentTour = TOUR_STEPS[tourStepIdx] || TOUR_STEPS[0];
+              const RND_STAGE_NAMES = [
+                '01 Идея',
+                '02 Анализ',
+                '03 Образец',
+                '04 Тест',
+                '05 Решение',
+                '06 Производство',
+                '07 Запуск',
+              ];
+
+              return (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full max-w-2xl bg-white rounded-2xl border-2 border-[#181715] shadow-2xl overflow-hidden"
+                >
+                  {/* Верхняя полоса с подсветкой шагов */}
+                  <div className="px-6 py-4 bg-[#181715] text-white flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2.5">
+                      <Sparkles className="h-4 w-4 text-[#D97745]" />
+                      <span className="font-mono text-[11.5px] uppercase tracking-[0.14em] text-[#D8D1C5]">
+                        ИНТЕРАКТИВНЫЙ ГИД BORNERS GROUP · ШАГ {tourStepIdx + 1} ИЗ {TOUR_STEPS.length}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setTourModalOpen(false)}
+                      className="text-[12px] font-mono text-white/75 hover:text-white cursor-pointer"
+                    >
+                      Закрыть [ESC]
+                    </button>
+                  </div>
+
+                  <div className="p-6 md:p-8 space-y-6">
+                    {/* Визуальная шкала подсветки 7 этапов (Spotlight) */}
+                    <div className="rounded-xl bg-[#FAF8F5] border-[1.5px] border-[#CFC8BC] p-4 space-y-2.5">
+                      <div className="flex items-center justify-between text-[11px] font-mono uppercase text-[#7A756D]">
+                        <span>Подсветка этапов жизненного цикла модели (01–07)</span>
+                        <span className="text-[#1F6E50] font-semibold">● Активный фокус</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-7 gap-1.5">
+                        {RND_STAGE_NAMES.map((stName, i) => {
+                          const isSpotlit = currentTour.highlightStages.includes(i);
+                          const isPassed = i < Math.min(...currentTour.highlightStages);
+                          return (
+                            <div
+                              key={stName}
+                              className={`px-2.5 py-2 rounded-[6px] border text-center transition-all ${
+                                isSpotlit
+                                  ? 'bg-[#B85D35] text-white border-[#181715] font-bold shadow-sm scale-[1.03]'
+                                  : isPassed
+                                  ? 'bg-[#1F6E50]/12 text-[#1F6E50] border-[#1F6E50]/30 font-semibold'
+                                  : 'bg-white text-[#8C867E] border-[#E2DCD2]'
+                              }`}
+                            >
+                              <div className="text-[10.5px] font-mono truncate">{stName}</div>
+                              <div className="text-[9.5px] mt-0.5">
+                                {isSpotlit ? '● Фокус' : isPassed ? '✓ Готово' : '○ Этап'}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#B85D35]">
+                        {currentTour.badge}
+                      </div>
+                      <h3 className="font-serif-editorial text-[28px] md:text-[32px] font-semibold text-[#181715] leading-tight">
+                        {currentTour.title}
+                      </h3>
+                      <p className="text-[14.5px] text-[#5C5852] leading-relaxed">
+                        {currentTour.desc}
+                      </p>
+                    </div>
+
+                    {/* Точки быстрого переключения шагов */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {TOUR_STEPS.map((_, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setTourStepIdx(idx)}
+                          className={`h-2 rounded-full transition-all cursor-pointer ${
+                            idx === tourStepIdx
+                              ? 'w-8 bg-[#181715]'
+                              : 'w-2 bg-[#D4CDC2] hover:bg-[#8C867E]'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 bg-[#FAF8F5] border-t-[1.5px] border-[#CFC8BC] flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={tourStepIdx === 0}
+                        onClick={() => setTourStepIdx((i) => Math.max(0, i - 1))}
+                        className="h-9 px-3.5 rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-white text-[12.5px] font-semibold text-[#181715] disabled:opacity-40 cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        <span>Назад</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (tourStepIdx < TOUR_STEPS.length - 1) {
+                            setTourStepIdx((i) => i + 1);
+                          } else {
+                            setTourModalOpen(false);
+                          }
+                        }}
+                        className="h-9 px-4 rounded-[8px] border-[1.5px] border-[#181715] bg-white hover:bg-[#EFECE6] text-[12.5px] font-semibold text-[#181715] cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <span>
+                          {tourStepIdx < TOUR_STEPS.length - 1 ? 'Следующий шаг' : 'Завершить гид'}
+                        </span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlatformMode('management');
+                        navigateTo(currentTour.targetSection);
+                        setTourModalOpen(false);
+                      }}
+                      className="h-9 px-4 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white text-[12.5px] font-semibold cursor-pointer"
+                    >
+                      {currentTour.ctaLabel} →
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
         <div className="fixed bottom-6 right-6 z-50 space-y-2 max-w-md w-full pointer-events-none">
           {toasts.map((t) => (
             <div

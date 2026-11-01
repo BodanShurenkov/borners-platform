@@ -433,6 +433,8 @@ export function ProductCatalogView() {
                     <img
                       src={product.imageUrl}
                       alt={product.name}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-contain group-hover:scale-[1.03] transition-transform"
                     />
                   </div>
@@ -1435,7 +1437,7 @@ export function ProductCatalogView() {
               </div>
             )}
 
-            {/* Кнопка архивации */}
+            {/* Кнопка удаления в корзину */}
             {canEditActiveProduct && (
               <div className="pt-6 border-t border-[#E8E8E5] flex justify-between items-center">
                 <button
@@ -1446,7 +1448,7 @@ export function ProductCatalogView() {
                   className="inline-flex items-center gap-2 rounded-xl border border-[#C94B4B] px-4 py-2.5 text-[14px] font-semibold text-[#C94B4B] hover:bg-[#C94B4B] hover:text-white transition cursor-pointer"
                 >
                   <Archive className="h-4 w-4" />
-                  <span>Переместить в архив</span>
+                  <span>Удалить в корзину</span>
                 </button>
                 <span className="text-[13px] text-[#737373]">
                   Обновлено: {activeProduct.updatedAt}
@@ -1459,8 +1461,14 @@ export function ProductCatalogView() {
 
       {/* Модальное окно создания модели */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl">
+        <div
+          onClick={() => setCreateModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl"
+          >
             <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
               <h3 className="text-[22px] font-bold">Новая модель в каталоге</h3>
               <button

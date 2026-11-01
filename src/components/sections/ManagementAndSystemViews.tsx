@@ -300,8 +300,14 @@ export function MarketIntelligenceView() {
 
       {/* Модальное окно добавления конкурента */}
       {compModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl">
+        <div
+          onClick={() => setCompModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-6 shadow-2xl"
+          >
             <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
               <h3 className="text-[22px] font-bold">Новое досье конкурента</h3>
               <button
@@ -392,8 +398,14 @@ export function MarketIntelligenceView() {
 
       {/* Модальное окно добавления исследования */}
       {insightModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setInsightModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Новое рыночное исследование
             </h3>
@@ -1279,7 +1291,7 @@ export function RoadmapTasksView() {
                   className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#C94B4B] hover:underline cursor-pointer"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>Архивировать задачу</span>
+                  <span>Удалить в корзину</span>
                 </button>
               </div>
             )}
@@ -1289,8 +1301,14 @@ export function RoadmapTasksView() {
 
       {/* Модальное окно создания задачи */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Постановка задачи
             </h3>
@@ -1417,6 +1435,9 @@ export function DocumentsView() {
     brandFilter,
     platformMode,
     createDocument,
+    updateDocument,
+    archiveEntity,
+    navigateTo,
     notify,
   } = usePlatform();
 
@@ -1435,8 +1456,37 @@ export function DocumentsView() {
     fileType: 'PDF',
     fileSizeBytes: 2450000,
     dataUrl: '',
+    conceptId: '',
+    productId: '',
     isFinancialRestricted: false,
   });
+
+  const handleMultiFileUpload = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach((file) => {
+      const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
+      const reader = new FileReader();
+      reader.onload = () => {
+        createDocument({
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          category: form.category || 'производство',
+          brandId: brandFilter === 'NA_TELE' ? 'NA_TELE' : 'BORNERS',
+          fileName: file.name,
+          fileType: ext,
+          fileSizeBytes: file.size || 245000,
+          dataUrl: typeof reader.result === 'string' ? reader.result : undefined,
+          conceptId: form.conceptId || undefined,
+          productId: form.productId || undefined,
+          tags: [form.category || 'производство'],
+          isFinancialRestricted: false,
+          minRole: 'Viewer',
+          isDemo: false,
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+    notify('success', `Пакетно загружено файлов в реестр: ${files.length} шт.`);
+  };
 
   const filteredDocs = useMemo(() => {
     return documents.filter((d) => {
@@ -1501,7 +1551,7 @@ export function DocumentsView() {
       <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
         <div>
           <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Реестр документации, спецификаций и лекал
+            Реестр документации, спецификаций, лекал и привязка ТЗ к карточкам
           </div>
           <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
             Документы и файлы
@@ -1509,12 +1559,27 @@ export function DocumentsView() {
         </div>
 
         {!isStrategyMode && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
-          >
-            + Загрузить документ
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="h-11 px-4 rounded-xl border-[1.5px] border-[#181715] bg-[#FAF8F5] hover:bg-[#EFECE6] text-[#181715] text-[14px] font-semibold transition cursor-pointer inline-flex items-center gap-2">
+              <Paperclip className="h-4 w-4 text-[#B85D35]" />
+              <span>+ Загрузить сразу много файлов</span>
+              <input
+                type="file"
+                multiple
+                onChange={(e) => {
+                  handleMultiFileUpload(e.target.files);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+            </label>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[14px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+            >
+              + Добавить ТЗ / документ с привязкой
+            </button>
+          </div>
         )}
       </div>
 
@@ -1563,8 +1628,8 @@ export function DocumentsView() {
           <thead className="border-b border-[#E8E8E5] text-[13px] font-semibold uppercase tracking-wider text-[#737373] bg-[#F7F7F5]/60">
             <tr>
               <th className="py-4 px-6">Наименование и файл</th>
-              <th className="py-4 px-4">Категория</th>
-              <th className="py-4 px-4">Бренд</th>
+              <th className="py-4 px-4">Привязка к карточке (R&amp;D / SKU)</th>
+              <th className="py-4 px-4">Категория / Бренд</th>
               <th className="py-4 px-4">Дата и автор</th>
               <th className="py-4 px-6 text-right">Действие</th>
             </tr>
@@ -1575,6 +1640,8 @@ export function DocumentsView() {
                 doc.fileName.toLowerCase().endsWith('.xlsx') ||
                 doc.fileName.toLowerCase().endsWith('.xls') ||
                 doc.category === 'финансы';
+              const linkedConcept = concepts.find((c) => c.id === doc.conceptId);
+              const linkedProduct = products.find((p) => p.id === doc.productId);
 
               return (
                 <tr key={doc.id} className="hover:bg-[#FAF8F5] transition">
@@ -1586,11 +1653,87 @@ export function DocumentsView() {
                       {doc.fileName} · {Math.round(doc.fileSizeBytes / 1024)} КБ
                     </div>
                   </td>
-                  <td className="py-4 px-4 font-medium capitalize text-[#6E6A63]">
-                    {doc.category}
+                  <td className="py-4 px-4">
+                    <div className="space-y-1.5">
+                      {linkedConcept && (
+                        <button
+                          type="button"
+                          onClick={() => navigateTo('product-lab', { conceptId: linkedConcept.id })}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-[#FAF8F5] border border-[#CFC8BC] hover:border-[#181715] text-[12px] font-semibold text-[#181715] cursor-pointer"
+                        >
+                          <span className="text-[#B85D35] font-mono">R&amp;D:</span>
+                          <span className="truncate max-w-[180px]">{linkedConcept.name}</span>
+                          <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+                        </button>
+                      )}
+                      {linkedProduct && (
+                        <button
+                          type="button"
+                          onClick={() => navigateTo('product-catalog', { productId: linkedProduct.id })}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-[#FAF8F5] border border-[#CFC8BC] hover:border-[#181715] text-[12px] font-semibold text-[#181715] cursor-pointer"
+                        >
+                          <span className="text-[#1F6E50] font-mono">SKU:</span>
+                          <span className="truncate max-w-[180px]">{linkedProduct.sku} · {linkedProduct.name}</span>
+                          <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+                        </button>
+                      )}
+                      {!isStrategyMode && (
+                        <div>
+                          <select
+                            value={
+                              doc.conceptId
+                                ? `concept:${doc.conceptId}`
+                                : doc.productId
+                                ? `product:${doc.productId}`
+                                : ''
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (!val) {
+                                updateDocument(doc.id, { conceptId: undefined, productId: undefined });
+                              } else if (val.startsWith('concept:')) {
+                                updateDocument(doc.id, {
+                                  conceptId: val.replace('concept:', ''),
+                                  productId: undefined,
+                                });
+                              } else if (val.startsWith('product:')) {
+                                updateDocument(doc.id, {
+                                  productId: val.replace('product:', ''),
+                                  conceptId: undefined,
+                                });
+                              }
+                            }}
+                            className="h-8 rounded-[6px] border border-[#D4CDC2] bg-white px-2 text-[11.5px] font-medium text-[#5C5852] max-w-[230px] cursor-pointer"
+                          >
+                            <option value="">Привязать к карточке R&amp;D или SKU...</option>
+                            <optgroup label="Карточки разработки R&D">
+                              {concepts
+                                .filter((c) => !c.isArchived)
+                                .map((c) => (
+                                  <option key={c.id} value={`concept:${c.id}`}>
+                                    R&amp;D: {c.code} — {c.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="Модели каталога SKU">
+                              {products
+                                .filter((p) => !p.isArchived)
+                                .map((p) => (
+                                  <option key={p.id} value={`product:${p.id}`}>
+                                    SKU: {p.sku} — {p.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          </select>
+                        </div>
+                      )}
+                    </div>
                   </td>
-                  <td className="py-4 px-4 font-semibold text-[#181715]">
-                    {doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}
+                  <td className="py-4 px-4">
+                    <div className="font-medium capitalize text-[#6E6A63]">{doc.category}</div>
+                    <div className="text-[12px] font-semibold text-[#181715]">
+                      {doc.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : doc.brandId}
+                    </div>
                   </td>
                   <td className="py-4 px-4">
                     <div className="font-semibold text-[#181715]">{doc.uploadedAt}</div>
@@ -1637,6 +1780,16 @@ export function DocumentsView() {
                           </button>
                         </>
                       )}
+                      {!isStrategyMode && (
+                        <button
+                          type="button"
+                          onClick={() => archiveEntity('document', doc.id)}
+                          title="Удалить в корзину"
+                          className="h-9 w-9 rounded-[8px] border border-[#EAE6DF] hover:border-[#C94B4B] text-[#7A756D] hover:text-[#C94B4B] inline-flex items-center justify-center cursor-pointer transition"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1647,10 +1800,16 @@ export function DocumentsView() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
-              Регистрация документа
+              Загрузка документов и привязка к карточке
             </h3>
             <div className="space-y-4 text-[14px]">
               <div>
@@ -1658,6 +1817,7 @@ export function DocumentsView() {
                 <input
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder="Например: Техническое задание и табель мер лекала"
                   className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px]"
                 />
               </div>
@@ -1691,15 +1851,64 @@ export function DocumentsView() {
                   </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold mb-1.5">
+                    Привязать к карточке R&amp;D (опционально)
+                  </label>
+                  <select
+                    value={form.conceptId}
+                    onChange={(e) => setForm({ ...form, conceptId: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 text-[13.5px] bg-white"
+                  >
+                    <option value="">Без привязки к R&amp;D</option>
+                    {concepts
+                      .filter((c) => !c.isArchived)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.code} — {c.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1.5">
+                    Привязать к артикулу SKU (опционально)
+                  </label>
+                  <select
+                    value={form.productId}
+                    onChange={(e) => setForm({ ...form, productId: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3 text-[13.5px] bg-white"
+                  >
+                    <option value="">Без привязки к SKU</option>
+                    {products
+                      .filter((p) => !p.isArchived)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.sku} — {p.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block font-semibold mb-1.5">
-                  Выбрать файл с компьютера (PDF, XLSX, DOCX, PNG, SVG)
+                  Выбрать один или сразу несколько файлов (PDF, XLSX, DOCX, PNG, SVG)
                 </label>
                 <input
                   type="file"
+                  multiple
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
+                    const files = e.target.files;
+                    if (!files || files.length === 0) return;
+                    if (files.length > 1) {
+                      handleMultiFileUpload(files);
+                      setModalOpen(false);
+                      return;
+                    }
+                    const file = files[0];
                     const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
                     const reader = new FileReader();
                     reader.onload = () => {
@@ -1743,6 +1952,8 @@ export function DocumentsView() {
                     fileType: form.fileType || 'PDF',
                     fileSizeBytes: form.fileSizeBytes || 2450000,
                     dataUrl: form.dataUrl || undefined,
+                    conceptId: form.conceptId || undefined,
+                    productId: form.productId || undefined,
                     tags: [form.category],
                     isFinancialRestricted: form.isFinancialRestricted,
                     minRole: 'Viewer',
@@ -2018,11 +2229,31 @@ export function SettingsView() {
     <div className="space-y-10 pb-20">
       <div className="border-b border-[#EAE6DF] pb-6">
         <div className="text-[12px] font-medium text-[#8C867E] mb-1.5">
-          Конфигурация системы и резервное копирование
+          Конфигурация системы, корпоративный домен и резервное копирование
         </div>
         <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-normal tracking-[-0.015em] text-[#181715]">
-          Настройки системы
+          Настройки системы · BORNERS GROUP
         </h1>
+      </div>
+
+      {/* Корпоративный домен BORNERS GROUP */}
+      <div className="bg-white rounded-[12px] border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] p-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#B85D35] font-semibold">
+            ОФИЦИАЛЬНЫЙ ДОМЕН ПЛАТФОРМЫ
+          </div>
+          <div className="text-[20px] font-bold text-[#181715]">
+            Borners Group · <span className="font-mono text-[#1F6E50]">borners-group.ru</span>
+          </div>
+          <div className="text-[13px] text-[#5C5852]">
+            Единый защищённый контур управления портфелем брендов BORNERS и НА ТЕЛЕ (2026–2027)
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1.5 rounded-[8px] bg-[#1F6E50]/12 border border-[#1F6E50]/30 text-[12.5px] font-mono font-semibold text-[#1F6E50]">
+            ✓ Домен borners-group.ru активен
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

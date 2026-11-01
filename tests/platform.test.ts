@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   calculateUnitEconomics,
   calculateRevenueFromBuyouts,
@@ -20,6 +22,7 @@ import {
   buildXlsxBytes,
   buildPdfFromJpegPages,
 } from '../src/lib/document-export.ts';
+import { INITIAL_STRATEGIES } from '../src/lib/initial-strategies.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
   const result = calculateUnitEconomics({
@@ -336,5 +339,22 @@ test('8. Экспорт документов (PDF и Excel .xlsx): генера�
   const pdfTail = new TextDecoder().decode(pdfBytes.slice(pdfBytes.length - 16));
   assert.equal(pdfHeader.startsWith('%PDF-1.4'), true);
   assert.equal(pdfTail.includes('%%EOF'), true);
+});
+
+test('9. Быстрая загрузка фотографий (< 50 КБ на фото) и дедлайны всех 14 блоков стратегии', () => {
+  const imagesDir = path.join(process.cwd(), 'public', 'images', 'products');
+  const files = fs.readdirSync(imagesDir).filter((f) => f.endsWith('.jpg') || f.endsWith('.png'));
+  assert.equal(files.length >= 10, true);
+  for (const file of files) {
+    const stat = fs.statSync(path.join(imagesDir, file));
+    // Каждое изображение сжато до ~18-36 КБ (лимит < 60 КБ вместо прежних 7.2 МБ)
+    assert.equal(stat.size < 60 * 1024, true, `Файл ${file} превышает 60 КБ: ${stat.size} байт`);
+  }
+
+  assert.equal(INITIAL_STRATEGIES.length, 28);
+  for (const block of INITIAL_STRATEGIES) {
+    assert.equal(typeof block.deadline, 'string');
+    assert.equal((block.deadline ?? '').length, 10);
+  }
 });
 

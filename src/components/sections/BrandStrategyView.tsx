@@ -323,8 +323,14 @@ export function BrandPortfolioView() {
 
       {/* Модальное окно создания нового бренда */}
       {showNewBrandModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setShowNewBrandModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <h3 className="text-[22px] font-bold border-b border-[#E8E8E5] pb-4">
               Добавление нового бренда
             </h3>
@@ -440,12 +446,14 @@ export function BrandStrategyView() {
     content: string;
     metricsText: string;
     status: ApprovalStatus;
+    deadline: string;
     changeSummary: string;
   }>({
     summary: '',
     content: '',
     metricsText: '',
     status: 'draft',
+    deadline: '2027-03-15',
     changeSummary: '',
   });
 
@@ -464,6 +472,7 @@ export function BrandStrategyView() {
       content: block.content,
       metricsText: block.kpiHighlights.map((m) => `${m.label}: ${m.value}`).join('\n'),
       status: block.status,
+      deadline: block.deadline || '2027-03-15',
       changeSummary: '',
     });
   };
@@ -490,6 +499,7 @@ export function BrandStrategyView() {
         kpiHighlights:
           parsedMetrics.length > 0 ? parsedMetrics : editingBlock.kpiHighlights,
         status: formState.status,
+        deadline: formState.deadline || editingBlock.deadline,
       },
       formState.changeSummary.trim() || `Обновлён блок «${editingBlock.titleRu}»`
     );
@@ -576,7 +586,12 @@ export function BrandStrategyView() {
                     </h3>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {block.deadline && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#FAF8F5] border border-[#CFC8BC] text-[11px] font-mono font-semibold text-[#B85D35]">
+                        <span>Срок: {block.deadline}</span>
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] bg-[#F2EFE9] border border-[#E5E0D8] text-[11px] font-medium text-[#161615]">
                       <span className={`h-1.5 w-1.5 rounded-full ${st.dotColor}`} />
                       <span>{st.label}</span>
@@ -649,8 +664,14 @@ export function BrandStrategyView() {
 
       {/* МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ БЛОКА */}
       {editingBlock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div
+          onClick={() => setEditingBlock(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
             <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
               <div>
                 <div className="text-[12px] font-semibold uppercase text-[#737373]">
@@ -669,19 +690,31 @@ export function BrandStrategyView() {
             </div>
 
             <div className="space-y-4 text-[14px]">
-              <div>
-                <label className="block font-semibold mb-1.5">Статус согласования</label>
-                <select
-                  value={formState.status}
-                  onChange={(e) =>
-                    setFormState({ ...formState, status: e.target.value as ApprovalStatus })
-                  }
-                  className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white font-medium"
-                >
-                  <option value="draft">Черновик</option>
-                  <option value="in_review">На согласовании</option>
-                  {canEditApproved && <option value="approved">Утверждено</option>}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold mb-1.5">Статус согласования</label>
+                  <select
+                    value={formState.status}
+                    onChange={(e) =>
+                      setFormState({ ...formState, status: e.target.value as ApprovalStatus })
+                    }
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] bg-white font-medium"
+                  >
+                    <option value="draft">Черновик</option>
+                    <option value="in_review">На согласовании</option>
+                    {canEditApproved && <option value="approved">Утверждено</option>}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1.5">Дедлайн контрольной точки</label>
+                  <input
+                    type="date"
+                    value={formState.deadline}
+                    onChange={(e) => setFormState({ ...formState, deadline: e.target.value })}
+                    className="w-full h-11 rounded-xl border border-[#E8E8E5] px-3.5 text-[15px] font-mono bg-white"
+                  />
+                </div>
               </div>
 
               <div>
@@ -752,8 +785,14 @@ export function BrandStrategyView() {
 
       {/* МОДАЛЬНОЕ ОКНО ИСТОРИИ ВЕРСИЙ */}
       {historyBlock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl">
+        <div
+          onClick={() => setHistoryBlock(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white rounded-2xl border border-[#E8E8E5] p-8 space-y-5 shadow-2xl"
+          >
             <div className="flex items-center justify-between border-b border-[#E8E8E5] pb-4">
               <div>
                 <div className="text-[12px] font-semibold uppercase text-[#737373]">
