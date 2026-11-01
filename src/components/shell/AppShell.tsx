@@ -64,16 +64,16 @@ const SIMPLE_NAV_ITEMS: {
     subtitle: '7 этапов отбора и образцы',
   },
   {
-    id: 'brand-strategy',
-    step: '03',
-    label: 'Стратегия брендов',
-    subtitle: 'Паспорта 14 блоков ДНК',
-  },
-  {
     id: 'product-catalog',
-    step: '04',
+    step: '03',
     label: 'Каталог моделей',
     subtitle: 'Матрица 70/30 и юнит-маржа',
+  },
+  {
+    id: 'roadmap-tasks',
+    step: '04',
+    label: 'CRM · Задачи и проекты',
+    subtitle: 'Канбан-доска, дедлайны и поручения',
   },
   {
     id: 'launch-calendar',
@@ -82,8 +82,14 @@ const SIMPLE_NAV_ITEMS: {
     subtitle: 'Релизы коллекций и чек-листы',
   },
   {
-    id: 'finance',
+    id: 'brand-strategy',
     step: '06',
+    label: 'Стратегия брендов',
+    subtitle: 'Паспорта 14 блоков ДНК',
+  },
+  {
+    id: 'finance',
+    step: '07',
     label: 'Финансы 2027',
     subtitle: '3 сценария P&L и План/Факт',
   },
@@ -94,10 +100,9 @@ const OPERATIONAL_NAV_ITEMS: {
   step: string;
   label: string;
 }[] = [
-  { id: 'brand-portfolio', step: '07', label: 'Портфель брендов' },
-  { id: 'marketing-growth', step: '08', label: 'Маркетинг и рост' },
-  { id: 'market-intelligence', step: '09', label: 'Рынок и конкуренты' },
-  { id: 'roadmap-tasks', step: '10', label: 'Задачи и проекты' },
+  { id: 'brand-portfolio', step: '08', label: 'Портфель брендов' },
+  { id: 'marketing-growth', step: '09', label: 'Маркетинг и рост' },
+  { id: 'market-intelligence', step: '10', label: 'Рынок и конкуренты' },
   { id: 'documents', step: '11', label: 'Документы и ТЗ' },
   { id: 'team', step: '12', label: 'Команда и роли' },
   { id: 'settings', step: '13', label: 'Настройки системы' },
@@ -208,17 +213,97 @@ export function AppShell() {
       onSelect: () => void;
     }[] = [];
 
+    // 0. Навигация по разделам платформы (CRM, Задачи, R&D, Каталог, Финансы, Документы и т.д.)
+    const allSections: { id: NavSectionId; title: string; subtitle: string; keywords: string }[] = [
+      {
+        id: 'roadmap-tasks',
+        title: 'CRM · Задачи и проекты',
+        subtitle: 'Канбан-доска поручений, дедлайны и дорожная карта',
+        keywords: 'crm задачи проекты канбан поручения дедлайн',
+      },
+      {
+        id: 'product-lab',
+        title: 'Лаборатория R&D (Product Lab)',
+        subtitle: '7 этапов отбора от идеи до заказа фабрике',
+        keywords: 'лаборатория r&d разработка концепты образцы',
+      },
+      {
+        id: 'product-catalog',
+        title: 'Каталог моделей и SKU',
+        subtitle: 'Ассортиментная матрица 70/30 и юнит-экономика',
+        keywords: 'каталог модели sku матрица ассортимент',
+      },
+      {
+        id: 'launch-calendar',
+        title: 'Календарь запусков',
+        subtitle: 'График релизов коллекций и чек-листы готовности',
+        keywords: 'календарь запуски релизы дропы',
+      },
+      {
+        id: 'finance',
+        title: 'Финансовая модель 2027 (P&L)',
+        subtitle: '3 сценария, выручка, маржа и План / Факт',
+        keywords: 'финансы финмодель p&l бюджет выручка прибыль',
+      },
+      {
+        id: 'documents',
+        title: 'Документы и ТЗ (PDF / Excel)',
+        subtitle: 'Производственные спецификации, лекала и отчёты',
+        keywords: 'документы тз спецификации лекала файлы pdf excel',
+      },
+      {
+        id: 'brand-strategy',
+        title: 'Стратегия брендов (14 блоков)',
+        subtitle: 'ДНК брендов BORNERS и НА ТЕЛЕ',
+        keywords: 'стратегия днк бренд позиционирование',
+      },
+      {
+        id: 'market-intelligence',
+        title: 'Рынок и конкуренты',
+        subtitle: 'Досье конкурентов, цены и рыночные ниши',
+        keywords: 'рынок конкуренты аналитика исследования',
+      },
+    ];
+
+    for (const sec of allSections) {
+      if (
+        sec.title.toLowerCase().includes(q) ||
+        sec.keywords.includes(q)
+      ) {
+        results.push({
+          id: `sec-${sec.id}`,
+          category: 'Раздел',
+          title: sec.title,
+          subtitle: sec.subtitle,
+          onSelect: () => {
+            setPlatformMode('management');
+            navigateTo(sec.id);
+            setGlobalSearchQuery('');
+            setSearchModalOpen(false);
+          },
+        });
+      }
+    }
+
     for (const p of products) {
       if (p.isArchived) continue;
-      if (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)) {
+      const brandRu = p.brandId === 'NA_TELE' ? 'на теле' : 'borners';
+      if (
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        brandRu.includes(q)
+      ) {
         results.push({
           id: `p-${p.id}`,
           category: 'Модель',
           title: `${p.sku} — ${p.name}`,
           subtitle: `${p.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : p.brandId} · ${p.collection}`,
           onSelect: () => {
-            navigateTo('product-catalog', { productId: p.id });
+            setPlatformMode('management');
+            navigateTo('product-catalog', { productId: p.id, brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
+            notify('success', `Открыта модель ${p.sku}`, p.name);
           },
         });
       }
@@ -226,15 +311,23 @@ export function AppShell() {
 
     for (const c of concepts) {
       if (c.isArchived) continue;
-      if (c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)) {
+      const brandRu = c.brandId === 'NA_TELE' ? 'на теле' : 'borners';
+      if (
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        brandRu.includes(q)
+      ) {
         results.push({
           id: `c-${c.id}`,
           category: 'R&D',
           title: `${c.code} — ${c.name}`,
           subtitle: `${CONCEPT_STAGE_LABELS_RU[c.stage]} · Запуск: ${c.targetLaunchDate}`,
           onSelect: () => {
-            navigateTo('product-lab', { conceptId: c.id });
+            setPlatformMode('management');
+            navigateTo('product-lab', { conceptId: c.id, brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
+            notify('success', `Открыта разработка ${c.code}`, c.name);
           },
         });
       }
@@ -249,8 +342,11 @@ export function AppShell() {
           title: l.name,
           subtitle: `Старт: ${l.startDate} · Готовность ${l.readinessPct}%`,
           onSelect: () => {
-            navigateTo('launch-calendar', { launchId: l.id });
+            setPlatformMode('management');
+            navigateTo('launch-calendar', { launchId: l.id, brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
+            notify('success', 'Открыт релиз в календаре', l.name);
           },
         });
       }
@@ -260,11 +356,13 @@ export function AppShell() {
       if (pr.name.toLowerCase().includes(q)) {
         results.push({
           id: `pr-${pr.id}`,
-          category: 'Проект',
+          category: 'Проект CRM',
           title: pr.name,
           subtitle: `${pr.brandId} · ${pr.quarter}`,
           onSelect: () => {
-            navigateTo('roadmap-tasks');
+            setPlatformMode('management');
+            navigateTo('roadmap-tasks', { brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
           },
         });
@@ -273,15 +371,18 @@ export function AppShell() {
 
     for (const t of tasks) {
       if (t.isArchived) continue;
-      if (t.title.toLowerCase().includes(q)) {
+      if (t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)) {
         results.push({
           id: `t-${t.id}`,
-          category: 'Задача',
+          category: 'Задача CRM',
           title: t.title,
           subtitle: `${TASK_STATUS_LABELS_RU[t.status]} · до ${t.deadline}`,
           onSelect: () => {
-            navigateTo('roadmap-tasks');
+            setPlatformMode('management');
+            navigateTo('roadmap-tasks', { brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
+            notify('success', 'Открыта доска CRM · Задачи', t.title);
           },
         });
       }
@@ -297,7 +398,9 @@ export function AppShell() {
           title: d.title,
           subtitle: `${d.fileName} (${d.category})`,
           onSelect: () => {
-            navigateTo('documents');
+            setPlatformMode('management');
+            navigateTo('documents', { brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
           },
         });
@@ -312,14 +415,16 @@ export function AppShell() {
           title: comp.brandName,
           subtitle: comp.positioning,
           onSelect: () => {
-            navigateTo('market-intelligence');
+            setPlatformMode('management');
+            navigateTo('market-intelligence', { brandId: 'ALL' });
+            setGlobalSearchQuery('');
             setSearchModalOpen(false);
           },
         });
       }
     }
 
-    return results.slice(0, 12);
+    return results.slice(0, 14);
   }, [
     globalSearchQuery,
     currentUser,
@@ -331,6 +436,8 @@ export function AppShell() {
     documents,
     competitors,
     navigateTo,
+    setPlatformMode,
+    notify,
   ]);
 
   if (!isAuthenticated) {
@@ -386,7 +493,7 @@ export function AppShell() {
         {/* ЛЕВЫЙ САЙДБАР: при нажатии на глазик плавно уходит в блюр и сдвигается влево, освобождая центр экрана */}
         <aside
           aria-hidden={sidebarBlurred}
-          className={`fixed inset-y-0 left-0 z-40 w-[264px] bg-[#FAF8F5] border-r border-[#EAE6DF] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[264px] bg-[#FAF8F5] border-r-[1.5px] border-[#D4CDC2] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           } ${
             sidebarBlurred
@@ -396,7 +503,7 @@ export function AppShell() {
         >
           <div className="overflow-y-auto flex-1">
             {/* Чистый логотип группы в высоту верхнего хедера h-14 + кнопка «Глазик» для блюра всей левой колонки */}
-            <div className="h-14 px-5 border-b border-[#EAE6DF] dark:border-zinc-800 flex items-center justify-between gap-2">
+            <div className="h-14 px-5 border-b-[1.5px] border-[#D4CDC2] flex items-center justify-between gap-2">
               <button
                 onClick={() => {
                   setPlatformMode('management');
@@ -476,12 +583,17 @@ export function AppShell() {
                   const activeConceptsCount = concepts.filter((c) => !c.isArchived).length;
                   const activeProductsCount = products.filter((p) => !p.isArchived).length;
                   const activeLaunchesCount = launches.filter((l) => !l.isArchived).length;
+                  const activeTasksCount = tasks.filter(
+                    (t) => !t.isArchived && t.status !== 'Done'
+                  ).length;
 
                   const countLabel =
                     item.id === 'dashboard'
                       ? ''
                       : item.id === 'product-lab'
                       ? `${activeConceptsCount}`
+                      : item.id === 'roadmap-tasks'
+                      ? `${activeTasksCount}`
                       : item.id === 'brand-strategy'
                       ? '14'
                       : item.id === 'product-catalog'
@@ -668,12 +780,12 @@ export function AppShell() {
         {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* ВЕРХНЯЯ ПАНЕЛЬ: единая высота h-14, строгая геометрия rounded-[6px], z-50 чтобы выпадающие списки всегда были поверх контента */}
-          <header className="sticky top-0 z-50 h-14 bg-[#FDFCFA]/95 backdrop-blur-xs border-b border-[#E5E0D8] px-6 md:px-8 flex items-center justify-between gap-4">
+          <header className="sticky top-0 z-50 h-14 bg-[#FDFCFA]/95 backdrop-blur-xs border-b-[1.5px] border-[#D4CDC2] px-6 md:px-8 flex items-center justify-between gap-4">
             {/* Левая группа: Кнопка возврата панели (Глазик, когда левая колонка скрыта) + Назад + Выпадающий список брендов */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden h-9 w-9 rounded-[6px] bg-white border border-[#E5E0D8] flex items-center justify-center"
+                className="lg:hidden h-9 w-9 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] flex items-center justify-center"
               >
                 <Menu className="h-4 w-4" />
               </button>
@@ -694,7 +806,7 @@ export function AppShell() {
                 <button
                   onClick={goBack}
                   title="Назад"
-                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] bg-white border border-[#E5E0D8] text-[12.5px] font-medium text-[#161615] hover:border-[#161615] transition cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] text-[12.5px] font-medium text-[#161615] hover:border-[#161615] transition cursor-pointer shrink-0"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Назад</span>
@@ -833,8 +945,35 @@ export function AppShell() {
 
             {/* Правая группа: строгая симметрия h-9 без эмодзи */}
             <div className="flex items-center gap-2 shrink-0">
+              {/* Быстрый переход в CRM с задачами и проектами из любой точки сервиса */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPlatformMode('management');
+                  navigateTo('roadmap-tasks');
+                }}
+                title="Открыть CRM · Задачи и проекты"
+                className={`inline-flex items-center gap-2 h-9 px-3.5 rounded-[6px] border-[1.5px] text-[12.5px] font-medium transition cursor-pointer ${
+                  platformMode === 'management' && activeSection === 'roadmap-tasks'
+                    ? 'bg-[#161615] text-white border-[#161615]'
+                    : 'bg-white text-[#161615] border-[#D4CDC2] hover:border-[#161615]'
+                }`}
+              >
+                <span className="h-2 w-2 rounded-full bg-[#B85D35] shrink-0" />
+                <span>CRM · Задачи</span>
+                <span
+                  className={`font-mono text-[10.5px] px-1.5 py-0.2 rounded-[4px] ${
+                    platformMode === 'management' && activeSection === 'roadmap-tasks'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#F2EFE9] text-[#5C5852]'
+                  }`}
+                >
+                  {tasks.filter((t) => !t.isArchived && t.status !== 'Done').length}
+                </span>
+              </button>
+
               {/* Переключатель: Платформа vs Презентация */}
-              <div className="flex items-center h-9 bg-[#F2EFE9] p-0.5 rounded-[6px] border border-[#E5E0D8]">
+              <div className="flex items-center h-9 bg-[#F2EFE9] p-0.5 rounded-[6px] border-[1.5px] border-[#D4CDC2]">
                 <button
                   onClick={() => setPlatformMode('management')}
                   className={`h-7 px-3 rounded-[4px] text-[12.5px] font-medium transition cursor-pointer ${
@@ -860,11 +999,11 @@ export function AppShell() {
               {/* Поиск */}
               <button
                 onClick={() => setSearchModalOpen(true)}
-                className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-white border border-[#E5E0D8] hover:border-[#161615] px-3 text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
+                className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] hover:border-[#161615] px-3 text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
               >
                 <Search className="h-3.5 w-3.5 text-[#6E6A63]" />
                 <span className="hidden sm:inline">Поиск</span>
-                <span className="hidden md:inline font-mono text-[10px] text-[#8C867E] border border-[#E5E0D8] rounded-[3px] px-1">
+                <span className="hidden md:inline font-mono text-[10px] text-[#8C867E] border border-[#D4CDC2] rounded-[3px] px-1">
                   ⌘K
                 </span>
               </button>
@@ -996,45 +1135,61 @@ export function AppShell() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] shadow-2xl overflow-hidden"
+              className="w-full max-w-2xl bg-white rounded-2xl border-[1.5px] border-[#181715] shadow-2xl overflow-hidden"
             >
-              <div className="flex items-center gap-3 border-b border-[#E8E8E5] px-6 py-4">
-                <Search className="h-5 w-5 text-[#737373]" />
+              <div className="flex items-center gap-3 border-b-2 border-[#181715] px-6 py-4 bg-[#FAF8F5]">
+                <Search className="h-5 w-5 text-[#181715]" />
                 <input
                   autoFocus
                   value={globalSearchQuery}
                   onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                  placeholder="Артикул, название модели, запуск или задача..."
-                  className="flex-1 bg-transparent text-[17px] font-medium outline-none text-[#171717] dark:text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && searchResults.length > 0) {
+                      e.preventDefault();
+                      searchResults[0].onSelect();
+                    } else if (e.key === 'Escape') {
+                      setSearchModalOpen(false);
+                    }
+                  }}
+                  placeholder="Артикул, модель, НА ТЕЛЕ / BORNERS, задача CRM или раздел..."
+                  className="flex-1 bg-transparent text-[16px] font-medium outline-none text-[#171717]"
                 />
                 <button
+                  type="button"
                   onClick={() => setSearchModalOpen(false)}
-                  className="rounded-lg border border-[#E8E8E5] px-2.5 py-1 text-[12px] font-semibold text-[#737373] cursor-pointer"
+                  className="rounded-[6px] border-[1.5px] border-[#D4CDC2] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#5C5852] hover:border-[#181715] hover:text-[#181715] cursor-pointer"
                 >
                   ESC
                 </button>
               </div>
 
-              <div className="max-h-96 overflow-y-auto divide-y divide-[#E8E8E5] p-2">
+              <div className="max-h-96 overflow-y-auto divide-y divide-[#E5E0D8] p-2">
                 {searchResults.map((res) => (
-                  <div
+                  <button
                     key={res.id}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      res.onSelect();
+                    }}
                     onClick={res.onSelect}
-                    className="px-4 py-3.5 rounded-xl hover:bg-[#F7F7F5] cursor-pointer flex items-center justify-between transition"
+                    className="w-full text-left px-4 py-3.5 rounded-xl hover:bg-[#F3EFE8] cursor-pointer flex items-center justify-between gap-4 transition group"
                   >
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[12px] font-semibold uppercase text-[#737373] bg-[#F7F7F5] px-2.5 py-0.5 rounded-md border border-[#E8E8E5]">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[11px] font-mono font-semibold uppercase text-[#181715] bg-[#EFECE6] px-2.5 py-0.5 rounded-[5px] border border-[#D4CDC2] shrink-0">
                           {res.category}
                         </span>
-                        <span className="text-[16px] font-semibold text-[#171717] dark:text-white">
+                        <span className="text-[15px] font-semibold text-[#181715] group-hover:underline truncate">
                           {res.title}
                         </span>
                       </div>
-                      <div className="text-[14px] text-[#737373] mt-1">{res.subtitle}</div>
+                      <div className="text-[13px] text-[#6E6A63] mt-1 truncate">{res.subtitle}</div>
                     </div>
-                    <span className="text-[14px] font-semibold text-[#171717]">Открыть →</span>
-                  </div>
+                    <span className="text-[13px] font-semibold text-[#181715] shrink-0 px-3 py-1.5 rounded-[6px] bg-[#FAF8F5] group-hover:bg-[#181715] group-hover:text-white border border-[#D4CDC2] transition">
+                      Открыть →
+                    </span>
+                  </button>
                 ))}
 
                 {globalSearchQuery && searchResults.length === 0 && (
@@ -1044,8 +1199,33 @@ export function AppShell() {
                 )}
 
                 {!globalSearchQuery && (
-                  <div className="py-10 text-center text-[14px] text-[#737373]">
-                    Введите артикул (например, BRN-MOD-01), название модели, запуск или задачу
+                  <div className="p-4 space-y-3">
+                    <div className="text-[12px] font-mono uppercase tracking-wider text-[#7A756D]">
+                      Быстрый переход по ключевым модулям:
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'roadmap-tasks' as const, label: 'CRM · Задачи и проекты' },
+                        { id: 'product-lab' as const, label: 'Лаборатория R&D' },
+                        { id: 'product-catalog' as const, label: 'Каталог моделей SKU' },
+                        { id: 'launch-calendar' as const, label: 'Календарь запусков' },
+                        { id: 'finance' as const, label: 'Финансы 2027 (P&L)' },
+                        { id: 'documents' as const, label: 'Документы (PDF / Excel)' },
+                      ].map((sec) => (
+                        <button
+                          key={sec.id}
+                          type="button"
+                          onClick={() => {
+                            setPlatformMode('management');
+                            navigateTo(sec.id);
+                            setSearchModalOpen(false);
+                          }}
+                          className="px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#D4CDC2] hover:border-[#181715] bg-[#FAF8F5] hover:bg-[#EFECE6] text-left text-[13px] font-medium text-[#181715] transition cursor-pointer"
+                        >
+                          {sec.label} →
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

@@ -16,12 +16,15 @@ import {
   SCENARIO_LABELS_RU,
   SEVEN_KANBAN_STAGES,
   CONCEPT_STAGE_LABELS_RU,
+  TASK_PRIORITY_LABELS_RU,
+  TASK_STATUS_LABELS_RU,
   calculatePlanFactVariance,
   calculateUnitEconomics,
   canUserViewFinance,
   formatCompactRub,
   normalizeConceptStageToSeven,
 } from '@/lib/finance';
+import { TaskStatus } from '@/types/platform';
 
 export function DashboardView() {
   const {
@@ -29,12 +32,15 @@ export function DashboardView() {
     products,
     concepts,
     launches,
+    tasks,
+    users,
     financialPlans,
     currentUser,
     brandFilter,
     setBrandFilter,
     setPlatformMode,
     financialScenario,
+    updateTaskStatus,
     navigateTo,
   } = usePlatform();
 
@@ -180,12 +186,27 @@ export function DashboardView() {
   );
   const upcomingBrands = brands.filter((b) => b.isStrategyInDevelopment);
 
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          !t.isArchived &&
+          (brandFilter === 'ALL' || t.brandId === 'ALL' || t.brandId === brandFilter)
+      ),
+    [tasks, brandFilter]
+  );
+
+  const activeTasksCount = useMemo(
+    () => filteredTasks.filter((t) => t.status !== 'Done').length,
+    [filteredTasks]
+  );
+
   return (
     <div className="space-y-8 pb-20">
       {/* =====================================================================
-          1. СПОКОЙНАЯ РЕДАКЦИОННАЯ ШАПКА + БЕСШОВНАЯ ЛЕНТА ЭТАПОВ PRODUCT LAB
+          1. РЕДАКЦИОННАЯ ШАПКА + БЕСШОВНАЯ ЛЕНТА ЭТАПОВ PRODUCT LAB (ВЫРАЗИТЕЛЬНЫЕ ЛИНИИ)
       ===================================================================== */}
-      <div className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden">
+      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] overflow-hidden">
         <div className="p-7 md:p-9 grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
           <div className="lg:col-span-7 space-y-2.5">
             <div className="text-[12.5px] font-medium text-[#8C867E]">
@@ -204,8 +225,16 @@ export function DashboardView() {
           <div className="lg:col-span-5 flex flex-wrap lg:justify-end items-center gap-2.5">
             <button
               type="button"
+              onClick={() => navigateTo('roadmap-tasks')}
+              className="h-10 px-4 rounded-[8px] border-[1.5px] border-[#CFC8BC] hover:border-[#181715] bg-white text-[#181715] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
+            >
+              <span className="h-2 w-2 rounded-full bg-[#B85D35]" />
+              <span>CRM · Задачи ({activeTasksCount})</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setPlatformMode('strategy')}
-              className="h-10 px-4 rounded-[8px] border border-[#DCD6CC] bg-[#FAF8F5] hover:bg-[#F2EFE9] text-[#181715] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
+              className="h-10 px-4 rounded-[8px] border-[1.5px] border-[#CFC8BC] hover:border-[#181715] bg-[#FAF8F5] text-[#181715] text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
             >
               <span>Презентация стратегии</span>
               <ArrowUpRight className="h-3.5 w-3.5 text-[#7A756D]" />
@@ -221,23 +250,23 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* Единая бесшовная лента 7 этапов R&D вместо 7 отдельных рамок */}
-        <div className="border-t border-[#EAE6DF] bg-[#FAF8F5]">
-          <div className="px-7 py-3 border-b border-[#EAE6DF] flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[12px] font-medium text-[#7A756D]">
-              Этапы отбора моделей в Product Lab
+        {/* Единая бесшовная лента 7 этапов R&D с выразительными разделителями */}
+        <div className="border-t-2 border-[#181715] bg-[#FAF8F5]">
+          <div className="px-7 py-3 border-b-[1.5px] border-[#CFC8BC] flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#5C5852]">
+              Этапы отбора моделей в Product Lab (01–07)
             </span>
             <button
               type="button"
               onClick={() => navigateTo('product-lab')}
-              className="text-[12.5px] font-medium text-[#181715] hover:underline cursor-pointer inline-flex items-center gap-1"
+              className="text-[12.5px] font-semibold text-[#181715] hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               <span>Открыть фотодоску ({filteredConcepts.length} в работе)</span>
               <ArrowUpRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-[#EAE6DF]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-y-[1.5px] sm:divide-y-0 sm:divide-x-[1.5px] divide-[#D5CEC2]">
             {SEVEN_KANBAN_STAGES.map((stageCode, idx) => {
               const count = filteredConcepts.filter(
                 (c) => normalizeConceptStageToSeven(c.stage) === stageCode
@@ -247,17 +276,17 @@ export function DashboardView() {
                   key={stageCode}
                   type="button"
                   onClick={() => navigateTo('product-lab')}
-                  className="px-5 py-3.5 text-left hover:bg-[#F2EFE9] transition cursor-pointer flex items-center justify-between"
+                  className="px-5 py-3.5 text-left hover:bg-[#EFECE6] transition cursor-pointer flex items-center justify-between"
                 >
                   <div>
-                    <span className="text-[11px] text-[#9E988E] block">
-                      Этап {idx + 1}
+                    <span className="font-mono text-[10.5px] text-[#8C867E] block">
+                      Этап 0{idx + 1}
                     </span>
-                    <span className="text-[13.5px] font-medium text-[#181715]">
+                    <span className="text-[13.5px] font-semibold text-[#181715]">
                       {CONCEPT_STAGE_LABELS_RU[stageCode]}
                     </span>
                   </div>
-                  <span className="font-serif-editorial text-[22px] font-medium text-[#181715] tabular-nums">
+                  <span className="font-serif-editorial text-[24px] font-semibold text-[#181715] tabular-nums">
                     {count}
                   </span>
                 </button>
@@ -268,13 +297,13 @@ export function DashboardView() {
       </div>
 
       {/* =====================================================================
-          2. ЕДИНАЯ АРХИТЕКТУРНАЯ ЛЕНТА КЛЮЧЕВЫХ ПОКАЗАТЕЛЕЙ (БЕЗ РАЗРОЗНЕННЫХ КОРОБОК)
+          2. СИММЕТРИЧНАЯ АРХИТЕКТУРНАЯ ЛЕНТА КЛЮЧЕВЫХ ПОКАЗАТЕЛЕЙ (4 РАВНЫХ БЛОКА)
       ===================================================================== */}
-      <div className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#EAE6DF]">
+      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y-[1.5px] sm:divide-y-0 sm:divide-x-[1.5px] divide-[#CFC8BC]">
           <div
             onClick={() => navigateTo('finance')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between cursor-pointer transition"
+            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
           >
             <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
               <span>План выручки на 2027 год</span>
@@ -292,7 +321,7 @@ export function DashboardView() {
 
           <div
             onClick={() => navigateTo('finance')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between cursor-pointer transition"
+            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
           >
             <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
               <span>Операционная прибыль</span>
@@ -312,7 +341,7 @@ export function DashboardView() {
 
           <div
             onClick={() => navigateTo('product-lab')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between cursor-pointer transition"
+            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
           >
             <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
               <span>Разработка в Product Lab</span>
@@ -329,19 +358,19 @@ export function DashboardView() {
           </div>
 
           <div
-            onClick={() => navigateTo('product-catalog')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between cursor-pointer transition"
+            onClick={() => navigateTo('roadmap-tasks')}
+            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
           >
             <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
-              <span>Каталог и запуски</span>
+              <span>CRM · Задачи и релизы</span>
               <ArrowUpRight className="h-3.5 w-3.5 text-[#9E988E]" />
             </div>
             <div className="mt-4 space-y-1.5">
               <div className="font-serif-editorial text-[36px] font-medium tracking-tight text-[#181715] leading-none">
-                {filteredProducts.length} SKU · {filteredLaunches.length} релиза
+                {activeTasksCount} задач · {filteredLaunches.length} релиза
               </div>
               <div className="text-[12.5px] text-[#7A756D]">
-                Пропорция 70% регулярная база / 30% дропы
+                Активные поручения на Канбан-доске CRM
               </div>
             </div>
           </div>
@@ -349,24 +378,24 @@ export function DashboardView() {
       </div>
 
       {/* =====================================================================
-          3. ДВА ФЛАГМАНСКИХ БРЕНДА С ЭСТЕТИЧНОЙ СТУДИЙНОЙ СЪЁМКОЙ НА ЛЬНЕ И КАМНЕ
+          3. ДВА ФЛАГМАНСКИХ БРЕНДА — ЗЕРКАЛЬНАЯ СИММЕТРИЯ КАРТОЧЕК И ЛИНИЙ
       ===================================================================== */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-serif-editorial text-[26px] font-medium text-[#181715]">
+        <div className="flex items-center justify-between border-b-2 border-[#181715] pb-3 px-1">
+          <h2 className="font-serif-editorial text-[28px] font-medium text-[#181715]">
             Флагманские бренды портфеля
           </h2>
           <button
             type="button"
             onClick={() => navigateTo('brand-strategy')}
-            className="text-[13px] font-medium text-[#5C5852] hover:text-[#181715] cursor-pointer inline-flex items-center gap-1"
+            className="text-[13px] font-semibold text-[#181715] hover:underline cursor-pointer inline-flex items-center gap-1"
           >
             <span>Стратегические паспорта (14 блоков)</span>
             <ArrowUpRight className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
           {activeBrands.map((brand) => {
             const isBorners = brand.code === 'BORNERS';
             const accentColor = isBorners ? '#B85D35' : '#8C7A6B';
@@ -383,11 +412,13 @@ export function DashboardView() {
             return (
               <div
                 key={brand.id}
-                className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden flex flex-col justify-between"
+                className={`rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] ${
+                  isBorners ? 'border-t-[#181715]' : 'border-t-[#7D7268]'
+                } overflow-hidden flex flex-col justify-between h-full`}
               >
                 <div>
-                  {/* Студийный редакционный кадр на травертине и натуральном льне */}
-                  <div className="h-60 w-full bg-[#F3EFE8] border-b border-[#EAE6DF] overflow-hidden relative">
+                  {/* Студийный редакционный кадр фиксированной высоты h-60 */}
+                  <div className="h-60 w-full bg-[#F3EFE8] border-b-[1.5px] border-[#CFC8BC] overflow-hidden relative">
                     <img
                       src={brand.heroImage}
                       alt={brand.name}
@@ -396,7 +427,7 @@ export function DashboardView() {
                   </div>
 
                   <div className="p-6 md:p-7 space-y-5">
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-h-[136px]">
                       <div className="inline-flex items-center gap-2 text-[12px] font-medium text-[#7A756D]">
                         <span
                           className="h-2 w-2 rounded-full"
@@ -404,10 +435,10 @@ export function DashboardView() {
                         />
                         <span>{brand.segment}</span>
                       </div>
-                      <h3 className="font-serif-editorial text-[32px] font-medium tracking-tight text-[#181715] leading-none">
+                      <h3 className="font-serif-editorial text-[34px] font-medium tracking-tight text-[#181715] leading-none">
                         {brand.name}
                       </h3>
-                      <p className="text-[14.5px] font-medium text-[#181715]">
+                      <p className="text-[14.5px] font-semibold text-[#181715]">
                         {brand.tagline}
                       </p>
                       <p className="text-[13.5px] text-[#6E6A63] leading-relaxed">
@@ -415,8 +446,8 @@ export function DashboardView() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-4 pt-5 border-t border-[#EAE6DF]">
-                      <div>
+                    <div className="grid grid-cols-4 divide-x-[1.5px] divide-[#DFD8CC] pt-5 border-t-[1.5px] border-[#CFC8BC]">
+                      <div className="pr-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           План 2027
                         </div>
@@ -426,7 +457,7 @@ export function DashboardView() {
                             : '—'}
                         </div>
                       </div>
-                      <div>
+                      <div className="px-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           Целевая маржа
                         </div>
@@ -434,7 +465,7 @@ export function DashboardView() {
                           {hasFinanceAccess ? `${brand.targetMarginPct}%` : '—'}
                         </div>
                       </div>
-                      <div>
+                      <div className="px-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           В каталоге
                         </div>
@@ -442,7 +473,7 @@ export function DashboardView() {
                           {brandProducts.length} SKU
                         </div>
                       </div>
-                      <div>
+                      <div className="pl-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           В R&amp;D
                         </div>
@@ -454,14 +485,14 @@ export function DashboardView() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 divide-x divide-[#EAE6DF] border-t border-[#EAE6DF] bg-[#FAF8F5]">
+                <div className="grid grid-cols-3 divide-x-[1.5px] divide-[#CFC8BC] border-t-[1.5px] border-[#CFC8BC] bg-[#FAF8F5]">
                   <button
                     type="button"
                     onClick={() => {
                       setBrandFilter(brand.code);
                       navigateTo('brand-strategy');
                     }}
-                    className="h-10 px-3 text-[12.5px] font-medium text-[#4A4742] hover:bg-[#EFECE6] hover:text-[#181715] transition cursor-pointer"
+                    className="h-11 px-3 text-[12.5px] font-semibold text-[#181715] hover:bg-[#EFECE6] transition cursor-pointer"
                   >
                     Стратегия бренда
                   </button>
@@ -471,7 +502,7 @@ export function DashboardView() {
                       setBrandFilter(brand.code);
                       navigateTo('product-lab');
                     }}
-                    className="h-10 px-3 text-[12.5px] font-medium text-[#4A4742] hover:bg-[#EFECE6] hover:text-[#181715] transition cursor-pointer"
+                    className="h-11 px-3 text-[12.5px] font-semibold text-[#181715] hover:bg-[#EFECE6] transition cursor-pointer"
                   >
                     Product Lab ({brandConcepts.length})
                   </button>
@@ -481,7 +512,7 @@ export function DashboardView() {
                       setBrandFilter(brand.code);
                       navigateTo('product-catalog');
                     }}
-                    className="h-10 px-3 text-[12.5px] font-medium text-[#4A4742] hover:bg-[#EFECE6] hover:text-[#181715] transition cursor-pointer"
+                    className="h-11 px-3 text-[12.5px] font-semibold text-[#181715] hover:bg-[#EFECE6] transition cursor-pointer"
                   >
                     Каталог ({brandProducts.length})
                   </button>
@@ -494,12 +525,12 @@ export function DashboardView() {
 
       {/* Компактная плашка брендов в разработке (Акуша и Liskani) */}
       {upcomingBrands.length > 0 && brandFilter === 'ALL' && (
-        <div className="rounded-[12px] bg-white border border-[#EAE6DF] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] px-6 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="px-2.5 py-0.5 rounded-[6px] bg-[#F3EFE8] text-[11.5px] font-medium text-[#6E6A63]">
+            <span className="px-2.5 py-0.5 rounded-[6px] bg-[#EFECE6] border border-[#D4CDC2] text-[11.5px] font-semibold text-[#5C5852]">
               В разработке
             </span>
-            <span className="text-[14px] font-medium text-[#181715]">
+            <span className="text-[14px] font-semibold text-[#181715]">
               Бренды портфеля на этапе проработки стратегии:{' '}
               {upcomingBrands.map((b) => b.name).join(' и ')}
             </span>
@@ -511,37 +542,114 @@ export function DashboardView() {
       )}
 
       {/* =====================================================================
-          4. НИЖНИЙ РЯД: СЛЕВА ГРАФИК 2027, СПРАВА БЛИЖАЙШИЕ ЗАПУСКИ
+          4. ОПЕРАЦИОННЫЙ БЛОК CRM · ЗАДАЧИ И ПОРУЧЕНИЯ КОМАНДЫ (НАГЛЯДНО И УДОБНО)
       ===================================================================== */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-serif-editorial text-[26px] font-medium text-[#181715]">
-            Финансовая динамика и ближайшие релизы
-          </h2>
-          <button
-            type="button"
-            onClick={() => navigateTo('launch-calendar')}
-            className="text-[13px] font-medium text-[#5C5852] hover:text-[#181715] cursor-pointer inline-flex items-center gap-1"
-          >
-            <span>Календарь запусков</span>
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </button>
+      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] p-6 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#181715] pb-4">
+          <div>
+            <div className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#B85D35]">
+              CRM · ОПЕРАЦИОННЫЙ КОНТРОЛЬ И ПОРУЧЕНИЯ
+            </div>
+            <h2 className="font-serif-editorial text-[26px] font-medium text-[#181715] mt-0.5">
+              Задачи и проекты в работе ({activeTasksCount} активных из {filteredTasks.length})
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => navigateTo('roadmap-tasks')}
+              className="h-10 px-5 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white text-[13px] font-medium transition cursor-pointer inline-flex items-center gap-2"
+            >
+              <span>Открыть Канбан-доску CRM</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* График выручки и прибыли по месяцам */}
-          <div className="lg:col-span-7 rounded-[12px] bg-white border border-[#EAE6DF] p-6 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E0D8] pb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
+          {filteredTasks.slice(0, 4).map((task) => {
+            const assignee = users.find((u) => u.id === task.assigneeId);
+            const isOverdue = task.deadline < '2027-02-01' && task.status !== 'Done';
+            return (
+              <div
+                key={task.id}
+                onClick={() => navigateTo('roadmap-tasks')}
+                className="rounded-[10px] bg-[#FAF8F5] border-[1.5px] border-[#D4CDC2] hover:border-[#181715] p-4 flex flex-col justify-between gap-4 cursor-pointer transition"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] font-mono">
+                    <span className="font-semibold uppercase text-[#5C5852]">
+                      {task.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : task.brandId}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-[4px] font-semibold ${
+                        task.priority === 'Critical'
+                          ? 'bg-[#B83E3E]/12 text-[#B83E3E]'
+                          : task.priority === 'High'
+                          ? 'bg-[#B87D24]/15 text-[#B87D24]'
+                          : 'bg-[#EFECE6] text-[#5C5852]'
+                      }`}
+                    >
+                      {TASK_PRIORITY_LABELS_RU[task.priority]}
+                    </span>
+                  </div>
+                  <h3 className="text-[15px] font-semibold text-[#181715] leading-snug line-clamp-2">
+                    {task.title}
+                  </h3>
+                  <p className="text-[12.5px] text-[#6E6A63] line-clamp-2">
+                    {task.description}
+                  </p>
+                </div>
+
+                <div className="pt-3 border-t-[1.5px] border-[#DFD8CC] space-y-2">
+                  <div className="flex items-center justify-between text-[12px]">
+                    <span className="text-[#5C5852] font-medium truncate">
+                      {assignee?.fullName.split(' ')[0] || 'Команда'}
+                    </span>
+                    <span className={`font-mono font-semibold ${isOverdue ? 'text-[#B83E3E]' : 'text-[#181715]'}`}>
+                      до {task.deadline}
+                    </span>
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <select
+                      value={task.status}
+                      onChange={(e) => updateTaskStatus(task.id, e.target.value as TaskStatus)}
+                      className="w-full h-8 rounded-[6px] bg-white border-[1.5px] border-[#CFC8BC] px-2.5 text-[12px] font-semibold text-[#181715] cursor-pointer"
+                    >
+                      {(['To Do', 'In Progress', 'Review', 'Done', 'Blocked'] as TaskStatus[]).map(
+                        (st) => (
+                          <option key={st} value={st}>
+                            Статус: {TASK_STATUS_LABELS_RU[st]}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* =====================================================================
+          5. НИЖНИЙ РЯД (СИММЕТРИЯ 6 / 6 КОЛОНОК ОДИНАКОВОЙ ВЫСОТЫ)
+      ===================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* График выручки и прибыли по месяцам */}
+        <div className="lg:col-span-6 rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] p-6 space-y-5 flex flex-col justify-between h-full">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-[#181715] pb-4">
             <div>
               <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
                 ФИНАНСОВАЯ ДИНАМИКА · 2027
               </div>
-              <h2 className="text-[18px] font-semibold text-[#161615] mt-0.5">
+              <h2 className="text-[19px] font-semibold text-[#161615] mt-0.5">
                 Помесячный план и факт (млн ₽)
               </h2>
             </div>
 
-            <div className="flex items-center bg-[#F2EFE9] p-0.5 rounded-[6px] border border-[#E5E0D8]">
+            <div className="flex items-center bg-[#F2EFE9] p-0.5 rounded-[6px] border-[1.5px] border-[#CFC8BC]">
               <button
                 type="button"
                 onClick={() => setChartMetric('revenue')}
@@ -574,15 +682,15 @@ export function DashboardView() {
                   data={monthlyChartData}
                   margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="2 2" stroke="#E5E0D8" vertical={false} />
+                  <CartesianGrid strokeDasharray="2 2" stroke="#D5CEC2" vertical={false} />
                   <XAxis
                     dataKey="periodLabel"
-                    tick={{ fontSize: 11, fill: '#6E6A63' }}
-                    axisLine={{ stroke: '#E5E0D8' }}
+                    tick={{ fontSize: 11, fill: '#5C5852' }}
+                    axisLine={{ stroke: '#181715', strokeWidth: 1.5 }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fill: '#6E6A63' }}
+                    tick={{ fontSize: 11, fill: '#5C5852' }}
                     axisLine={false}
                     tickLine={false}
                     unit=" М"
@@ -596,7 +704,7 @@ export function DashboardView() {
                     }}
                     contentStyle={{
                       borderRadius: '6px',
-                      border: '1px solid #E5E0D8',
+                      border: '1.5px solid #181715',
                       fontSize: '12.5px',
                     }}
                   />
@@ -616,28 +724,28 @@ export function DashboardView() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-56 flex items-center justify-center rounded-[6px] border border-dashed border-[#E5E0D8] text-[13.5px] text-[#6E6A63]">
+            <div className="h-56 flex items-center justify-center rounded-[6px] border-[1.5px] border-dashed border-[#CFC8BC] text-[13.5px] text-[#6E6A63]">
               Финансовая аналитика доступна Владельцу и Администратору
             </div>
           )}
         </div>
 
-        {/* Ближайшие запуски коллекций */}
-        <div className="lg:col-span-5 rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-5 flex flex-col justify-between">
+        {/* Ближайшие запуски коллекций — симметричная правая панель */}
+        <div className="lg:col-span-6 rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] p-6 space-y-5 flex flex-col justify-between h-full">
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-4">
+            <div className="flex items-center justify-between border-b-2 border-[#181715] pb-4">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
                   КАЛЕНДАРЬ РЕЛИЗОВ
                 </div>
-                <h2 className="text-[18px] font-semibold text-[#161615] mt-0.5">
-                  Ближайшие запуски
+                <h2 className="text-[19px] font-semibold text-[#161615] mt-0.5">
+                  Ближайшие запуски коллекций
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => navigateTo('launch-calendar')}
-                className="text-[12.5px] font-medium text-[#161615] hover:underline cursor-pointer"
+                className="text-[12.5px] font-semibold text-[#161615] hover:underline cursor-pointer"
               >
                 Все релизы →
               </button>
@@ -650,9 +758,9 @@ export function DashboardView() {
                   <div
                     key={launch.id}
                     onClick={() => navigateTo('launch-calendar', { launchId: launch.id })}
-                    className="rounded-[6px] bg-[#F8F6F2] border border-[#E5E0D8] hover:border-[#161615] p-3.5 flex items-center gap-3.5 cursor-pointer transition"
+                    className="rounded-[8px] bg-[#FAF8F5] border-[1.5px] border-[#D4CDC2] hover:border-[#161615] p-3.5 flex items-center gap-3.5 cursor-pointer transition"
                   >
-                    <div className="h-14 w-14 rounded-[4px] bg-[#EAE5DC] border border-[#E5E0D8] overflow-hidden shrink-0">
+                    <div className="h-16 w-16 rounded-[6px] bg-[#EAE5DC] border-[1.5px] border-[#CFC8BC] overflow-hidden shrink-0">
                       <img
                         src={launch.imageUrl}
                         alt={launch.name}
@@ -661,17 +769,17 @@ export function DashboardView() {
                     </div>
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-center justify-between font-mono text-[10.5px]">
-                        <span className="uppercase text-[#161615] font-medium">
-                          {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
+                        <span className="uppercase text-[#161615] font-semibold">
+                          {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'} · Готовность {launch.readinessPct}%
                         </span>
-                        <span className="text-[#6E6A63]">
+                        <span className="text-[#5C5852] font-medium">
                           Старт: {launch.startDate}
                         </span>
                       </div>
-                      <div className="font-medium text-[14px] text-[#161615] truncate">
+                      <div className="font-semibold text-[14.5px] text-[#161615] truncate">
                         {launch.name}
                       </div>
-                      <div className="h-1 w-full rounded-full bg-[#E5E0D8] overflow-hidden">
+                      <div className="h-1.5 w-full rounded-full bg-[#DFD8CC] overflow-hidden">
                         <div
                           className="h-full bg-[#161615]"
                           style={{
@@ -686,7 +794,6 @@ export function DashboardView() {
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

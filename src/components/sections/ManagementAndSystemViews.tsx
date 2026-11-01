@@ -579,26 +579,26 @@ export function RoadmapTasksView() {
   };
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* Крупная шапка раздела */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+    <div className="space-y-8 pb-20">
+      {/* Крупная шапка раздела CRM */}
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b-2 border-[#181715] pb-5">
         <div>
-          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Дорожная карта и Канбан-доска с перетаскиванием карточек
+          <div className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em] text-[#B85D35] mb-1">
+            CRM · ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ, КАНБАН И ДОРОЖНАЯ КАРТА
           </div>
-          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-            Задачи и проекты
+          <h1 className="font-serif-editorial text-[36px] md:text-[44px] font-medium tracking-[-0.01em] text-[#181715] leading-none">
+            CRM · Задачи и проекты
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => setOverdueOnly(!overdueOnly)}
-            className={`h-11 px-4 rounded-xl border text-[13px] font-semibold transition cursor-pointer ${
+            className={`h-10 px-4 rounded-[8px] border-[1.5px] text-[13px] font-semibold transition cursor-pointer ${
               overdueOnly
                 ? 'bg-[#C94B4B] text-white border-[#C94B4B]'
-                : 'bg-white text-[#171717] border-[#E8E8E5] hover:border-[#C94B4B]'
+                : 'bg-white text-[#181715] border-[#CFC8BC] hover:border-[#C94B4B]'
             }`}
           >
             Просроченные ({overdueCount})
@@ -607,7 +607,7 @@ export function RoadmapTasksView() {
           <select
             value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="h-11 rounded-xl bg-white dark:bg-zinc-900 border border-[#E8E8E5] px-4 text-[14px] font-semibold text-[#171717] dark:text-zinc-200 outline-none cursor-pointer"
+            className="h-10 rounded-[8px] bg-white border-[1.5px] border-[#CFC8BC] px-3.5 text-[13.5px] font-semibold text-[#181715] outline-none cursor-pointer"
           >
             <option value="ALL">Все исполнители</option>
             {users.map((u) => (
@@ -617,43 +617,43 @@ export function RoadmapTasksView() {
             ))}
           </select>
 
-          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+          <div className="flex bg-[#EFECE6] p-1 rounded-[8px] border-[1.5px] border-[#CFC8BC]">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#181715] text-white'
+                  : 'text-[#5C5852] hover:text-[#181715]'
               }`}
             >
-              Доска
+              Доска CRM
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'list'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#181715] text-white'
+                  : 'text-[#5C5852] hover:text-[#181715]'
               }`}
             >
-              Таблица
+              Таблица ({filteredTasks.length})
             </button>
             <button
               onClick={() => setViewMode('projects')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-[6px] text-[13px] font-semibold transition cursor-pointer ${
                 viewMode === 'projects'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#181715] text-white'
+                  : 'text-[#5C5852] hover:text-[#181715]'
               }`}
             >
-              Дорожная карта ({strategicGoals.length} целей · {projects.length} проектов)
+              Дорожная карта ({projects.length})
             </button>
           </div>
 
           {!isStrategyMode && (
             <button
               onClick={() => setModalOpen(true)}
-              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+              className="h-10 px-5 rounded-[8px] bg-[#181715] text-white text-[13.5px] font-semibold hover:bg-[#2C2B29] transition cursor-pointer"
             >
               + Новая задача
             </button>
@@ -661,9 +661,52 @@ export function RoadmapTasksView() {
         </div>
       </div>
 
-      {/* КАНБАН-ДОСКА С ПЕРЕТАСКИВАНИЕМ (КРУПНЫЕ КАРТОЧКИ) */}
+      {/* Симметричная 4-колоночная сводка CRM */}
+      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] overflow-hidden">
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-y-[1.5px] lg:divide-y-0 lg:divide-x-[1.5px] divide-[#CFC8BC]">
+          <div className="p-5 flex flex-col justify-between">
+            <span className="font-mono text-[10.5px] uppercase tracking-wider text-[#7A756D]">
+              Всего поручений в CRM
+            </span>
+            <span className="font-serif-editorial text-[34px] font-semibold text-[#181715] mt-1 leading-none">
+              {filteredTasks.length} задач
+            </span>
+          </div>
+          <div className="p-5 flex flex-col justify-between">
+            <span className="font-mono text-[10.5px] uppercase tracking-wider text-[#7A756D]">
+              В активной работе / На проверке
+            </span>
+            <span className="font-serif-editorial text-[34px] font-semibold text-[#181715] mt-1 leading-none">
+              {
+                filteredTasks.filter(
+                  (t) => t.status === 'In Progress' || t.status === 'Review'
+                ).length
+              }{' '}
+              задач
+            </span>
+          </div>
+          <div className="p-5 flex flex-col justify-between">
+            <span className="font-mono text-[10.5px] uppercase tracking-wider text-[#7A756D]">
+              Выполнено и закрыто
+            </span>
+            <span className="font-serif-editorial text-[34px] font-semibold text-[#1F6E50] mt-1 leading-none">
+              {filteredTasks.filter((t) => t.status === 'Done').length} задач
+            </span>
+          </div>
+          <div className="p-5 flex flex-col justify-between">
+            <span className="font-mono text-[10.5px] uppercase tracking-wider text-[#7A756D]">
+              Требуют внимания / Просрочено
+            </span>
+            <span className="font-serif-editorial text-[34px] font-semibold text-[#B83E3E] mt-1 leading-none">
+              {overdueCount + filteredTasks.filter((t) => t.status === 'Blocked').length} задач
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* КАНБАН-ДОСКА С ПЕРЕТАСКИВАНИЕМ (СИММЕТРИЧНЫЕ КОЛОНКИ С ЧЁТКИМИ ЛИНИЯМИ) */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4 items-stretch">
           {TASK_COLUMNS.map((status) => {
             const colTasks = filteredTasks.filter((t) => t.status === status);
             const isDropTarget = dragOverColumn === status;
@@ -674,18 +717,18 @@ export function RoadmapTasksView() {
                 onDragOver={(e) => handleDragOver(e, status)}
                 onDragLeave={() => setDragOverColumn(null)}
                 onDrop={(e) => handleDrop(e, status)}
-                className={`p-4 rounded-2xl min-h-[540px] flex flex-col transition-all border ${
+                className={`p-4 rounded-[12px] min-h-[540px] flex flex-col transition-all border-[1.5px] border-t-[3px] ${
                   isDropTarget
-                    ? 'bg-white border-2 border-[#D97745] shadow-lg'
-                    : 'bg-white/70 dark:bg-zinc-900 border-[#E8E8E5]'
+                    ? 'bg-white border-[#B85D35] border-t-[#B85D35] shadow-lg'
+                    : 'bg-[#FAF8F5] border-[#CFC8BC] border-t-[#181715]'
                 }`}
               >
                 {/* Шапка колонки */}
-                <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#E8E8E5]">
-                  <span className="text-[14px] font-bold text-[#171717] dark:text-zinc-200">
+                <div className="flex items-center justify-between mb-4 pb-3 border-b-2 border-[#181715]">
+                  <span className="text-[14px] font-bold text-[#181715]">
                     {TASK_STATUS_LABELS_RU[status]}
                   </span>
-                  <span className="text-[13px] font-semibold text-[#737373] bg-[#F7F7F5] px-2.5 py-0.5 rounded-lg border border-[#E8E8E5]">
+                  <span className="text-[12.5px] font-mono font-semibold text-[#181715] bg-white px-2.5 py-0.5 rounded-[6px] border-[1.5px] border-[#CFC8BC]">
                     {colTasks.length}
                   </span>
                 </div>

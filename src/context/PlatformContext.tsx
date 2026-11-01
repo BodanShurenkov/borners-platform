@@ -358,17 +358,22 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         brandId?: BrandFilter;
       }
     ) => {
+      setPlatformMode('management');
       setActiveSection(section);
       setNavHistory((prev) => [...prev.slice(-15), section]);
       if (opts?.brandId !== undefined) setBrandFilter(opts.brandId);
       if (opts?.productId !== undefined) setSelectedProductId(opts.productId);
       if (opts?.conceptId !== undefined) setSelectedConceptId(opts.conceptId);
       if (opts?.launchId !== undefined) setSelectedLaunchId(opts.launchId);
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     },
     []
   );
 
   const goBack = useCallback(() => {
+    setPlatformMode('management');
     setNavHistory((prev) => {
       if (prev.length <= 1) return prev;
       const next = prev.slice(0, -1);

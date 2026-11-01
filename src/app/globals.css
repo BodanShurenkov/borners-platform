@@ -4,13 +4,14 @@
 
 /* Архитектурный редакционный минимализм (Atelier / Swiss Editorial) */
 :root {
-  --bg-page: #F8F6F2;
+  --bg-page: #F6F3ED;
   --bg-card: #FFFFFF;
-  --bg-subtle: #F2EFE9;
-  --bg-warm-tint: #FBF6F1;
+  --bg-subtle: #EFECE6;
+  --bg-warm-tint: #FAF7F2;
   --text-primary: #161615;
-  --text-secondary: #6E6A63;
-  --border-color: #E5E0D8;
+  --text-secondary: #5C5852;
+  --border-color: #CFC8BC;
+  --border-strong: #181715;
   --bg-dark-block: #161615;
   --brand-borners: #B85D35;
   --brand-natele: #7D7268;
@@ -32,6 +33,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.012em;
   line-height: 1.5;
+}
+
+/* Выразительная иерархия линий для таблиц и карточек */
+table thead tr {
+  border-bottom: 2px solid #181715 !important;
+}
+
+table tbody tr + tr {
+  border-top: 1.5px solid #DFD9CE;
 }
 
 .font-serif-editorial {

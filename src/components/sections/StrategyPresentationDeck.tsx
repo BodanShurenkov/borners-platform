@@ -350,7 +350,7 @@ export function StrategyPresentationDeck({
       return (
         <div className="space-y-6">
           {/* Светлый редакционный разворот со студийными кадрами на травертине и льне */}
-          <div className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden">
+          <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-12">
               <div className="lg:col-span-7 p-8 md:p-10 flex flex-col justify-between space-y-8">
                 <div className="space-y-3.5">
@@ -369,35 +369,35 @@ export function StrategyPresentationDeck({
                   </p>
                 </div>
 
-                {/* 3 ключевых принципа без кричащего капслока */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-6 border-t border-[#EAE6DF]">
+                {/* 3 ключевых принципа — симметричные колонки с чёткой вертикальной отбивкой */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t-[1.5px] border-[#D5CEC2]">
                   <div>
                     <div className="text-[11.5px] font-medium text-[#8C867E]">
                       Портфель без конкуренции
                     </div>
-                    <div className="text-[14px] font-medium text-[#181715] mt-1">
+                    <div className="text-[14px] font-semibold text-[#181715] mt-1">
                       Чёткое разделение ДНК
                     </div>
                     <div className="text-[12.5px] text-[#6E6A63] mt-0.5 leading-snug">
                       BORNERS (масс-маркет+) и НА ТЕЛЕ (премиум «вторая кожа»)
                     </div>
                   </div>
-                  <div>
+                  <div className="sm:border-l-[1.5px] sm:border-[#DFD8CC] sm:pl-5">
                     <div className="text-[11.5px] font-medium text-[#8C867E]">
                       Лаборатория R&amp;D
                     </div>
-                    <div className="text-[14px] font-medium text-[#181715] mt-1">
+                    <div className="text-[14px] font-semibold text-[#181715] mt-1">
                       Отбор через 7 этапов
                     </div>
                     <div className="text-[12.5px] text-[#6E6A63] mt-0.5 leading-snug">
                       Защита оборотного капитала до размещения заказа фабрике
                     </div>
                   </div>
-                  <div>
+                  <div className="sm:border-l-[1.5px] sm:border-[#DFD8CC] sm:pl-5">
                     <div className="text-[11.5px] font-medium text-[#8C867E]">
                       Товарная матрица
                     </div>
-                    <div className="text-[14px] font-medium text-[#181715] mt-1">
+                    <div className="text-[14px] font-semibold text-[#181715] mt-1">
                       70% база и 30% капсулы
                     </div>
                     <div className="text-[12.5px] text-[#6E6A63] mt-0.5 leading-snug">
@@ -408,15 +408,15 @@ export function StrategyPresentationDeck({
               </div>
 
               {/* Правая колонка: студийный диптих + 4 опорные цифры на тёплом льняном фоне */}
-              <div className="lg:col-span-5 bg-[#FAF8F5] border-t lg:border-t-0 lg:border-l border-[#EAE6DF] flex flex-col justify-between">
-                <div className="grid grid-cols-2 border-b border-[#EAE6DF] h-56">
-                  <div className="border-r border-[#EAE6DF] overflow-hidden relative">
+              <div className="lg:col-span-5 bg-[#FAF8F5] border-t-[1.5px] lg:border-t-0 lg:border-l-[1.5px] border-[#CFC8BC] flex flex-col justify-between">
+                <div className="grid grid-cols-2 border-b-[1.5px] border-[#CFC8BC] h-60">
+                  <div className="border-r-[1.5px] border-[#CFC8BC] overflow-hidden relative">
                     <img
                       src="images/products/borners-editorial-hero.jpg"
                       alt="BORNERS"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-[6px] bg-white/90 backdrop-blur-xs text-[11px] font-medium text-[#181715]">
+                    <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-[6px] bg-white/95 border border-[#CFC8BC] text-[11px] font-semibold text-[#181715]">
                       BORNERS
                     </span>
                   </div>
@@ -426,15 +426,15 @@ export function StrategyPresentationDeck({
                       alt="НА ТЕЛЕ"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-[6px] bg-white/90 backdrop-blur-xs text-[11px] font-medium text-[#181715]">
+                    <span className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded-[6px] bg-white/95 border border-[#CFC8BC] text-[11px] font-semibold text-[#181715]">
                       НА ТЕЛЕ
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 divide-x divide-y divide-[#EAE6DF]">
-                  <div className="p-5">
-                    <div className="text-[11.5px] text-[#7A756D]">
+                <div className="grid grid-cols-2 divide-x-[1.5px] divide-y-[1.5px] divide-[#D5CEC2] flex-1">
+                  <div className="p-5 flex flex-col justify-between">
+                    <div className="text-[11.5px] font-medium text-[#7A756D]">
                       План выручки 2027
                     </div>
                     <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
@@ -444,19 +444,19 @@ export function StrategyPresentationDeck({
                       Сценарий: {SCENARIO_LABELS_RU[financialScenario]}
                     </div>
                   </div>
-                  <div className="p-5">
-                    <div className="text-[11.5px] text-[#7A756D]">
+                  <div className="p-5 flex flex-col justify-between">
+                    <div className="text-[11.5px] font-medium text-[#7A756D]">
                       Операционная прибыль
                     </div>
                     <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
                       {hasFinance ? formatCompactRub(totalPlanProfitYearRub) : 'Скрыто'}
                     </div>
-                    <div className="text-[11.5px] text-[#2A6F53] mt-1.5">
+                    <div className="text-[11.5px] font-medium text-[#2A6F53] mt-1.5">
                       Средняя маржа SKU: {avgMarginPct}%
                     </div>
                   </div>
-                  <div className="p-5">
-                    <div className="text-[11.5px] text-[#7A756D]">
+                  <div className="p-5 flex flex-col justify-between">
+                    <div className="text-[11.5px] font-medium text-[#7A756D]">
                       Моделей в R&amp;D
                     </div>
                     <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
@@ -466,8 +466,8 @@ export function StrategyPresentationDeck({
                       В проработке на 7 этапах
                     </div>
                   </div>
-                  <div className="p-5">
-                    <div className="text-[11.5px] text-[#7A756D]">
+                  <div className="p-5 flex flex-col justify-between">
+                    <div className="text-[11.5px] font-medium text-[#7A756D]">
                       Состав портфеля
                     </div>
                     <div className="font-serif-editorial text-[30px] font-medium text-[#181715] mt-1 leading-none">
@@ -482,7 +482,7 @@ export function StrategyPresentationDeck({
             </div>
           </div>
 
-          {/* Карточки брендов портфеля со студийной съёмкой без технических штампов */}
+          {/* Карточки брендов портфеля — идеальная зеркальная симметрия */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {activeBrands.map((b) => {
               const bProducts = products.filter(
@@ -494,13 +494,16 @@ export function StrategyPresentationDeck({
                   !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage) &&
                   (c.brandId === b.code || c.brandId === b.id)
               );
+              const isNatele = b.code === 'NA_TELE';
 
               return (
                 <div
                   key={b.id}
-                  className="rounded-[12px] bg-white border border-[#EAE6DF] overflow-hidden flex flex-col justify-between"
+                  className={`rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] ${
+                    isNatele ? 'border-t-[#7D7268]' : 'border-t-[#181715]'
+                  } overflow-hidden flex flex-col justify-between h-full`}
                 >
-                  <div className="h-56 w-full bg-[#F3EFE8] border-b border-[#EAE6DF] overflow-hidden">
+                  <div className="h-60 w-full bg-[#F3EFE8] border-b-[1.5px] border-[#CFC8BC] overflow-hidden">
                     <img
                       src={b.heroImage}
                       alt={b.name}
@@ -508,21 +511,21 @@ export function StrategyPresentationDeck({
                     />
                   </div>
                   <div className="p-6 flex flex-col justify-between space-y-5 flex-1">
-                    <div className="space-y-2">
+                    <div className="space-y-2 min-h-[136px]">
                       <div className="text-[12px] font-medium text-[#7A756D]">
                         {b.segment}
                       </div>
-                      <h3 className="font-serif-editorial text-[32px] font-medium text-[#181715] leading-none">
+                      <h3 className="font-serif-editorial text-[34px] font-medium text-[#181715] leading-none">
                         {b.name}
                       </h3>
-                      <p className="text-[14px] font-medium text-[#181715]">{b.tagline}</p>
+                      <p className="text-[14px] font-semibold text-[#181715]">{b.tagline}</p>
                       <p className="text-[13.5px] text-[#6E6A63] leading-relaxed">
                         {b.description}
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-[#EAE6DF]">
-                      <div>
+                    <div className="grid grid-cols-3 divide-x-[1.5px] divide-[#DFD8CC] pt-4 border-t-[1.5px] border-[#CFC8BC]">
+                      <div className="pr-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           План 2027
                         </div>
@@ -530,7 +533,7 @@ export function StrategyPresentationDeck({
                           {hasFinance ? formatCompactRub(b.plannedRevenue2027Rub) : 'Скрыто'}
                         </div>
                       </div>
-                      <div>
+                      <div className="px-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           Целевая маржа
                         </div>
@@ -538,7 +541,7 @@ export function StrategyPresentationDeck({
                           {hasFinance ? `${b.targetMarginPct}%` : 'Скрыто'}
                         </div>
                       </div>
-                      <div>
+                      <div className="pl-3">
                         <div className="text-[11.5px] text-[#8C867E]">
                           Матрица / R&amp;D
                         </div>
@@ -555,9 +558,9 @@ export function StrategyPresentationDeck({
 
           {/* Бренды портфеля в разработке (без пометки «Новое направление») */}
           {upcomingBrands.length > 0 && (
-            <div className="rounded-[12px] bg-white border border-[#EAE6DF] p-6 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAE6DF] pb-3">
-                <div className="text-[13px] font-medium text-[#181715]">
+            <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b-[1.5px] border-[#CFC8BC] pb-3">
+                <div className="text-[13.5px] font-semibold text-[#181715]">
                   Бренды портфеля в разработке (2026–2027)
                 </div>
                 <span className="text-[12.5px] text-[#7A756D]">
@@ -568,7 +571,7 @@ export function StrategyPresentationDeck({
                 {upcomingBrands.map((ub) => (
                   <div
                     key={ub.id}
-                    className="rounded-[10px] bg-[#FAF8F5] border border-[#EAE6DF] p-5 flex items-start justify-between gap-4"
+                    className="rounded-[10px] bg-[#FAF8F5] border-[1.5px] border-[#D8D1C5] p-5 flex items-start justify-between gap-4 min-h-[132px]"
                   >
                     <div className="space-y-1">
                       <div className="text-[11.5px] text-[#8C867E]">
@@ -581,7 +584,7 @@ export function StrategyPresentationDeck({
                         {ub.description}
                       </p>
                     </div>
-                    <span className="shrink-0 px-2.5 py-1 rounded-[6px] bg-white border border-[#EAE6DF] text-[11px] font-medium text-[#6E6A63]">
+                    <span className="shrink-0 px-2.5 py-1 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] text-[11px] font-medium text-[#5C5852]">
                       В разработке
                     </span>
                   </div>
@@ -594,257 +597,271 @@ export function StrategyPresentationDeck({
     }
 
     // =========================================================================
-    // СЛАЙД 02: ДНК, ПОЗИЦИОНИРОВАНИЕ И СРАВНИТЕЛЬНАЯ МАТРИЦА БРЕНДОВ
+    // СЛАЙД 02: ДНК, ПОЗИЦИОНИРОВАНИЕ И СРАВНИТЕЛЬНАЯ МАТРИЦА БРЕНДОВ (СТРОГАЯ ЗЕРКАЛЬНАЯ СИММЕТРИЯ)
     // =========================================================================
     if (slide.id === 'brand-dna') {
       return (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
             {/* BORNERS DNA */}
-            <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between">
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-[#E5E0D8]">
-                  <div className="sm:col-span-5 h-52 sm:h-auto bg-[#F2EFE9] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] overflow-hidden">
-                    <img
-                      src="images/products/rnd-print-family.png"
-                      alt="BORNERS"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="sm:col-span-7 p-6 space-y-2.5">
+            <div className="rounded-[10px] bg-[#FDFCFA] border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] overflow-hidden flex flex-col justify-between h-full">
+              {/* Верхний ярус фиксированной высоты sm:h-[240px] для идеального совпадения горизонтальной оси с правой карточкой */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 sm:h-[240px] border-b-[1.5px] border-[#CFC8BC]">
+                <div className="sm:col-span-5 h-56 sm:h-[240px] bg-[#F2EFE9] border-b-[1.5px] sm:border-b-0 sm:border-r-[1.5px] border-[#CFC8BC] overflow-hidden">
+                  <img
+                    src="images/products/borners-editorial-hero.jpg"
+                    alt="BORNERS"
+                    className="h-full w-full object-cover object-center"
+                  />
+                </div>
+                <div className="sm:col-span-7 p-6 flex flex-col justify-center space-y-2.5">
+                  <div>
                     <span className="inline-block px-2.5 py-0.5 rounded-[4px] bg-[#161615] text-white font-mono text-[10px] uppercase tracking-wider">
                       МАСС-МАРКЕТ+ · МУЖСКОЕ И УНИСЕКС
                     </span>
-                    <h3 className="font-serif-editorial text-[34px] font-semibold text-[#161615] leading-none">
-                      BORNERS
-                    </h3>
-                    <p className="text-[13.5px] text-[#5C5852] leading-relaxed">
-                      Инженерный комфорт на каждый день, выгодные мультипаки по 3–6 штук, тканые
-                      семейные трусы в эстетике Old Money и яркие подарочные капсулы.
-                    </p>
+                  </div>
+                  <h3 className="font-serif-editorial text-[36px] font-semibold text-[#161615] leading-none">
+                    BORNERS
+                  </h3>
+                  <p className="text-[13.5px] text-[#5C5852] leading-relaxed">
+                    Инженерный комфорт на каждый день, выгодные мультипаки по 3–6 штук, тканые
+                    семейные трусы в эстетике Old Money и яркие подарочные капсулы.
+                  </p>
+                </div>
+              </div>
+
+              {/* Внутренние блоки одинаковой высоты */}
+              <div className="p-6 flex flex-col justify-between gap-4 flex-1 text-[13.5px]">
+                <div className="p-4 rounded-[8px] bg-[#F8F6F2] border-[1.5px] border-[#D8D1C5] min-h-[100px] flex flex-col justify-center space-y-1">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
+                    Продуктовое преимущество
+                  </div>
+                  <div className="font-medium text-[#161615] leading-snug">
+                    Анатомический крой с ластовицей без центрального заднего шва, гребенной хлопок
+                    пенье и модал 180–185 г/м², ресурс 80+ циклов стирки без пиллинга.
                   </div>
                 </div>
 
-                <div className="p-6 space-y-4 text-[13.5px]">
-                  <div className="p-4 rounded-[6px] bg-[#F8F6F2] border border-[#E5E0D8] space-y-1">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
-                      Продуктовое преимущество
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="p-4 rounded-[8px] bg-white border-[1.5px] border-[#D8D1C5] min-h-[104px] flex flex-col justify-between">
+                    <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                      Ценовой коридор комплекта
                     </div>
-                    <div className="font-medium text-[#161615]">
-                      Анатомический крой с ластовицей без центрального заднего шва, гребенной хлопок
-                      пенье и модал 180–185 г/м², ресурс 80+ циклов стирки без пиллинга.
+                    <div className="text-[19px] font-semibold text-[#161615] mt-1">
+                      1 490 – 2 690 ₽
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3.5 rounded-[6px] border border-[#E5E0D8]">
-                      <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                        Ценовой коридор комплекта
-                      </div>
-                      <div className="text-[18px] font-semibold text-[#161615] mt-1">
-                        1 490 – 2 690 ₽
-                      </div>
-                      <div className="text-[12px] text-[#1F6E50] font-medium mt-0.5">
-                        Целевая валовая маржа: 72%
-                      </div>
-                    </div>
-                    <div className="p-3.5 rounded-[6px] border border-[#E5E0D8]">
-                      <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                        Формат продаж
-                      </div>
-                      <div className="text-[18px] font-semibold text-[#161615] mt-1">
-                        Наборы 3 / 4 / 6 шт.
-                      </div>
-                      <div className="text-[12px] text-[#6E6A63] mt-0.5">
-                        Экономия на логистике ФБО WB/Ozon
-                      </div>
+                    <div className="text-[12px] text-[#1F6E50] font-semibold mt-0.5">
+                      Целевая валовая маржа: 72%
                     </div>
                   </div>
+                  <div className="p-4 rounded-[8px] bg-white border-[1.5px] border-[#D8D1C5] min-h-[104px] flex flex-col justify-between">
+                    <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                      Формат продаж
+                    </div>
+                    <div className="text-[19px] font-semibold text-[#161615] mt-1">
+                      Наборы 3 / 4 / 6 шт.
+                    </div>
+                    <div className="text-[12px] text-[#6E6A63] mt-0.5">
+                      Экономия на логистике ФБО WB/Ozon
+                    </div>
+                  </div>
+                </div>
 
-                  <div className="space-y-2 pt-1">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
-                      Фирменная палитра коллекций
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { hex: '#161615', name: 'Глубокий графит' },
-                        { hex: '#1E293B', name: 'Тёмно-синий Navy' },
-                        { hex: '#B85D35', name: 'Терракота' },
-                        { hex: '#6B8EAE', name: 'Полоска Old Money' },
-                      ].map((c) => (
-                        <div
-                          key={c.name}
-                          className="inline-flex items-center gap-2 px-2.5 py-1 rounded-[4px] bg-[#F8F6F2] border border-[#E5E0D8] text-[12px]"
-                        >
-                          <span
-                            className="h-3 w-3 rounded-full border border-black/15"
-                            style={{ backgroundColor: c.hex }}
-                          />
-                          <span>{c.name}</span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="space-y-2 pt-2 border-t-[1.5px] border-[#E2DCD2]">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
+                    Фирменная палитра коллекций
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { hex: '#161615', name: 'Глубокий графит' },
+                      { hex: '#1E293B', name: 'Тёмно-синий Navy' },
+                      { hex: '#B85D35', name: 'Терракота' },
+                      { hex: '#6B8EAE', name: 'Полоска Old Money' },
+                    ].map((c) => (
+                      <div
+                        key={c.name}
+                        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-[6px] bg-[#F8F6F2] border-[1.5px] border-[#D8D1C5] text-[11.5px] font-medium text-[#181715] truncate"
+                      >
+                        <span
+                          className="h-3 w-3 rounded-full border border-black/20 shrink-0"
+                          style={{ backgroundColor: c.hex }}
+                        />
+                        <span className="truncate">{c.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* НА ТЕЛЕ DNA */}
-            <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between">
-              <div>
-                <div className="grid grid-cols-1 sm:grid-cols-12 border-b border-[#E5E0D8]">
-                  <div className="sm:col-span-5 h-52 sm:h-auto bg-[#F2EFE9] border-b sm:border-b-0 sm:border-r border-[#E5E0D8] overflow-hidden">
-                    <img
-                      src="images/products/rnd-seamless-hero.png"
-                      alt="НА ТЕЛЕ"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                  <div className="sm:col-span-7 p-6 space-y-2.5">
+            <div className="rounded-[10px] bg-[#FDFCFA] border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#7D7268] overflow-hidden flex flex-col justify-between h-full">
+              {/* Верхний ярус фиксированной высоты sm:h-[240px] — 100% на одной линии с BORNERS */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 sm:h-[240px] border-b-[1.5px] border-[#CFC8BC]">
+                <div className="sm:col-span-5 h-56 sm:h-[240px] bg-[#F2EFE9] border-b-[1.5px] sm:border-b-0 sm:border-r-[1.5px] border-[#CFC8BC] overflow-hidden">
+                  <img
+                    src="images/products/natele-editorial-hero.jpg"
+                    alt="НА ТЕЛЕ"
+                    className="h-full w-full object-cover object-center"
+                  />
+                </div>
+                <div className="sm:col-span-7 p-6 flex flex-col justify-center space-y-2.5">
+                  <div>
                     <span className="inline-block px-2.5 py-0.5 rounded-[4px] bg-[#7D7268] text-white font-mono text-[10px] uppercase tracking-wider">
                       ПРЕМИУМ · АРХИТЕКТУРА «ВТОРОЙ КОЖИ»
                     </span>
-                    <h3 className="font-serif-editorial text-[34px] font-semibold text-[#161615] leading-none">
-                      НА ТЕЛЕ
-                    </h3>
-                    <p className="text-[13.5px] text-[#5C5852] leading-relaxed">
-                      Тактильный минимализм, бесшовные клеевые технологии, невесомый микромодал
-                      Lenzing и выверенная палитра натуральных оттенков кожи.
-                    </p>
+                  </div>
+                  <h3 className="font-serif-editorial text-[36px] font-semibold text-[#161615] leading-none">
+                    НА ТЕЛЕ
+                  </h3>
+                  <p className="text-[13.5px] text-[#5C5852] leading-relaxed">
+                    Тактильный минимализм, бесшовные клеевые технологии, невесомый микромодал
+                    Lenzing и выверенная палитра натуральных оттенков кожи.
+                  </p>
+                </div>
+              </div>
+
+              {/* Внутренние блоки одинаковой высоты */}
+              <div className="p-6 flex flex-col justify-between gap-4 flex-1 text-[13.5px]">
+                <div className="p-4 rounded-[8px] bg-[#F8F6F2] border-[1.5px] border-[#D8D1C5] min-h-[100px] flex flex-col justify-center space-y-1">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
+                    Продуктовое преимущество
+                  </div>
+                  <div className="font-medium text-[#161615] leading-snug">
+                    Лазерный срез края с микросиликоновой фиксацией от скручивания, закрытый пояс
+                    без давления и ультратонкое полотно 150–175 г/м².
                   </div>
                 </div>
 
-                <div className="p-6 space-y-4 text-[13.5px]">
-                  <div className="p-4 rounded-[6px] bg-[#F8F6F2] border border-[#E5E0D8] space-y-1">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
-                      Продуктовое преимущество
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="p-4 rounded-[8px] bg-white border-[1.5px] border-[#D8D1C5] min-h-[104px] flex flex-col justify-between">
+                    <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                      Ценовой коридор комплекта
                     </div>
-                    <div className="font-medium text-[#161615]">
-                      Лазерный срез края с микросиликоновой фиксацией от скручивания, закрытый пояс
-                      без давления и ультратонкое полотно 150–175 г/м².
+                    <div className="text-[19px] font-semibold text-[#161615] mt-1">
+                      2 490 – 3 490 ₽
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3.5 rounded-[6px] border border-[#E5E0D8]">
-                      <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                        Ценовой коридор
-                      </div>
-                      <div className="text-[18px] font-semibold text-[#161615] mt-1">
-                        2 490 – 3 490 ₽
-                      </div>
-                      <div className="text-[12px] text-[#1F6E50] font-medium mt-0.5">
-                        Целевая валовая маржа: 75%
-                      </div>
-                    </div>
-                    <div className="p-3.5 rounded-[6px] border border-[#E5E0D8]">
-                      <div className="font-mono text-[10px] uppercase text-[#8C867E]">
-                        Формат продаж
-                      </div>
-                      <div className="text-[18px] font-semibold text-[#161615] mt-1">
-                        1–2 шт. в футляре
-                      </div>
-                      <div className="text-[12px] text-[#6E6A63] mt-0.5">
-                        Капсулы Skin Tone + Бесшовная база 2.0
-                      </div>
+                    <div className="text-[12px] text-[#1F6E50] font-semibold mt-0.5">
+                      Целевая валовая маржа: 75%
                     </div>
                   </div>
+                  <div className="p-4 rounded-[8px] bg-white border-[1.5px] border-[#D8D1C5] min-h-[104px] flex flex-col justify-between">
+                    <div className="font-mono text-[10px] uppercase text-[#8C867E]">
+                      Формат продаж
+                    </div>
+                    <div className="text-[19px] font-semibold text-[#161615] mt-1">
+                      1–2 шт. в футляре
+                    </div>
+                    <div className="text-[12px] text-[#6E6A63] mt-0.5">
+                      Капсулы Skin Tone + Бесшовная база 2.0
+                    </div>
+                  </div>
+                </div>
 
-                  <div className="space-y-2 pt-1">
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
-                      Палитра Skin Tone &amp; Seamless
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { hex: '#F5EFE6', name: 'Молочный шёлк' },
-                        { hex: '#D7BFA8', name: 'Тёплый песочный' },
-                        { hex: '#8E9AA6', name: 'Дымчато-голубой' },
-                        { hex: '#7D7268', name: 'Глубокий мокко' },
-                      ].map((c) => (
-                        <div
-                          key={c.name}
-                          className="inline-flex items-center gap-2 px-2.5 py-1 rounded-[4px] bg-[#F8F6F2] border border-[#E5E0D8] text-[12px]"
-                        >
-                          <span
-                            className="h-3 w-3 rounded-full border border-black/15"
-                            style={{ backgroundColor: c.hex }}
-                          />
-                          <span>{c.name}</span>
-                        </div>
-                      ))}
-                    </div>
+                <div className="space-y-2 pt-2 border-t-[1.5px] border-[#E2DCD2]">
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-[#7A756D]">
+                    Палитра Skin Tone &amp; Seamless
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { hex: '#F5EFE6', name: 'Молочный шёлк' },
+                      { hex: '#D7BFA8', name: 'Тёплый песочный' },
+                      { hex: '#8E9AA6', name: 'Дымчато-голубой' },
+                      { hex: '#7D7268', name: 'Глубокий мокко' },
+                    ].map((c) => (
+                      <div
+                        key={c.name}
+                        className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-[6px] bg-[#F8F6F2] border-[1.5px] border-[#D8D1C5] text-[11.5px] font-medium text-[#181715] truncate"
+                      >
+                        <span
+                          className="h-3 w-3 rounded-full border border-black/20 shrink-0"
+                          style={{ backgroundColor: c.hex }}
+                        />
+                        <span className="truncate">{c.name}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Сравнительная таблица разграничения портфеля по 5 осям */}
-          <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#E5E0D8] bg-[#F8F6F2] flex items-center justify-between">
-              <span className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-[#7A756D]">
+          {/* Сравнительная таблица разграничения портфеля по 5 осям (с жирными структурными линиями) */}
+          <div className="rounded-[10px] bg-[#FDFCFA] border-[1.5px] border-[#CFC8BC] overflow-hidden">
+            <div className="px-6 py-4 border-b-2 border-[#181715] bg-[#EFECE6] flex items-center justify-between">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#181715]">
                 МАТРИЦА РАЗГРАНИЧЕНИЯ БРЕНДОВ (ЗАЩИТА ОТ ВНУТРЕННЕЙ КОНКУРЕНЦИИ)
               </span>
-              <span className="font-mono text-[10.5px] text-[#6E6A63]">
+              <span className="font-mono text-[11px] font-medium text-[#5C5852]">
                 5 ключевых параметров
               </span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[13px]">
+              <table className="w-full text-left border-collapse text-[13.5px]">
                 <thead>
-                  <tr className="border-b border-[#E5E0D8] text-[#7A756D] font-mono text-[10.5px] uppercase">
-                    <th className="py-3 px-5 w-1/4">Критерий</th>
-                    <th className="py-3 px-5 w-3/8 border-l border-[#E5E0D8] text-[#161615]">
+                  <tr className="border-b-2 border-[#181715] bg-[#FAF8F5] text-[#5C5852] font-mono text-[11px] uppercase">
+                    <th className="py-3.5 px-6 w-[22%] font-semibold">Критерий</th>
+                    <th className="py-3.5 px-6 w-[39%] border-l-[1.5px] border-[#CFC8BC] text-[#161615] font-bold">
                       BORNERS
                     </th>
-                    <th className="py-3 px-5 w-3/8 border-l border-[#E5E0D8] text-[#161615]">
+                    <th className="py-3.5 px-6 w-[39%] border-l-[1.5px] border-[#CFC8BC] text-[#161615] font-bold">
                       НА ТЕЛЕ
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E5E0D8]">
+                <tbody className="divide-y-[1.5px] divide-[#DFD8CC]">
                   <tr>
-                    <td className="py-3 px-5 font-medium text-[#6E6A63]">Мотив покупки</td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 font-semibold text-[#4A4742] bg-[#FAF8F5]/60">
+                      Мотив покупки
+                    </td>
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Надёжная база на каждый день в выгодном комплекте (3–6 шт.) или готовый подарок в тубусе
                     </td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Тактильное удовольствие, невидимость под одеждой и эстетика «второй кожи»
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-3 px-5 font-medium text-[#6E6A63]">Конструкция и швы</td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 font-semibold text-[#4A4742] bg-[#FAF8F5]/60">
+                      Конструкция и швы
+                    </td>
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Плоские распошивальные швы (4 иглы 6 нитей), жаккардовый или обтяжной пояс 35–40 мм
                     </td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Бесшовная ультразвуковая склейка, лазерный край с микросиликоном, скрытый пояс 26–30 мм
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-3 px-5 font-medium text-[#6E6A63]">Полотна и составы</td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 font-semibold text-[#4A4742] bg-[#FAF8F5]/60">
+                      Полотна и составы
+                    </td>
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Хлопок пенье + модал (180–185 г/м²), 100% тканый гребенной поплин (семейные трусы)
                     </td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Микромодал Lenzing Air с эластаном Lycra (150–170 г/м²), микрорубчик премиум
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-3 px-5 font-medium text-[#6E6A63]">Средняя цена за 1 ед.</td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 font-semibold text-[#4A4742] bg-[#FAF8F5]/60">
+                      Средняя цена за 1 ед.
+                    </td>
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] font-medium text-[#161615]">
                       430 – 830 ₽ за 1 пару белья в составе мультипака
                     </td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] font-medium text-[#161615]">
                       1 245 – 2 590 ₽ за 1 изделие в индивидуальном кашированном футляре
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-3 px-5 font-medium text-[#6E6A63]">Производственные хабы</td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 font-semibold text-[#4A4742] bg-[#FAF8F5]/60">
+                      Производственные хабы
+                    </td>
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Китай (Фошань, Нинбо — трикотаж) + Узбекистан (Ташкент — 100% тканый хлопок)
                     </td>
-                    <td className="py-3 px-5 border-l border-[#E5E0D8] text-[#161615]">
+                    <td className="py-3.5 px-6 border-l-[1.5px] border-[#CFC8BC] text-[#161615]">
                       Специализированные бесшовные фабрики Ханчжоу и Гуандуна (КНР)
                     </td>
                   </tr>
@@ -857,14 +874,14 @@ export function StrategyPresentationDeck({
     }
 
     // =========================================================================
-    // СЛАЙД 03: ПРОДУКТОВАЯ МАТРИЦА 70 / 30 И КАТАЛОГ SKU
+    // СЛАЙД 03: ПРОДУКТОВАЯ МАТРИЦА 70 / 30 И КАТАЛОГ SKU (СИММЕТРИЯ 50 / 50)
     // =========================================================================
     if (slide.id === 'product-matrix') {
       return (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-7 rounded-[8px] bg-[#161615] text-[#F8F6F2] p-7 space-y-4">
-              <div className="flex items-center justify-between border-b border-white/12 pb-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+            <div className="rounded-[10px] bg-[#161615] text-[#F8F6F2] border-[1.5px] border-[#161615] p-7 flex flex-col justify-between space-y-4 h-full">
+              <div className="flex items-center justify-between border-b-[1.5px] border-white/20 pb-3.5">
                 <span className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-[#B89F86]">
                   ЯДРО АССОРТИМЕНТА · ALWAYS-IN-STOCK
                 </span>
@@ -883,9 +900,9 @@ export function StrategyPresentationDeck({
               </p>
             </div>
 
-            <div className="lg:col-span-5 rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-7 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E5E0D8] pb-3">
-                <span className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-[#B85D35]">
+            <div className="rounded-[10px] bg-[#FDFCFA] border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#B85D35] p-7 flex flex-col justify-between space-y-4 h-full">
+              <div className="flex items-center justify-between border-b-[1.5px] border-[#CFC8BC] pb-3.5">
+                <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#B85D35]">
                   АКЦЕНТНЫЕ И СЕЗОННЫЕ КАПСУЛЫ
                 </span>
                 <span className="font-serif-editorial text-[34px] font-semibold text-[#161615] leading-none">
@@ -904,8 +921,8 @@ export function StrategyPresentationDeck({
           </div>
 
           {/* Живые карточки моделей из каталога */}
-          <div className="rounded-[8px] bg-[#FDFCFA] border border-[#E5E0D8] p-6 space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E5E0D8] pb-4">
+          <div className="rounded-[10px] bg-[#FDFCFA] border-[1.5px] border-[#CFC8BC] p-6 space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b-2 border-[#181715] pb-4">
               <div>
                 <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#8C867E]">
                   ДЕЙСТВУЮЩАЯ МАТРИЦА SKU
@@ -1603,51 +1620,27 @@ export function StrategyPresentationDeck({
     <div
       className={
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-[#F8F6F2] overflow-y-auto p-6 md:p-10'
+          ? 'fixed inset-0 z-50 bg-[#F6F3ED] overflow-y-auto p-6 md:p-10 space-y-6'
           : 'space-y-6 pb-20'
       }
     >
-      {/* СПОКОЙНАЯ ПАНЕЛЬ НАВИГАЦИИ ПО ГЛАВАМ ПРЕЗЕНТАЦИИ (БЕЗ ДУБЛИРОВАНИЯ ФИЛЬТРА БРЕНДОВ И ЧЁРНЫХ ПЛАШЕК) */}
-      <div
-        className={`${
-          isFullscreen ? 'sticky top-2 z-20' : 'sticky top-[64px] z-20'
-        } rounded-[12px] bg-white/95 backdrop-blur-md border border-[#EAE6DF] overflow-hidden`}
-      >
-        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-          {/* Оглавление 8 глав в одну спокойную строку */}
-          <div className="flex items-center gap-1 overflow-x-auto">
-            {PRESENTATION_SLIDES.map((s, idx) => {
-              const active = viewLayout === 'slides' && idx === activeSlideIdx;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => {
-                    setViewLayout('slides');
-                    setActiveSlideIdx(idx);
-                  }}
-                  className={`px-3 py-1.5 rounded-[8px] text-[12.5px] whitespace-nowrap cursor-pointer transition ${
-                    active
-                      ? 'bg-[#EFECE6] text-[#181715] font-medium'
-                      : 'text-[#6E6A63] hover:text-[#181715] hover:bg-[#FAF8F5]'
-                  }`}
-                >
-                  <span className="text-[11px] text-[#9E988E] mr-1.5">{s.num}</span>
-                  <span>{s.shortTitle}</span>
-                </button>
-              );
-            })}
+      {/* АРХИТЕКТУРНАЯ ПАНЕЛЬ НАВИГАЦИИ ПО 8 ГЛАВАМ — СТРОГАЯ СИММЕТРИЯ БЕЗ ОДИНОЧНЫХ ПЕРЕНОСОВ И НАЕЗДА НА ТЕКСТ */}
+      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] overflow-hidden shadow-2xs">
+        {/* Верхний ярус: статус документа слева, 3 кнопки режима справа */}
+        <div className="px-4 py-2.5 bg-[#FAF8F5] border-b-[1.5px] border-[#DFD8CC] flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[12px] font-mono uppercase tracking-[0.1em] text-[#5C5852]">
+            <span className="h-2 w-2 rounded-full bg-[#181715]" />
+            <span>BORNERS GROUP · Оглавление стратегической презентации (01–08)</span>
           </div>
 
-          {/* Правая группа: Полный текст | PDF | Экран */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setViewLayout(viewLayout === 'slides' ? 'all' : 'slides')}
-              className={`h-8 px-3 rounded-[8px] border text-[12px] font-medium cursor-pointer transition ${
+              className={`h-8 px-3.5 rounded-[6px] border-[1.5px] text-[12px] font-medium cursor-pointer transition ${
                 viewLayout === 'all'
-                  ? 'bg-[#EFECE6] border-[#DCD6CC] text-[#181715]'
-                  : 'bg-white border-[#EAE6DF] text-[#5C5852] hover:text-[#181715]'
+                  ? 'bg-[#181715] border-[#181715] text-white'
+                  : 'bg-white border-[#CFC8BC] text-[#181715] hover:border-[#181715]'
               }`}
             >
               {viewLayout === 'all' ? 'По слайдам (1–8)' : 'Единый документ'}
@@ -1657,16 +1650,16 @@ export function StrategyPresentationDeck({
               type="button"
               onClick={() => window.print()}
               title="Печать или сохранение в PDF"
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-white border border-[#EAE6DF] text-[12px] font-medium text-[#5C5852] hover:text-[#181715] cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] bg-white border-[1.5px] border-[#CFC8BC] hover:border-[#181715] text-[12px] font-medium text-[#181715] cursor-pointer transition"
             >
               <Printer className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">PDF</span>
+              <span>PDF</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-[8px] bg-white border border-[#EAE6DF] text-[12px] font-medium text-[#5C5852] hover:text-[#181715] cursor-pointer"
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] bg-white border-[1.5px] border-[#CFC8BC] hover:border-[#181715] text-[12px] font-medium text-[#181715] cursor-pointer transition"
             >
               {isFullscreen ? (
                 <>
@@ -1676,24 +1669,55 @@ export function StrategyPresentationDeck({
               ) : (
                 <>
                   <Expand className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">На весь экран</span>
+                  <span>На весь экран</span>
                 </>
               )}
             </button>
           </div>
+        </div>
+
+        {/* Нижний ярус: ровно 8 равных ячеек глав в симметричной сетке */}
+        <div className="p-2 grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-1.5 bg-white">
+          {PRESENTATION_SLIDES.map((s, idx) => {
+            const active = viewLayout === 'slides' && idx === activeSlideIdx;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => {
+                  setViewLayout('slides');
+                  setActiveSlideIdx(idx);
+                }}
+                className={`px-2.5 py-2 rounded-[8px] text-left text-[12px] cursor-pointer transition border ${
+                  active
+                    ? 'bg-[#181715] text-white border-[#181715] font-medium'
+                    : 'bg-[#FAF8F5] text-[#4A4742] border-[#E5E0D8] hover:border-[#181715] hover:text-[#181715]'
+                }`}
+              >
+                <div
+                  className={`font-mono text-[10px] ${
+                    active ? 'text-[#B89F86]' : 'text-[#8C867E]'
+                  }`}
+                >
+                  Глава {s.num}
+                </div>
+                <div className="truncate mt-0.5">{s.shortTitle}</div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* СОДЕРЖИМОЕ ПРЕЗЕНТАЦИИ */}
       {viewLayout === 'slides' ? (
         <div className="space-y-6">
-          {/* Редакционный заголовок текущего слайда */}
-          <div className="border-b border-[#EAE6DF] pb-5 flex flex-wrap items-end justify-between gap-4">
+          {/* Редакционный заголовок текущего слайда с чёткой жирной линией 2px */}
+          <div className="border-b-2 border-[#181715] pb-5 flex flex-wrap items-end justify-between gap-4">
             <div className="space-y-1">
-              <div className="text-[12px] font-medium text-[#8C867E]">
+              <div className="font-mono text-[11.5px] font-medium uppercase tracking-[0.12em] text-[#7A756D]">
                 Глава {currentSlide.num} из 08 · {currentSlide.kicker}
               </div>
-              <h2 className="font-serif-editorial text-[32px] md:text-[40px] font-medium tracking-[-0.01em] text-[#181715] leading-tight">
+              <h2 className="font-serif-editorial text-[32px] md:text-[42px] font-medium tracking-[-0.01em] text-[#181715] leading-tight">
                 {currentSlide.title}
               </h2>
               <p className="text-[14.5px] text-[#5C5852] max-w-3xl">{currentSlide.subtitle}</p>
@@ -1704,7 +1728,7 @@ export function StrategyPresentationDeck({
                 type="button"
                 disabled={activeSlideIdx === 0}
                 onClick={() => setActiveSlideIdx((i) => Math.max(0, i - 1))}
-                className="h-9 px-3.5 rounded-[8px] border border-[#EAE6DF] bg-white text-[12.5px] font-medium text-[#181715] disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 hover:bg-[#FAF8F5]"
+                className="h-9 px-4 rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-white text-[12.5px] font-medium text-[#181715] disabled:opacity-40 cursor-pointer inline-flex items-center gap-1.5 hover:border-[#181715]"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Назад</span>
@@ -1726,18 +1750,18 @@ export function StrategyPresentationDeck({
           {renderSlideContent(activeSlideIdx)}
 
           {/* Нижняя навигация по слайдам */}
-          <div className="rounded-[12px] bg-white border border-[#EAE6DF] px-5 py-3.5 flex items-center justify-between">
+          <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] px-5 py-3.5 flex items-center justify-between">
             <button
               type="button"
               disabled={activeSlideIdx === 0}
               onClick={() => setActiveSlideIdx((i) => Math.max(0, i - 1))}
-              className="h-9 px-4 rounded-[8px] border border-[#EAE6DF] bg-white text-[13px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-2 hover:bg-[#FAF8F5]"
+              className="h-9 px-4 rounded-[8px] border-[1.5px] border-[#CFC8BC] bg-white text-[13px] font-medium disabled:opacity-40 cursor-pointer inline-flex items-center gap-2 hover:border-[#181715]"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Предыдущая глава</span>
             </button>
 
-            <div className="text-[12px] text-[#8C867E]">
+            <div className="font-mono text-[12px] font-medium text-[#5C5852]">
               Глава {activeSlideIdx + 1} из 8
             </div>
 
@@ -1760,10 +1784,10 @@ export function StrategyPresentationDeck({
           {PRESENTATION_SLIDES.map((s, idx) => (
             <section
               key={s.id}
-              className="space-y-5 pt-8 border-t border-[#EAE6DF] first:border-t-0 first:pt-0"
+              className="space-y-5 pt-8 border-t-2 border-[#181715] first:border-t-0 first:pt-0"
             >
               <div className="space-y-1">
-                <div className="text-[12px] font-medium text-[#8C867E]">
+                <div className="font-mono text-[11.5px] font-medium uppercase tracking-[0.12em] text-[#7A756D]">
                   Глава {s.num} из 08 · {s.kicker}
                 </div>
                 <h2 className="font-serif-editorial text-[32px] md:text-[38px] font-medium text-[#181715] leading-tight">

@@ -64,7 +64,7 @@ export function BrandPortfolioView() {
   return (
     <div className="space-y-8 pb-20">
       {/* Заголовок страницы в стиле швейцарского ателье */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E5E0D8] pb-6">
+      <div className="flex flex-wrap items-end justify-between gap-6 border-b-2 border-[#181715] pb-5">
         <div>
           <div className="flex items-center gap-2.5 text-[11px] font-mono uppercase tracking-[0.2em] text-[#7A756D] mb-2">
             <span>PORTFOLIO ARCHITECTURE</span>
@@ -87,8 +87,8 @@ export function BrandPortfolioView() {
         )}
       </div>
 
-      {/* Крупные карточки брендов со студийной съёмкой */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Крупные карточки брендов со студийной съёмкой — строгая зеркальная симметрия */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {activeBrands.map((brand) => {
           const isBorners = brand.code === 'BORNERS';
           const accentColor = isBorners ? '#161615' : '#8B8078';
@@ -105,11 +105,13 @@ export function BrandPortfolioView() {
           return (
             <div
               key={brand.id}
-              className="bg-[#FDFCFA] rounded-[8px] border border-[#E5E0D8] overflow-hidden flex flex-col justify-between"
+              className={`bg-[#FDFCFA] rounded-[10px] border-[1.5px] border-[#CFC8BC] border-t-[3px] ${
+                isBorners ? 'border-t-[#181715]' : 'border-t-[#7D7268]'
+              } overflow-hidden flex flex-col justify-between h-full`}
             >
               <div>
-                {/* Студийный кадр коллекции */}
-                <div className="relative h-60 w-full bg-[#F2EFE9] border-b border-[#E5E0D8] overflow-hidden">
+                {/* Студийный кадр коллекции фиксированной высоты h-60 */}
+                <div className="relative h-60 w-full bg-[#F2EFE9] border-b-[1.5px] border-[#CFC8BC] overflow-hidden">
                   <img
                     src={brand.heroImage}
                     alt={brand.name}
@@ -132,7 +134,7 @@ export function BrandPortfolioView() {
                 </div>
 
                 <div className="p-6 space-y-5">
-                  <div>
+                  <div className="min-h-[124px]">
                     <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.16em] text-[#7A756D]">
                       <span
                         className="h-2 w-2 rounded-full"
@@ -140,17 +142,17 @@ export function BrandPortfolioView() {
                       />
                       <span>Позиционирование</span>
                     </div>
-                    <p className="text-[15px] text-[#161615] mt-1.5 font-medium">
+                    <p className="text-[15px] text-[#161615] mt-1.5 font-semibold">
                       {brand.tagline}
                     </p>
-                    <p className="text-[13px] text-[#5C5852] mt-2 leading-relaxed">
+                    <p className="text-[13.5px] text-[#5C5852] mt-2 leading-relaxed">
                       {brand.description}
                     </p>
                   </div>
 
                   {/* Ключевые показатели бренда */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[#E5E0D8]">
-                    <div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 divide-x-[1.5px] divide-[#DFD8CC] pt-4 border-t-[1.5px] border-[#CFC8BC]">
+                    <div className="pr-3">
                       <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#7A756D]">
                         План 2027
                       </div>
@@ -160,7 +162,7 @@ export function BrandPortfolioView() {
                           : 'Скрыто'}
                       </div>
                     </div>
-                    <div>
+                    <div className="px-3">
                       <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#7A756D]">
                         Целевая маржа
                       </div>
@@ -168,7 +170,7 @@ export function BrandPortfolioView() {
                         {hasFinance ? `${brand.targetMarginPct}%` : 'Скрыто'}
                       </div>
                     </div>
-                    <div>
+                    <div className="px-3">
                       <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#7A756D]">
                         В каталоге
                       </div>
@@ -176,7 +178,7 @@ export function BrandPortfolioView() {
                         {bProducts.length} SKU
                       </div>
                     </div>
-                    <div>
+                    <div className="pl-3">
                       <div className="text-[11px] font-mono uppercase tracking-[0.12em] text-[#7A756D]">
                         R&D / Запуски
                       </div>
@@ -188,16 +190,16 @@ export function BrandPortfolioView() {
                 </div>
               </div>
 
-              {/* Действия */}
-              <div className="px-6 py-4 bg-[#F8F6F2] border-t border-[#E5E0D8] flex flex-wrap gap-2.5">
+              {/* Действия — симметричная 3-кнопочная сетка */}
+              <div className="grid grid-cols-3 divide-x-[1.5px] divide-[#CFC8BC] bg-[#FAF8F5] border-t-[1.5px] border-[#CFC8BC]">
                 <button
                   onClick={() => {
                     setBrandFilter(brand.code);
                     navigateTo('brand-strategy');
                   }}
-                  className="inline-flex items-center gap-1.5 h-9 rounded-[6px] bg-[#161615] text-[#F8F6F2] px-4 text-[12px] font-medium hover:bg-[#2C2B29] transition cursor-pointer"
+                  className="h-11 px-3 bg-[#161615] text-[#F8F6F2] text-[12px] font-medium hover:bg-[#2C2B29] transition cursor-pointer inline-flex items-center justify-center gap-1.5"
                 >
-                  <span>Паспорт стратегии (14 блоков)</span>
+                  <span>Паспорт (14)</span>
                   <ArrowUpRight className="h-3.5 w-3.5" />
                 </button>
                 <button
@@ -205,7 +207,7 @@ export function BrandPortfolioView() {
                     setBrandFilter(brand.code);
                     navigateTo('product-catalog');
                   }}
-                  className="h-9 rounded-[6px] bg-[#FDFCFA] border border-[#E5E0D8] text-[#161615] px-3.5 text-[12px] font-medium hover:border-[#161615] transition cursor-pointer"
+                  className="h-11 px-3 text-[#161615] text-[12.5px] font-semibold hover:bg-[#EFECE6] transition cursor-pointer"
                 >
                   Каталог ({bProducts.length})
                 </button>
@@ -214,7 +216,7 @@ export function BrandPortfolioView() {
                     setBrandFilter(brand.code);
                     navigateTo('product-lab');
                   }}
-                  className="h-9 rounded-[6px] bg-[#FDFCFA] border border-[#E5E0D8] text-[#161615] px-3.5 text-[12px] font-medium hover:border-[#161615] transition cursor-pointer"
+                  className="h-11 px-3 text-[#161615] text-[12.5px] font-semibold hover:bg-[#EFECE6] transition cursor-pointer"
                 >
                   R&D ({bConcepts.length})
                 </button>
