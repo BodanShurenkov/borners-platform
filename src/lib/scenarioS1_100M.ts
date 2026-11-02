@@ -821,6 +821,7 @@ export const S1_100M_SCENARIO_MODELS: ScenarioModelSpec[] = S1_100M_NEW_VARIANTS
         ? 'ГИПОТЕЗА (цена/дата запуска и объём)'
         : 'ГИПОТЕЗА (объём выкупов)'
     }`,
+    priority: v.priorityLabel,
     hasActualSalesOrPurchases: false,
     palettes: [palette],
     gallery: v.galleryUrls.map((url, idx) => ({

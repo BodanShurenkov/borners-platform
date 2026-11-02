@@ -4,7 +4,15 @@ import {
   ACTING_2027_SCENARIO_MODELS,
   getActingSkuByWbOrVendor,
 } from './actingAssortment2027.ts';
-import { S1_100M_SCENARIO_MODELS } from './scenarioS1_100M.ts';
+import {
+  S1_100M_NEW_VARIANTS,
+  S1_100M_SCENARIO_MODELS,
+  getS1NewVariantByCodeOrId,
+  isConfirmedBornersActingSku,
+  isUnverifiedActingSku,
+} from './scenarioS1_100M.ts';
+
+export type ModelPriorityLevel = 'Высший' | 'Высокий' | 'Средний' | 'Не указан';
 
 export interface PackColor {
   nameRu: string;
@@ -77,6 +85,7 @@ export interface ScenarioModelSpec {
   logisticsRub: number; // логистика ₽ / комплект
   adsPct: number; // реклама %
   responsiblePerson: string;
+  priority?: ModelPriorityLevel;
   hasActualSalesOrPurchases: boolean;
   palettes: PalettePack[];
   gallery: GalleryMediaItem[];
@@ -1084,4 +1093,182 @@ export function computeModelScenarioMetrics(
     hasScheduleConflict,
     scheduleConflictMessage,
   };
+}
+
+export const PRIORITY_WEIGHTS: Record<ModelPriorityLevel, number> = {
+  Высший: 1.4,
+  Высокий: 1.15,
+  Средний: 0.9,
+  'Не указан': 0.75,
+};
+
+export function getModelPriority(model: ScenarioModelSpec): ModelPriorityLevel {
+  if (
+    model.priority === 'Высший' ||
+    model.priority === 'Высокий' ||
+    model.priority === 'Средний' ||
+    model.priority === 'Не указан'
+  ) {
+    return model.priority;
+  }
+  const s1Var =
+    getS1NewVariantByCodeOrId(model.code) || getS1NewVariantByCodeOrId(model.id);
+  if (s1Var) {
+    return s1Var.priorityLabel;
+  }
+  const resp = model.responsiblePerson || '';
+  if (resp.includes('Высший')) return 'Высший';
+  if (resp.includes('Высокий')) return 'Высокий';
+  if (resp.includes('Средний')) return 'Средний';
+  return 'Не указан';
+}
+
+export function cycleModelPriority(current: ModelPriorityLevel): ModelPriorityLevel {
+  const order: ModelPriorityLevel[] = ['Высший', 'Высокий', 'Средний', 'Не указан'];
+  const idx = order.indexOf(current);
+  return order[(idx + 1) % order.length];
+}
+
+/**
+ * Автоматический расчёт помесячных объёмов продаж моделей под целевую выручку сценария
+ * с учётом приоритетности каждой карточки (Высший ×1.40, Высокий ×1.15, Средний ×0.90, Не указан ×0.75)
+ * и сохранением нулевых продаж до месяца запуска (Правило 05).
+ */
+export function autoDistributeScenarioByPriority(
+  models: ScenarioModelSpec[],
+  scenario: GrowthScenarioDef,
+  options?: {
+    keepActingWbFixed?: boolean;
+    targetMonthlyMlnOverride?: number;
+  }
+): ScenarioModelSpec[] {
+  const keepActingWbFixed = options?.keepActingWbFixed ?? true;
+  const targetMln = options?.targetMonthlyMlnOverride ?? scenario.monthlyTargetMln;
+  const targetDecRub = Math.round(targetMln * 1_000_000);
+  const targetMonthIdx = scenario.targetMonthIdx ?? 11;
+
+  // Определяем модели, участвующие в сценарии
+  const isIncludedInScenario = (m: ScenarioModelSpec) => {
+    if (m.launchStatus === 'В архиве') return false;
+    if (scenario.id === ACTING_2027_SCENARIO_ID) {
+      return Boolean(getActingSkuByWbOrVendor(m.code, m.title));
+    }
+    if (
+      scenario.id === 1 &&
+      ['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(m.id)
+    ) {
+      return false;
+    }
+    if (isUnverifiedActingSku(m.code)) {
+      return false;
+    }
+    return scenario.includedBrands.includes(m.brandId);
+  };
+
+  let fixedActingDecRub = 0;
+  if (keepActingWbFixed && scenario.id !== ACTING_2027_SCENARIO_ID) {
+    for (const m of models) {
+      if (!isIncludedInScenario(m)) continue;
+      if (isConfirmedBornersActingSku(m.code) || getActingSkuByWbOrVendor(m.code, m.title)) {
+        const met = computeModelScenarioMetrics(m, scenario);
+        fixedActingDecRub += met.targetMonthRevenueRub;
+      }
+    }
+  }
+
+  const remainingTargetDecRub = Math.max(0, targetDecRub - fixedActingDecRub);
+
+  // Собираем модели, которые масштабируются по приоритету
+  const adjustableEntries: {
+    model: ScenarioModelSpec;
+    weight: number;
+    baseDecPacks: number;
+    decPriceRub: number;
+    score: number;
+    baseMonthlyCurve: number[];
+    salesStartMonthIdx: number;
+  }[] = [];
+
+  for (const m of models) {
+    if (!isIncludedInScenario(m)) continue;
+    const isActing =
+      isConfirmedBornersActingSku(m.code) || Boolean(getActingSkuByWbOrVendor(m.code, m.title));
+    if (keepActingWbFixed && isActing && scenario.id !== ACTING_2027_SCENARIO_ID) {
+      continue;
+    }
+
+    const plan = m.plansByScenario[scenario.id] || m.plansByScenario[1];
+    const s1Var =
+      getS1NewVariantByCodeOrId(m.code) || getS1NewVariantByCodeOrId(m.id);
+    const salesStartMonthIdx = s1Var
+      ? s1Var.launchMonthIdx
+      : plan?.salesStartMonthIdx ?? 0;
+
+    const baseCurve = s1Var
+      ? [...s1Var.monthlyBuyoutsSets]
+      : plan?.monthlyPacks?.some((p) => p > 0)
+      ? [...plan.monthlyPacks]
+      : Array.from({ length: 12 }, (_, idx) =>
+          idx < salesStartMonthIdx ? 0 : 500 + (idx - salesStartMonthIdx) * 250
+        );
+
+    const baseDecPacks = Math.max(100, baseCurve[targetMonthIdx] || 1500);
+    const decPriceRub = Math.max(
+      100,
+      plan?.monthlyPricesRub?.[targetMonthIdx] || m.retailPriceRub || 1990
+    );
+    const priority = getModelPriority(m);
+    const weight = PRIORITY_WEIGHTS[priority] || 1.0;
+    const score = baseDecPacks * decPriceRub * weight;
+
+    adjustableEntries.push({
+      model: m,
+      weight,
+      baseDecPacks,
+      decPriceRub,
+      score,
+      baseMonthlyCurve: baseCurve,
+      salesStartMonthIdx,
+    });
+  }
+
+  const totalScore = adjustableEntries.reduce((acc, item) => acc + item.score, 0);
+  if (totalScore <= 0 || adjustableEntries.length === 0) {
+    return models;
+  }
+
+  const updatedMap = new Map<string, number[]>();
+
+  for (const entry of adjustableEntries) {
+    const share = entry.score / totalScore;
+    const modelTargetDecRub = remainingTargetDecRub * share;
+    const newDecPacks = Math.max(0, Math.round(modelTargetDecRub / entry.decPriceRub));
+    const scaleFactor = entry.baseDecPacks > 0 ? newDecPacks / entry.baseDecPacks : 1;
+
+    const nextMonthlyPacks = entry.baseMonthlyCurve.map((baseVal, mIdx) => {
+      if (mIdx < entry.salesStartMonthIdx) return 0;
+      if (mIdx === targetMonthIdx) return newDecPacks;
+      return Math.max(0, Math.round(baseVal * scaleFactor));
+    });
+
+    updatedMap.set(entry.model.id, nextMonthlyPacks);
+  }
+
+  return models.map((m) => {
+    const nextPacks = updatedMap.get(m.id);
+    if (!nextPacks) return m;
+    const prevPlan = m.plansByScenario[scenario.id] || m.plansByScenario[1];
+    return {
+      ...m,
+      plansByScenario: {
+        ...m.plansByScenario,
+        [scenario.id]: {
+          ...prevPlan,
+          scenarioId: scenario.id,
+          monthlyPacks: nextPacks,
+          monthlyReceiptsPacks: [...nextPacks],
+        },
+      },
+    };
+  });
 }

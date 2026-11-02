@@ -26,14 +26,19 @@ import { INITIAL_STRATEGIES } from '../src/lib/initial-strategies.ts';
 import {
   INITIAL_SCENARIOS,
   INITIAL_SCENARIO_MODELS,
+  autoDistributeScenarioByPriority,
   computeModelScenarioMetrics,
+  getModelPriority,
 } from '../src/lib/scenarioData.ts';
 import {
+  ACTING_2027_SCENARIO_MODELS,
   ACTING_2027_SKUS,
   verifyActingAssortment2027Bundle,
 } from '../src/lib/actingAssortment2027.ts';
 import {
   S1_100M_NEW_VARIANTS,
+  S1_100M_SCENARIO_MODELS,
+  isUnverifiedActingSku,
   verifyScenarioS1_100M,
 } from '../src/lib/scenarioS1_100M.ts';
 
@@ -448,6 +453,42 @@ test('12. Сценарий №1 BORNERS-2027-S1-100M (100 млн ₽/мес · 1
   assert.equal(s1.annualTotalRevenueRub, 606_372_182);
   assert.equal(s1.zeroSalesBeforeLaunchValid, true);
   assert.equal(S1_100M_NEW_VARIANTS.length, 16);
+});
+
+test('13. Живой дашборд и авто-расчёт сценария по приоритету моделей под любую целевую сумму (например 130 млн ₽/мес)', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const modelsPool = [...S1_100M_SCENARIO_MODELS, ...ACTING_2027_SCENARIO_MODELS];
+
+  // Проверяем корректное считывание приоритетов
+  const dly01 = modelsPool.find((m) => m.code === 'BRN-DLY-01')!;
+  const brn003 = modelsPool.find((m) => m.code === 'BRN-003')!;
+  const brf01 = modelsPool.find((m) => m.code === 'BRN-BRF-A-01')!;
+  assert.equal(getModelPriority(dly01), 'Высший');
+  assert.equal(getModelPriority(brn003), 'Средний');
+  assert.equal(getModelPriority(brf01), 'Не указан');
+
+  // Запускаем авто-расчёт под новую цель 130 млн ₽ в декабре
+  const distributed = autoDistributeScenarioByPriority(modelsPool, scen1, {
+    keepActingWbFixed: true,
+    targetMonthlyMlnOverride: 130,
+  });
+
+  const activeInTarget = distributed.filter((m) => !isUnverifiedActingSku(m.code));
+  const totalDecRub = activeInTarget.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen1).targetMonthRevenueRub,
+    0
+  );
+
+  // Итоговая сумма декабря по карточкам должна попадать в цель 130 млн ₽ (с точностью округления до целых комплектов < 0.05 млн ₽)
+  assert.equal(Math.abs(totalDecRub - 130_000_000) < 50_000, true);
+
+  // До месяца старта (март = индекс 2 для DAILY, апрель = индекс 3 для BRIEF) продажи остаются строго 0
+  const distDly01 = distributed.find((m) => m.code === 'BRN-DLY-01')!;
+  const distBrf01 = distributed.find((m) => m.code === 'BRN-BRF-A-01')!;
+  assert.equal(distDly01.plansByScenario[1].monthlyPacks[0], 0);
+  assert.equal(distDly01.plansByScenario[1].monthlyPacks[1], 0);
+  assert.equal(distBrf01.plansByScenario[1].monthlyPacks[0], 0);
+  assert.equal(distBrf01.plansByScenario[1].monthlyPacks[2], 0);
 });
 
 
