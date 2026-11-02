@@ -1057,3 +1057,65 @@ export const S1_100M_CATALOG_PRODUCTS: Product[] = S1_100M_NEW_VARIANTS.map((v) 
     updatedAt: '2026-11-02',
   };
 });
+
+// Контрольные суммы сохранённого клиентом плана продаж Сценария №1 (109,94 млн ₽ в дек / 686,28 млн ₽ за 2027 г.)
+export const CLIENT_SAVED_S1_TOTALS = {
+  decemberRevenueRub: 109_938_111,
+  decemberRevenueMln: 109.94,
+  annualRevenueRub: 686_284_972,
+  annualRevenueMln: 686.28,
+} as const;
+
+/**
+ * Применяет сохранённый клиентом план продаж Сценария №1
+ * (Декабрь 2027: 109 938 111 ₽ = 109,94 млн ₽ · Годовой план 2027: 686 284 972 ₽ = 686,28 млн ₽ · 21 мод.)
+ */
+export function applyClientSavedS1SalesPlan(
+  models: ScenarioModelSpec[]
+): ScenarioModelSpec[] {
+  // BRN-001-SC (2 490 ₽): Янв–Ноя сумма = 40 212 компл., Дек = 6 429 компл. (+3 929 компл. = +9 783 210 ₽ в дек)
+  const brn001ScPacks = [
+    1420, 1850, 2310, 2780, 3250, 3690, 4130, 4580, 5020, 5410, 5772, 6429,
+  ];
+  // BRN-003 (1 990 ₽): Янв–Ноя +137 компл., Дек = 3 000 компл.
+  const brn003Packs = [
+    150, 337, 549, 780, 1025, 1282, 1549, 1826, 2112, 2405, 2713, 3000,
+  ];
+
+  return models.map((m) => {
+    const codeUpper = m.code.toUpperCase();
+    const p1 = m.plansByScenario[1];
+    if (!p1) return m;
+
+    if (m.id === 'scen-brn-001-sc' || codeUpper === 'BRN-001-SC') {
+      return {
+        ...m,
+        plansByScenario: {
+          ...m.plansByScenario,
+          1: {
+            ...p1,
+            monthlyPacks: [...brn001ScPacks],
+            monthlyPricesRub: Array(12).fill(2490),
+          },
+        },
+      };
+    }
+
+    if (m.id === 'scen-brn-003' || codeUpper === 'BRN-003') {
+      return {
+        ...m,
+        plansByScenario: {
+          ...m.plansByScenario,
+          1: {
+            ...p1,
+            monthlyPacks: [...brn003Packs],
+            monthlyPricesRub: Array(12).fill(1990),
+          },
+        },
+      };
+    }
+
+    return m;
+  });
+}
+

@@ -36,8 +36,10 @@ import {
   verifyActingAssortment2027Bundle,
 } from '../src/lib/actingAssortment2027.ts';
 import {
+  CLIENT_SAVED_S1_TOTALS,
   S1_100M_NEW_VARIANTS,
   S1_100M_SCENARIO_MODELS,
+  applyClientSavedS1SalesPlan,
   isUnverifiedActingSku,
   verifyScenarioS1_100M,
 } from '../src/lib/scenarioS1_100M.ts';
@@ -490,6 +492,47 @@ test('13. Живой дашборд и авто-расчёт сценария п
   assert.equal(distBrf01.plansByScenario[1].monthlyPacks[0], 0);
   assert.equal(distBrf01.plansByScenario[1].monthlyPacks[2], 0);
 });
+
+test('14. Сохранённые продажи клиента в Сценарии №1 (109 938 111 ₽ в дек / 686 284 972 ₽ за год · 21 мод.): точная сверка рубль-в-рубль', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const scen2 = INITIAL_SCENARIOS.find((s) => s.id === 2)!;
+  const scen3 = INITIAL_SCENARIOS.find((s) => s.id === 3)!;
+
+  const restored = applyClientSavedS1SalesPlan([
+    ...ACTING_2027_SCENARIO_MODELS,
+    ...S1_100M_SCENARIO_MODELS,
+  ]);
+
+  const eligibleS1 = restored.filter((m) => !isUnverifiedActingSku(m.code));
+  assert.equal(eligibleS1.length, 21);
+
+  const decRub = eligibleS1.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen1).targetMonthRevenueRub,
+    0
+  );
+  const annRub = eligibleS1.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen1).annualRevenueRub,
+    0
+  );
+
+  assert.equal(decRub, CLIENT_SAVED_S1_TOTALS.decemberRevenueRub);
+  assert.equal(decRub, 109_938_111);
+  assert.equal(annRub, CLIENT_SAVED_S1_TOTALS.annualRevenueRub);
+  assert.equal(annRub, 686_284_972);
+
+  // Сценарии №2 и №3 остаются неизменными (799,52 млн ₽ и 992,67 млн ₽ по 23 моделям)
+  const annS2 = restored.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen2).annualRevenueRub,
+    0
+  );
+  const annS3 = restored.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen3).annualRevenueRub,
+    0
+  );
+  assert.equal(annS2, 799_519_172);
+  assert.equal(annS3, 992_670_642);
+});
+
 
 
 

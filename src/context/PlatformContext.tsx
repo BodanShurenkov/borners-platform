@@ -443,9 +443,7 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
                 p.sku.toUpperCase() === itemProd.sku.toUpperCase() ||
                 p.name.toUpperCase() === itemProd.name.toUpperCase()
             );
-            if (idx >= 0) {
-              merged[idx] = itemProd;
-            } else {
+            if (idx === -1) {
               merged.unshift(itemProd);
             }
           }

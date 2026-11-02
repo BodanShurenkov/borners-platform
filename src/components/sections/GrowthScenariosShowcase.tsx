@@ -38,6 +38,7 @@ import {
   S1_100M_CONTROL_TOTALS,
   S1_100M_NEW_VARIANTS,
   S1_100M_SCENARIO_MODELS,
+  applyClientSavedS1SalesPlan,
   getS1NewVariantByCodeOrId,
   isUnverifiedActingSku,
   verifyScenarioS1_100M,
@@ -50,6 +51,63 @@ import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
 
 export const STORAGE_KEY_SCENARIOS = 'borners_tz_scenarios_v1';
 export const STORAGE_KEY_MODELS = 'borners_tz_models_v1';
+export const STORAGE_KEY_USER_PLANS_BACKUP = 'borners_user_saved_plans_v1';
+
+interface UserSavedModelPlanBackup {
+  id: string;
+  code: string;
+  retailPriceRub: number;
+  unitCostRub: number;
+  priority?: ModelPriorityLevel;
+  launchStatus: ScenarioModelSpec['launchStatus'];
+  plansByScenario: ScenarioModelSpec['plansByScenario'];
+}
+
+function saveUserPlansBackup(modelsList: ScenarioModelSpec[]) {
+  const backup: Record<string, UserSavedModelPlanBackup> = {};
+  for (const m of modelsList) {
+    backup[m.id] = {
+      id: m.id,
+      code: m.code,
+      retailPriceRub: m.retailPriceRub,
+      unitCostRub: m.unitCostRub,
+      priority: m.priority,
+      launchStatus: m.launchStatus,
+      plansByScenario: m.plansByScenario,
+    };
+  }
+  safeSetStorageJson(STORAGE_KEY_USER_PLANS_BACKUP, backup);
+}
+
+function overlayUserPlansBackup(
+  modelsList: ScenarioModelSpec[]
+): ScenarioModelSpec[] {
+  const backup = safeGetStorageJson<Record<string, UserSavedModelPlanBackup>>(
+    STORAGE_KEY_USER_PLANS_BACKUP
+  );
+  if (!backup || typeof backup !== 'object') return modelsList;
+  return modelsList.map((m) => {
+    const saved =
+      backup[m.id] ||
+      Object.values(backup).find(
+        (b) => b.code && b.code.toUpperCase() === m.code.toUpperCase()
+      );
+    if (!saved) return m;
+    return {
+      ...m,
+      retailPriceRub: saved.retailPriceRub ?? m.retailPriceRub,
+      unitCostRub: saved.unitCostRub ?? m.unitCostRub,
+      priority: saved.priority ?? m.priority,
+      launchStatus: saved.launchStatus ?? m.launchStatus,
+      plansByScenario: saved.plansByScenario || m.plansByScenario,
+    };
+  });
+}
+
+const DEFAULT_RESTORED_MODELS: ScenarioModelSpec[] = applyClientSavedS1SalesPlan([
+  ...ACTING_2027_SCENARIO_MODELS,
+  ...S1_100M_SCENARIO_MODELS,
+]);
 
 interface GrowthScenariosShowcaseProps {
   initialScreen?: 'scenarios' | 'model' | 'sales-plan';
@@ -77,7 +135,7 @@ export function GrowthScenariosShowcase({
   );
 
   const [scenarios, setScenarios] = useState<GrowthScenarioDef[]>(INITIAL_SCENARIOS);
-  const [models, setModels] = useState<ScenarioModelSpec[]>(INITIAL_SCENARIO_MODELS);
+  const [models, setModels] = useState<ScenarioModelSpec[]>(DEFAULT_RESTORED_MODELS);
   const [selectedScenarioId, setSelectedScenarioId] = useState<number>(1);
   const [selectedModelId, setSelectedModelId] = useState<string>(
     initialModelId || 'scen-brn-001-sc'
@@ -164,6 +222,7 @@ export function GrowthScenariosShowcase({
       setModels((prev) => {
         const next = typeof updater === 'function' ? updater(prev) : updater;
         safeSetStorageJson(STORAGE_KEY_MODELS, next);
+        saveUserPlansBackup(next);
         if (typeof window !== 'undefined') {
           window.setTimeout(() => {
             window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
@@ -191,7 +250,7 @@ export function GrowthScenariosShowcase({
     []
   );
 
-  // Загрузка сохранённых данных из localStorage и автоматический импорт 7 SKU ИП Нерсесянц по wb_sku
+  // Загрузка сохранённых данных из localStorage без перезаписи пользовательских правок продаж
   useEffect(() => {
     const syncFromStorage = () => {
       const bundleCheck = verifyActingAssortment2027Bundle();
@@ -209,56 +268,101 @@ export function GrowthScenariosShowcase({
       }
 
       const parsedModels = safeGetStorageJson<ScenarioModelSpec[]>(STORAGE_KEY_MODELS);
-      if (Array.isArray(parsedModels)) {
-        const cleanV3Flag =
-          typeof window !== 'undefined'
-            ? window.localStorage.getItem('borners_s1_100m_clean_v3')
-            : '1';
-        if (!cleanV3Flag && bundleCheck.valid && s1Check.valid) {
-          // Убираем старые демо-карточки (scen-model-001..004) и обновляем эталонные 16 S1 + 7 WB SKU
-          const filteredLegacy = parsedModels.filter(
+      const restoredClientV4Flag =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('borners_restored_client_s1_109_94m_v4')
+          : '1';
+
+      if (Array.isArray(parsedModels) && parsedModels.length > 0) {
+        // Убираем только 4 старые демо-карточки (scen-model-001..004)
+        const filteredLegacy = parsedModels.filter(
+          (m) =>
+            !['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+              m.id
+            ) && !['№001', '№002', '№003', '№004'].includes(m.code)
+        );
+
+        // Бережно добавляем недостающие эталонные карточки, НИКОГДА не перезаписывая существующие!
+        const merged = [...filteredLegacy];
+        for (const itemMod of [
+          ...ACTING_2027_SCENARIO_MODELS,
+          ...S1_100M_SCENARIO_MODELS,
+        ]) {
+          const idx = merged.findIndex(
             (m) =>
-              !['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
-                m.id
-              ) && !['№001', '№002', '№003', '№004'].includes(m.code)
+              m.id === itemMod.id ||
+              m.code.toUpperCase() === itemMod.code.toUpperCase() ||
+              m.title.toUpperCase() === itemMod.title.toUpperCase()
           );
-          const merged = [...filteredLegacy];
-          for (const itemMod of [
-            ...S1_100M_SCENARIO_MODELS,
-            ...ACTING_2027_SCENARIO_MODELS,
-          ]) {
-            const idx = merged.findIndex(
-              (m) =>
-                m.id === itemMod.id ||
-                m.code.toUpperCase() === itemMod.code.toUpperCase() ||
-                m.title.toUpperCase() === itemMod.title.toUpperCase()
-            );
-            if (idx >= 0) {
-              merged[idx] = itemMod;
-            } else {
-              merged.push(itemMod);
+          if (idx >= 0) {
+            // Сохраняем все пользовательские планы и цены, дополняя только пустые PDF
+            if (
+              (!merged[idx].attachedPdfs || merged[idx].attachedPdfs.length === 0) &&
+              itemMod.attachedPdfs &&
+              itemMod.attachedPdfs.length > 0
+            ) {
+              merged[idx] = {
+                ...merged[idx],
+                attachedPdfs: itemMod.attachedPdfs,
+              };
             }
+          } else {
+            merged.push(itemMod);
           }
-          safeSetStorageJson(STORAGE_KEY_MODELS, merged);
+        }
+
+        // Однократное авто-восстановление сохранённых клиентом продаж (109,94 млн ₽ в дек / 686,28 млн ₽ за год),
+        // если предыдущая миграция clean_v3 сбросила план к базовым 100 154 901 ₽
+        if (!restoredClientV4Flag && bundleCheck.valid && s1Check.valid) {
+          const scen1Def = INITIAL_SCENARIOS[0];
+          const currentS1DecRub = merged
+            .filter((m) => m.launchStatus !== 'В архиве' && !isUnverifiedActingSku(m.code))
+            .reduce(
+              (acc, m) => acc + computeModelScenarioMetrics(m, scen1Def).targetMonthRevenueRub,
+              0
+            );
+          const wasResetToPdfDefault = Math.abs(currentS1DecRub - 100_154_901) < 100;
+          const nextRestored = wasResetToPdfDefault
+            ? applyClientSavedS1SalesPlan(merged)
+            : overlayUserPlansBackup(merged);
+
+          // Упорядочиваем 7 WB SKU первыми + 16 новых вариантов (как на скриншоте клиента), сохраняя любые добавленные пользователем модели
+          const wbOrderIds = new Set(ACTING_2027_SCENARIO_MODELS.map((m) => m.id));
+          const s1OrderIds = new Set(S1_100M_SCENARIO_MODELS.map((m) => m.id));
+          const ordered = [
+            ...nextRestored.filter((m) => wbOrderIds.has(m.id)),
+            ...nextRestored.filter((m) => s1OrderIds.has(m.id)),
+            ...nextRestored.filter((m) => !wbOrderIds.has(m.id) && !s1OrderIds.has(m.id)),
+          ];
+
+          safeSetStorageJson(STORAGE_KEY_MODELS, ordered);
+          saveUserPlansBackup(ordered);
           try {
             window.localStorage.setItem('borners_acting_2027_seeded_v2', '1');
             window.localStorage.setItem('borners_s1_100m_seeded_v1', '1');
             window.localStorage.setItem('borners_s1_100m_clean_v3', '1');
+            window.localStorage.setItem('borners_restored_client_s1_109_94m_v4', '1');
           } catch {
             // ignore
           }
-          setModels(merged);
+          setModels(ordered);
         } else {
-          setModels(parsedModels);
+          const withBackup = overlayUserPlansBackup(merged);
+          setModels(withBackup);
         }
       } else if (bundleCheck.valid && s1Check.valid) {
+        const seeded = overlayUserPlansBackup(DEFAULT_RESTORED_MODELS);
+        safeSetStorageJson(STORAGE_KEY_MODELS, seeded);
+        saveUserPlansBackup(seeded);
         try {
           window.localStorage.setItem('borners_acting_2027_seeded_v2', '1');
           window.localStorage.setItem('borners_s1_100m_seeded_v1', '1');
           window.localStorage.setItem('borners_s1_100m_clean_v3', '1');
+          window.localStorage.setItem('borners_restored_client_s1_109_94m_v4', '1');
         } catch {
           // ignore
         }
+        setModels(seeded);
       }
       hydratedRef.current = true;
     };
@@ -677,9 +781,19 @@ export function GrowthScenariosShowcase({
     );
   };
 
+  // Восстановление сохранённых клиентом продаж (109,94 млн ₽ в дек · 686,28 млн ₽ за 2027 г.)
+  const handleRestoreClientSavedSales = () => {
+    commitModels((prev) => applyClientSavedS1SalesPlan(prev));
+    notify(
+      'success',
+      '✓ Восстановлены сохранённые продажи (109,94 млн ₽ в дек · 686,28 млн ₽ за 2027 г.)',
+      'Декабрь 2027: 109 938 111 ₽ · Годовой план 2027: 686 284 972 ₽ · 21 SKU в цели BORNERS.'
+    );
+  };
+
   // Сброс к эталону 28-страничного PDF (15,04 млн WB + 85,11 млн 16 новых = 100,15 млн ₽ в дек)
   const handleResetToPdfBaseline = () => {
-    const baseline = [...S1_100M_SCENARIO_MODELS, ...ACTING_2027_SCENARIO_MODELS];
+    const baseline = [...ACTING_2027_SCENARIO_MODELS, ...S1_100M_SCENARIO_MODELS];
     commitModels(baseline);
     commitScenarios(INITIAL_SCENARIOS);
     notify(
@@ -1367,6 +1481,14 @@ export function GrowthScenariosShowcase({
                       <span>
                         Авто-расчёт по приоритету под {currentScenario.monthlyTargetMln} млн ₽
                       </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleRestoreClientSavedSales}
+                      className="h-8 px-3 rounded-[9px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[11.5px] font-semibold transition cursor-pointer shadow-2xs"
+                    >
+                      ✓ Сохранённые продажи (109,94 млн ₽)
                     </button>
 
                     <button
