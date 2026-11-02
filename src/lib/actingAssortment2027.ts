@@ -1177,6 +1177,9 @@ export function getActingSkuByWbOrVendor(
 export const ACTING_2027_SCENARIO_MODELS: ScenarioModelSpec[] = ACTING_2027_SKUS.map((s) => {
   const monthlyPacks = s.monthly.map((m) => m.buyouts_sets);
   const monthlyPricesRub = s.monthly.map((m) => m.realization_price_rub);
+  const isConfirmedBorners = ['244995893', '440758616', '439426186', '440759654', '257807266'].includes(
+    s.wbSku
+  );
   const planObj = {
     scenarioId: ACTING_2027_SCENARIO_ID,
     monthlyPacks,
@@ -1190,11 +1193,22 @@ export const ACTING_2027_SCENARIO_MODELS: ScenarioModelSpec[] = ACTING_2027_SKUS
     warehouseArrivalDateLabel: 'Действующий ассортимент (в продаже с января 2027)',
   };
 
+  const zeroPlanForBornersTarget = {
+    ...planObj,
+    scenarioId: 1,
+    monthlyPacks: Array(12).fill(0),
+    monthlyReceiptsPacks: Array(12).fill(0),
+    firstOrderPacks: 0,
+    nextOrderDateLabel: 'Бренд не подтверждён — не в цели BORNERS (Правило 03)',
+  };
+
   return {
     id: `scen-wb-${s.wbSku}`,
     code: `WB ${s.wbSku}`,
     title: s.vendorSku,
-    subtitle: s.subtitle,
+    subtitle: isConfirmedBorners
+      ? `${s.subtitle} · ВКЛЮЧЁН В ЦЕЛЬ BORNERS`
+      : `${s.subtitle} · БРЕНД НЕ ПОДТВЕРЖДЁН — НЕ В ЦЕЛИ`,
     brandId: 'BORNERS',
     launchStatus: 'Утверждено',
     unitsInPack: s.unitsInPack,
@@ -1203,14 +1217,18 @@ export const ACTING_2027_SCENARIO_MODELS: ScenarioModelSpec[] = ACTING_2027_SKUS
     marketplaceFeePct: 0,
     logisticsRub: 0,
     adsPct: 0,
-    responsiblePerson: `ИП Нерсесянц · ${s.brandStatus}`,
+    responsiblePerson: isConfirmedBorners
+      ? `ИП Нерсесянц · ВКЛЮЧЁН В ЦЕЛЬ BORNERS`
+      : `ИП Нерсесянц · БРЕНД НЕ ПОДТВЕРЖДЁН — НЕ В ЦЕЛИ`,
     hasActualSalesOrPurchases: true,
     palettes: [
       {
         id: `pal-wb-${s.wbSku}`,
         title: `КАРТОЧКА WB ${s.wbSku} — ${s.vendorSku}`,
         subtitle: `${s.unitsInPack} шт. в комплекте · размеры ${s.sizeRange} · ${s.brandStatus}`,
-        statusLabel: s.brandStatus,
+        statusLabel: isConfirmedBorners
+          ? 'ВКЛЮЧЁН В ЦЕЛЬ BORNERS'
+          : 'БРЕНД НЕ ПОДТВЕРЖДЁН — НЕ В ЦЕЛИ',
         imageUrl: s.photoUrl,
         colors: s.colorsSummary.map((cName, idx) => ({
           nameRu: cName,
@@ -1237,6 +1255,13 @@ export const ACTING_2027_SCENARIO_MODELS: ScenarioModelSpec[] = ACTING_2027_SKUS
         sizeBytes: 9796089,
         uploadedAt: '01.11.2026',
         staticUrl: 'docs/acting-2027/BORNERS_2027_acting_assortment.pdf',
+      },
+      {
+        id: `pdf-s1-2027-${s.wbSku}`,
+        name: 'BORNERS-2027-S1-100M — План роста 100 млн ₽ в месяц (28 стр.).pdf',
+        sizeBytes: 2969931,
+        uploadedAt: '02.11.2026',
+        staticUrl: 'docs/s1-100m/BORNERS_2027_S1_100M_Plan.pdf',
       },
     ],
     construction: {
@@ -1277,9 +1302,13 @@ export const ACTING_2027_SCENARIO_MODELS: ScenarioModelSpec[] = ACTING_2027_SKUS
     ],
     plansByScenario: {
       [ACTING_2027_SCENARIO_ID]: planObj,
-      1: { ...planObj, scenarioId: 1 },
-      2: { ...planObj, scenarioId: 2 },
-      3: { ...planObj, scenarioId: 3 },
+      1: isConfirmedBorners ? { ...planObj, scenarioId: 1 } : zeroPlanForBornersTarget,
+      2: isConfirmedBorners
+        ? { ...planObj, scenarioId: 2 }
+        : { ...zeroPlanForBornersTarget, scenarioId: 2 },
+      3: isConfirmedBorners
+        ? { ...planObj, scenarioId: 3 }
+        : { ...zeroPlanForBornersTarget, scenarioId: 3 },
     },
   };
 });

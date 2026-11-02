@@ -52,6 +52,10 @@ import {
   verifyActingAssortment2027Bundle,
 } from '@/lib/actingAssortment2027';
 import {
+  S1_100M_CATALOG_PRODUCTS,
+  verifyScenarioS1_100M,
+} from '@/lib/scenarioS1_100M';
+import {
   CONCEPT_STAGE_LABELS_RU,
   ROLE_LABELS_RU,
   TASK_STATUS_LABELS_RU,
@@ -282,7 +286,11 @@ const DEFAULT_STATE: PersistedState = {
   brands: INITIAL_BRANDS,
   strategies: INITIAL_STRATEGIES,
   concepts: INITIAL_CONCEPTS,
-  products: [...ACTING_2027_CATALOG_PRODUCTS, ...INITIAL_PRODUCTS],
+  products: [
+    ...S1_100M_CATALOG_PRODUCTS,
+    ...ACTING_2027_CATALOG_PRODUCTS,
+    ...INITIAL_PRODUCTS,
+  ],
   launches: INITIAL_LAUNCHES,
   financialPlans: INITIAL_FINANCIAL_PLANS,
   campaigns: INITIAL_CAMPAIGNS,
@@ -417,26 +425,34 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
         const catalogSeeded = window.localStorage.getItem(
           'borners_acting_2027_catalog_seeded_v1'
         );
+        const s1CatalogSeeded = window.localStorage.getItem(
+          'borners_s1_100m_catalog_seeded_v1'
+        );
         const bundleCheck = verifyActingAssortment2027Bundle();
+        const s1Check = verifyScenarioS1_100M();
         let nextProducts = parsed.products || DEFAULT_STATE.products;
-        if (!catalogSeeded && bundleCheck.valid) {
+        if ((!catalogSeeded && bundleCheck.valid) || (!s1CatalogSeeded && s1Check.valid)) {
           const merged = [...nextProducts];
-          for (const actingProd of ACTING_2027_CATALOG_PRODUCTS) {
+          for (const itemProd of [
+            ...S1_100M_CATALOG_PRODUCTS,
+            ...ACTING_2027_CATALOG_PRODUCTS,
+          ]) {
             const idx = merged.findIndex(
               (p) =>
-                p.id === actingProd.id ||
-                p.sku.toUpperCase() === actingProd.sku.toUpperCase() ||
-                p.name.toUpperCase() === actingProd.name.toUpperCase()
+                p.id === itemProd.id ||
+                p.sku.toUpperCase() === itemProd.sku.toUpperCase() ||
+                p.name.toUpperCase() === itemProd.name.toUpperCase()
             );
             if (idx >= 0) {
-              merged[idx] = actingProd;
+              merged[idx] = itemProd;
             } else {
-              merged.unshift(actingProd);
+              merged.unshift(itemProd);
             }
           }
           nextProducts = merged;
           try {
             window.localStorage.setItem('borners_acting_2027_catalog_seeded_v1', '1');
+            window.localStorage.setItem('borners_s1_100m_catalog_seeded_v1', '1');
           } catch {
             // ignore
           }

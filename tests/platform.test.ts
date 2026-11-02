@@ -32,6 +32,10 @@ import {
   ACTING_2027_SKUS,
   verifyActingAssortment2027Bundle,
 } from '../src/lib/actingAssortment2027.ts';
+import {
+  S1_100M_NEW_VARIANTS,
+  verifyScenarioS1_100M,
+} from '../src/lib/scenarioS1_100M.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
   const result = calculateUnitEconomics({
@@ -428,6 +432,22 @@ test('11. Действующий ассортимент ИП Нерсесянц 
   assert.equal(Boolean(fukaiCandidate), true);
   assert.equal(fukaiCandidate?.brandVerified, false);
   assert.equal(fukaiCandidate?.brandStatus.includes('FUKAI'), true);
+});
+
+test('12. Сценарий №1 BORNERS-2027-S1-100M (100 млн ₽/мес · 16 новых вариантов + 5 SKU WB): точная сверка всех контрольных сумм', () => {
+  const s1 = verifyScenarioS1_100M();
+  assert.equal(s1.valid, true);
+  assert.equal(s1.scenarioCode, 'BORNERS-2027-S1-100M');
+  assert.equal(s1.newVariantsCount, 16);
+  assert.equal(s1.confirmedActingSkusCount, 5);
+  assert.equal(s1.unverifiedActingSkusCount, 2);
+  assert.equal(s1.decemberNewSets, 41_400);
+  assert.equal(s1.decemberNewRevenueRub, 85_114_000);
+  assert.equal(s1.decemberActingBornersRevenueRub, 15_040_901);
+  assert.equal(s1.decemberTotalRevenueRub, 100_154_901);
+  assert.equal(s1.annualTotalRevenueRub, 606_372_182);
+  assert.equal(s1.zeroSalesBeforeLaunchValid, true);
+  assert.equal(S1_100M_NEW_VARIANTS.length, 16);
 });
 
 

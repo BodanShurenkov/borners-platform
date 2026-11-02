@@ -29,6 +29,14 @@ import {
   getActingSkuByWbOrVendor,
   verifyActingAssortment2027Bundle,
 } from '@/lib/actingAssortment2027';
+import {
+  S1_100M_CONTROL_TOTALS,
+  S1_100M_NEW_VARIANTS,
+  S1_100M_SCENARIO_MODELS,
+  getS1NewVariantByCodeOrId,
+  isUnverifiedActingSku,
+  verifyScenarioS1_100M,
+} from '@/lib/scenarioS1_100M';
 import { BoxerPackStackSvg } from '@/components/sections/ScenarioVisualParts';
 import { ScenarioModelCardScreen } from '@/components/sections/ScenarioModelCardScreen';
 import { ScenarioSalesPlanScreen } from '@/components/sections/ScenarioSalesPlanScreen';
@@ -65,11 +73,9 @@ export function GrowthScenariosShowcase({
 
   const [scenarios, setScenarios] = useState<GrowthScenarioDef[]>(INITIAL_SCENARIOS);
   const [models, setModels] = useState<ScenarioModelSpec[]>(INITIAL_SCENARIO_MODELS);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<number>(
-    ACTING_2027_SCENARIO_ID
-  );
+  const [selectedScenarioId, setSelectedScenarioId] = useState<number>(1);
   const [selectedModelId, setSelectedModelId] = useState<string>(
-    initialModelId || 'scen-wb-244995893'
+    initialModelId || 'scen-brn-001-sc'
   );
 
   const navigateScreen = (
@@ -184,6 +190,7 @@ export function GrowthScenariosShowcase({
   useEffect(() => {
     const syncFromStorage = () => {
       const bundleCheck = verifyActingAssortment2027Bundle();
+      const s1Check = verifyScenarioS1_100M();
       const parsedScen = safeGetStorageJson<GrowthScenarioDef[]>(STORAGE_KEY_SCENARIOS);
       if (Array.isArray(parsedScen) && parsedScen.length > 0) {
         const hasActingScen = parsedScen.some((s) => s.id === ACTING_2027_SCENARIO_ID);
@@ -200,26 +207,34 @@ export function GrowthScenariosShowcase({
       if (Array.isArray(parsedModels)) {
         const seededFlag =
           typeof window !== 'undefined'
-            ? window.localStorage.getItem('borners_acting_2027_seeded_v1')
+            ? window.localStorage.getItem('borners_acting_2027_seeded_v2')
             : '1';
-        if (!seededFlag && bundleCheck.valid) {
+        const s1SeededFlag =
+          typeof window !== 'undefined'
+            ? window.localStorage.getItem('borners_s1_100m_seeded_v1')
+            : '1';
+        if ((!seededFlag && bundleCheck.valid) || (!s1SeededFlag && s1Check.valid)) {
           const merged = [...parsedModels];
-          for (const actingMod of ACTING_2027_SCENARIO_MODELS) {
+          for (const itemMod of [
+            ...S1_100M_SCENARIO_MODELS,
+            ...ACTING_2027_SCENARIO_MODELS,
+          ]) {
             const idx = merged.findIndex(
               (m) =>
-                m.id === actingMod.id ||
-                m.code.toUpperCase() === actingMod.code.toUpperCase() ||
-                m.title.toUpperCase() === actingMod.title.toUpperCase()
+                m.id === itemMod.id ||
+                m.code.toUpperCase() === itemMod.code.toUpperCase() ||
+                m.title.toUpperCase() === itemMod.title.toUpperCase()
             );
             if (idx >= 0) {
-              merged[idx] = actingMod;
+              merged[idx] = itemMod;
             } else {
-              merged.push(actingMod);
+              merged.push(itemMod);
             }
           }
           safeSetStorageJson(STORAGE_KEY_MODELS, merged);
           try {
-            window.localStorage.setItem('borners_acting_2027_seeded_v1', '1');
+            window.localStorage.setItem('borners_acting_2027_seeded_v2', '1');
+            window.localStorage.setItem('borners_s1_100m_seeded_v1', '1');
           } catch {
             // ignore
           }
@@ -227,9 +242,10 @@ export function GrowthScenariosShowcase({
         } else {
           setModels(parsedModels);
         }
-      } else if (bundleCheck.valid) {
+      } else if (bundleCheck.valid && s1Check.valid) {
         try {
-          window.localStorage.setItem('borners_acting_2027_seeded_v1', '1');
+          window.localStorage.setItem('borners_acting_2027_seeded_v2', '1');
+          window.localStorage.setItem('borners_s1_100m_seeded_v1', '1');
         } catch {
           // ignore
         }
@@ -283,6 +299,18 @@ export function GrowthScenariosShowcase({
             ) &&
               Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]))
           );
+        }
+        if (sc.id === 1) {
+          if (
+            ['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+              m.id
+            )
+          ) {
+            return false;
+          }
+          if (isUnverifiedActingSku(m.code)) {
+            return false;
+          }
         }
         return sc.includedBrands.includes(m.brandId);
       });
@@ -359,6 +387,17 @@ export function GrowthScenariosShowcase({
           ) &&
             Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]));
         if (!isActingMod) return false;
+      } else if (currentScenario.id === 1) {
+        if (
+          ['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+            m.id
+          )
+        ) {
+          return false;
+        }
+        if (!currentScenario.includedBrands.includes(m.brandId)) {
+          return false;
+        }
       } else if (!currentScenario.includedBrands.includes(m.brandId)) {
         return false;
       }
@@ -935,6 +974,81 @@ export function GrowthScenariosShowcase({
                 <div className="text-[#8B6F47] font-semibold">
                   Комиссии, реклама, логистика WB и налоги не включены (прибыль без них не считается)
                 </div>
+              </div>
+            </div>
+          ) : currentScenario.id === 1 ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    Выручка в декабре 2027
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                    {(currentAgg.targetMonthRevenueRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽
+                  </div>
+                  <div className="text-[11px] font-medium text-[#2E6B4E]">
+                    Цель: 100,00 млн ₽ ({currentAgg.targetMonthRevenueRub.toLocaleString('ru-RU')} ₽)
+                  </div>
+                </div>
+
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    5 действующих SKU BORNERS (Дек)
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                    15,04 млн ₽
+                  </div>
+                  <div className="text-[11px] text-[#6E6E73]">
+                    15 040 901 ₽ в дек · 177,18 млн ₽ за 2027 г. (подтверждены по фото)
+                  </div>
+                </div>
+
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    16 новых вариантов (Дек)
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#8B6F47]">
+                    85,11 млн ₽
+                  </div>
+                  <div className="text-[11px] text-[#6E6E73]">
+                    41 400 компл. в дек · 429,19 млн ₽ за 2027 г. (6 линеек 001–006)
+                  </div>
+                </div>
+
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    Годовой план 2027 (12 мес.)
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                    {(currentAgg.annualRevenueRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽
+                  </div>
+                  <div className="text-[11px] text-[#6E6E73]">
+                    {currentAgg.annualRevenueRub.toLocaleString('ru-RU')} ₽ · 21 SKU в цели BORNERS
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[14px] bg-[#FAF4EC] border border-[#E8D8C3] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#5A564F]">
+                <div>
+                  <span className="font-bold text-[#1D1D1F]">
+                    ✓ BORNERS-2027-S1-100M:
+                  </span>{' '}
+                  5 подтверждённых SKU WB (15,04 млн ₽ в дек) + 16 новых вариантов (85,11 млн ₽ / 41 400 компл. в дек) = 100,15 млн ₽. 2 спорных SKU (86205435 и 72302360 FUKAI) не включены в цель BORNERS.
+                </div>
+                <a
+                  href="docs/s1-100m/BORNERS_2027_S1_100M_Plan.pdf"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-7 px-3 rounded-[8px] bg-[#1F242D] hover:bg-[#111827] text-white text-[11px] font-semibold inline-flex items-center gap-1.5 transition shrink-0"
+                >
+                  <span>Открыть PDF сценария (28 стр.)</span>
+                </a>
               </div>
             </div>
           ) : (

@@ -4,6 +4,7 @@ import {
   ACTING_2027_SCENARIO_MODELS,
   getActingSkuByWbOrVendor,
 } from './actingAssortment2027.ts';
+import { S1_100M_SCENARIO_MODELS } from './scenarioS1_100M.ts';
 
 export interface PackColor {
   nameRu: string;
@@ -947,6 +948,7 @@ export const INITIAL_SCENARIO_MODELS: ScenarioModelSpec[] = [
       ),
     },
   },
+  ...S1_100M_SCENARIO_MODELS,
   ...ACTING_2027_SCENARIO_MODELS,
 ];
 
@@ -992,14 +994,18 @@ export function computeModelScenarioMetrics(
   const avgRetailPriceRub =
     annualPacks > 0 ? Math.round(annualRevenueRub / annualPacks) : model.retailPriceRub;
 
+  const noCostSpecified = model.unitCostRub <= 0;
+
   // Экономика одного комплекта:
   const feeRub = Math.round((avgRetailPriceRub * model.marketplaceFeePct) / 100);
   const adsRub = Math.round((avgRetailPriceRub * model.adsPct) / 100);
   const totalUnitVariableCostRub =
     model.unitCostRub + feeRub + model.logisticsRub + adsRub;
-  const unitMarginRub = avgRetailPriceRub - totalUnitVariableCostRub;
+  const unitMarginRub = noCostSpecified
+    ? 0
+    : avgRetailPriceRub - totalUnitVariableCostRub;
   const unitMarginPct =
-    avgRetailPriceRub > 0
+    !noCostSpecified && avgRetailPriceRub > 0
       ? Math.round((unitMarginRub / avgRetailPriceRub) * 1000) / 10
       : 0;
 
@@ -1019,9 +1025,11 @@ export function computeModelScenarioMetrics(
   // Закупка / товарные затраты на год и плановая прибыль:
   const totalPurchaseNeedRub = isUnmodifiedActingPlan
     ? actingSku.totalCostOfGoodsRub
+    : noCostSpecified
+    ? 0
     : annualPacks * model.unitCostRub;
   const annualProfitRub =
-    scenario.id === ACTING_2027_SCENARIO_ID || actingSku
+    scenario.id === ACTING_2027_SCENARIO_ID || actingSku || noCostSpecified
       ? 0
       : annualPacks * unitMarginRub;
 
