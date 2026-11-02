@@ -28,6 +28,10 @@ import {
   INITIAL_SCENARIO_MODELS,
   computeModelScenarioMetrics,
 } from '../src/lib/scenarioData.ts';
+import {
+  ACTING_2027_SKUS,
+  verifyActingAssortment2027Bundle,
+} from '../src/lib/actingAssortment2027.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
   const result = calculateUnitEconomics({
@@ -408,5 +412,23 @@ test('10. Сценарии роста и управление моделями (
     'План продаж начинается в марте, но товар поступит на склад только 12 апреля'
   );
 });
+
+test('11. Действующий ассортимент ИП Нерсесянц 2027 (7 SKU · 84 записи): точная сверка контрольных сумм', () => {
+  const check = verifyActingAssortment2027Bundle();
+  assert.equal(check.valid, true);
+  assert.equal(ACTING_2027_SKUS.length, 7);
+  assert.equal(check.recordsCount, 84);
+  assert.equal(check.annualBuyoutsSets, 223_713);
+  assert.equal(check.annualRevenueRub, 267_731_943);
+  assert.equal(check.decemberRevenueRub, 22_729_352);
+  assert.equal(check.annualCostOfGoodsRub, 91_462_155);
+
+  // Артикул 72302360 (4351877) помечен «FUKAI на фото — подтвердить», без автоматического подтверждения BORNERS
+  const fukaiCandidate = ACTING_2027_SKUS.find((s) => s.wbSku === '72302360');
+  assert.equal(Boolean(fukaiCandidate), true);
+  assert.equal(fukaiCandidate?.brandVerified, false);
+  assert.equal(fukaiCandidate?.brandStatus.includes('FUKAI'), true);
+});
+
 
 

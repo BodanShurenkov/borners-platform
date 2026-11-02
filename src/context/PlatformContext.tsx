@@ -48,6 +48,10 @@ import {
 } from '@/lib/initial-data';
 import { INITIAL_STRATEGIES } from '@/lib/initial-strategies';
 import {
+  ACTING_2027_CATALOG_PRODUCTS,
+  verifyActingAssortment2027Bundle,
+} from '@/lib/actingAssortment2027';
+import {
   CONCEPT_STAGE_LABELS_RU,
   ROLE_LABELS_RU,
   TASK_STATUS_LABELS_RU,
@@ -278,7 +282,7 @@ const DEFAULT_STATE: PersistedState = {
   brands: INITIAL_BRANDS,
   strategies: INITIAL_STRATEGIES,
   concepts: INITIAL_CONCEPTS,
-  products: INITIAL_PRODUCTS,
+  products: [...ACTING_2027_CATALOG_PRODUCTS, ...INITIAL_PRODUCTS],
   launches: INITIAL_LAUNCHES,
   financialPlans: INITIAL_FINANCIAL_PLANS,
   campaigns: INITIAL_CAMPAIGNS,
@@ -410,10 +414,37 @@ export function PlatformProvider({ children }: { children: React.ReactNode }) {
           normalized.length > 1_500_000
             ? stripOversizedDataUrls(rawParsed, 70_000)
             : rawParsed;
+        const catalogSeeded = window.localStorage.getItem(
+          'borners_acting_2027_catalog_seeded_v1'
+        );
+        const bundleCheck = verifyActingAssortment2027Bundle();
+        let nextProducts = parsed.products || DEFAULT_STATE.products;
+        if (!catalogSeeded && bundleCheck.valid) {
+          const merged = [...nextProducts];
+          for (const actingProd of ACTING_2027_CATALOG_PRODUCTS) {
+            const idx = merged.findIndex(
+              (p) =>
+                p.id === actingProd.id ||
+                p.sku.toUpperCase() === actingProd.sku.toUpperCase() ||
+                p.name.toUpperCase() === actingProd.name.toUpperCase()
+            );
+            if (idx >= 0) {
+              merged[idx] = actingProd;
+            } else {
+              merged.unshift(actingProd);
+            }
+          }
+          nextProducts = merged;
+          try {
+            window.localStorage.setItem('borners_acting_2027_catalog_seeded_v1', '1');
+          } catch {
+            // ignore
+          }
+        }
         setState((prev) => ({
           ...prev,
           ...parsed,
-          products: deduplicateAndHealProducts(parsed.products || prev.products),
+          products: deduplicateAndHealProducts(nextProducts),
           brands: (parsed.brands || prev.brands).map((b) =>
             b.code === 'BORNERS'
               ? { ...b, heroImage: 'images/products/borners-editorial-hero.jpg' }

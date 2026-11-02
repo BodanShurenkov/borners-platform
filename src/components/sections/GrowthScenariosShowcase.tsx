@@ -20,6 +20,15 @@ import {
   ScenarioModelSpec,
   computeModelScenarioMetrics,
 } from '@/lib/scenarioData';
+import {
+  ACTING_2027_CONTROL_TOTALS,
+  ACTING_2027_SCENARIO_DEF,
+  ACTING_2027_SCENARIO_ID,
+  ACTING_2027_SCENARIO_MODELS,
+  ACTING_2027_SKUS,
+  getActingSkuByWbOrVendor,
+  verifyActingAssortment2027Bundle,
+} from '@/lib/actingAssortment2027';
 import { BoxerPackStackSvg } from '@/components/sections/ScenarioVisualParts';
 import { ScenarioModelCardScreen } from '@/components/sections/ScenarioModelCardScreen';
 import { ScenarioSalesPlanScreen } from '@/components/sections/ScenarioSalesPlanScreen';
@@ -56,9 +65,11 @@ export function GrowthScenariosShowcase({
 
   const [scenarios, setScenarios] = useState<GrowthScenarioDef[]>(INITIAL_SCENARIOS);
   const [models, setModels] = useState<ScenarioModelSpec[]>(INITIAL_SCENARIO_MODELS);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<number>(1);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<number>(
+    ACTING_2027_SCENARIO_ID
+  );
   const [selectedModelId, setSelectedModelId] = useState<string>(
-    initialModelId || 'scen-model-001'
+    initialModelId || 'scen-wb-244995893'
   );
 
   const navigateScreen = (
@@ -169,16 +180,59 @@ export function GrowthScenariosShowcase({
     []
   );
 
-  // Загрузка сохранённых данных из localStorage и синхронизация между вкладками/разделами
+  // Загрузка сохранённых данных из localStorage и автоматический импорт 7 SKU ИП Нерсесянц по wb_sku
   useEffect(() => {
     const syncFromStorage = () => {
+      const bundleCheck = verifyActingAssortment2027Bundle();
       const parsedScen = safeGetStorageJson<GrowthScenarioDef[]>(STORAGE_KEY_SCENARIOS);
       if (Array.isArray(parsedScen) && parsedScen.length > 0) {
-        setScenarios(parsedScen);
+        const hasActingScen = parsedScen.some((s) => s.id === ACTING_2027_SCENARIO_ID);
+        const nextScen = hasActingScen
+          ? parsedScen
+          : [ACTING_2027_SCENARIO_DEF, ...parsedScen];
+        if (!hasActingScen) {
+          safeSetStorageJson(STORAGE_KEY_SCENARIOS, nextScen);
+        }
+        setScenarios(nextScen);
       }
+
       const parsedModels = safeGetStorageJson<ScenarioModelSpec[]>(STORAGE_KEY_MODELS);
       if (Array.isArray(parsedModels)) {
-        setModels(parsedModels);
+        const seededFlag =
+          typeof window !== 'undefined'
+            ? window.localStorage.getItem('borners_acting_2027_seeded_v1')
+            : '1';
+        if (!seededFlag && bundleCheck.valid) {
+          const merged = [...parsedModels];
+          for (const actingMod of ACTING_2027_SCENARIO_MODELS) {
+            const idx = merged.findIndex(
+              (m) =>
+                m.id === actingMod.id ||
+                m.code.toUpperCase() === actingMod.code.toUpperCase() ||
+                m.title.toUpperCase() === actingMod.title.toUpperCase()
+            );
+            if (idx >= 0) {
+              merged[idx] = actingMod;
+            } else {
+              merged.push(actingMod);
+            }
+          }
+          safeSetStorageJson(STORAGE_KEY_MODELS, merged);
+          try {
+            window.localStorage.setItem('borners_acting_2027_seeded_v1', '1');
+          } catch {
+            // ignore
+          }
+          setModels(merged);
+        } else {
+          setModels(parsedModels);
+        }
+      } else if (bundleCheck.valid) {
+        try {
+          window.localStorage.setItem('borners_acting_2027_seeded_v1', '1');
+        } catch {
+          // ignore
+        }
       }
       hydratedRef.current = true;
     };
@@ -218,15 +272,26 @@ export function GrowthScenariosShowcase({
     > = {};
 
     for (const sc of scenarios) {
-      const eligibleModels = models.filter(
-        (m) =>
-          m.launchStatus !== 'В архиве' && sc.includedBrands.includes(m.brandId)
-      );
+      const isActingScenario = sc.id === ACTING_2027_SCENARIO_ID;
+      const eligibleModels = models.filter((m) => {
+        if (m.launchStatus === 'В архиве') return false;
+        if (isActingScenario) {
+          return (
+            Boolean(getActingSkuByWbOrVendor(m.code, m.title)) ||
+            (!['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+              m.id
+            ) &&
+              Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]))
+          );
+        }
+        return sc.includedBrands.includes(m.brandId);
+      });
 
       let annualRevenueRub = 0;
       let annualProfitRub = 0;
       let totalPurchaseNeedRub = 0;
       let targetMonthRevenueRub = 0;
+      let annualBuyoutsPacks = 0;
       const monthlyBornersMln = Array(12).fill(0);
       const monthlyNaTeleMln = Array(12).fill(0);
 
@@ -236,6 +301,7 @@ export function GrowthScenariosShowcase({
         annualProfitRub += met.annualProfitRub;
         totalPurchaseNeedRub += met.totalPurchaseNeedRub;
         targetMonthRevenueRub += met.targetMonthRevenueRub;
+        annualBuyoutsPacks += met.annualPacks;
 
         for (let i = 0; i < 12; i++) {
           const revMln = met.monthlyRevenuesRub[i] / 1_000_000;
@@ -248,10 +314,13 @@ export function GrowthScenariosShowcase({
       }
 
       const monthlyTotalMln = monthlyBornersMln.map(
-        (b, idx) => Math.round((b + monthlyNaTeleMln[idx]) * 10) / 10
+        (b, idx) => Math.round((b + monthlyNaTeleMln[idx]) * 100) / 100
       );
 
-      const targetRub = sc.monthlyTargetMln * 1_000_000;
+      const targetRub =
+        sc.id === ACTING_2027_SCENARIO_ID
+          ? ACTING_2027_CONTROL_TOTALS.decemberRevenueRub
+          : sc.monthlyTargetMln * 1_000_000;
       const goalCompletionPct =
         targetRub > 0
           ? Math.round((targetMonthRevenueRub / targetRub) * 1000) / 10
@@ -277,11 +346,20 @@ export function GrowthScenariosShowcase({
 
   // Отфильтрованные модели для каталога на Экране №1
   const filteredModels = useMemo(() => {
+    const isActingScenario = currentScenario.id === ACTING_2027_SCENARIO_ID;
     return models.filter((m) => {
       if (m.launchStatus === 'В архиве' && statusFilterLocal !== 'В архиве') {
         return false;
       }
-      if (!currentScenario.includedBrands.includes(m.brandId)) {
+      if (isActingScenario) {
+        const isActingMod =
+          Boolean(getActingSkuByWbOrVendor(m.code, m.title)) ||
+          (!['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+            m.id
+          ) &&
+            Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]));
+        if (!isActingMod) return false;
+      } else if (!currentScenario.includedBrands.includes(m.brandId)) {
         return false;
       }
       if (brandFilterLocal !== 'ALL' && m.brandId !== brandFilterLocal) {
@@ -703,136 +781,219 @@ export function GrowthScenariosShowcase({
           {/* B. Выбор сценария (ряд из карточек — макет Стр. 13) */}
           <div
             data-tour="growth-scenarios"
-            className="grid grid-cols-1 md:grid-cols-3 gap-3.5"
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5"
           >
-            {scenarios.map((sc) => {
-              const isSelected = sc.id === currentScenario.id;
-              const agg = scenarioAggregates[sc.id];
-              const annualMln = agg
-                ? (agg.annualRevenueRub / 1_000_000).toFixed(1).replace('.', ',')
-                : '0';
-              return (
-                <div
-                  key={sc.id}
-                  onClick={() => setSelectedScenarioId(sc.id)}
-                  className={`group rounded-[18px] p-4 text-left transition-all cursor-pointer border relative ${
-                    isSelected
-                      ? 'bg-[#4E6A85] text-white border-[#4E6A85] shadow-[0_10px_24px_rgba(78,106,133,0.22)]'
-                      : 'bg-white hover:bg-[#F5F2EB] text-[#1D1D1F] border-[#E4DEC9]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className={`text-[11.5px] font-semibold ${
-                        isSelected ? 'text-white/80' : 'text-[#6E6E73]'
-                      }`}
-                    >
-                      {sc.title} · {sc.scopeLabel}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {isSelected && (
-                        <span className="h-5 w-5 rounded-full bg-[#F5E6CE] text-[#2C3E50] flex items-center justify-center">
-                          <Check className="h-3 w-3 stroke-[3]" />
-                        </span>
-                      )}
-                      {scenarios.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteScenario(sc);
-                          }}
-                          title={`Удалить сценарий «${sc.title}»`}
-                          className={`h-6 w-6 rounded-full flex items-center justify-center transition cursor-pointer ${
-                            isSelected
-                              ? 'bg-white/15 hover:bg-[#C93B2B] text-white/85 hover:text-white border border-white/25'
-                              : 'bg-[#FAF8F4] hover:bg-[#FFF2F0] text-[#7A756C] hover:text-[#C93B2B] border border-[#DED8CC] hover:border-[#F0C7C2]'
-                          }`}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-[24px] font-bold tracking-[-0.02em] mt-1">
-                    {sc.monthlyTargetMln} млн ₽{' '}
-                    <span className="text-[14px] font-normal opacity-75">/ мес</span>
-                  </div>
-
+            {[...scenarios]
+              .sort((a, b) =>
+                a.id === ACTING_2027_SCENARIO_ID
+                  ? -1
+                  : b.id === ACTING_2027_SCENARIO_ID
+                  ? 1
+                  : a.id - b.id
+              )
+              .map((sc) => {
+                const isSelected = sc.id === currentScenario.id;
+                const agg = scenarioAggregates[sc.id];
+                const annualMln = agg
+                  ? (agg.annualRevenueRub / 1_000_000).toFixed(2).replace('.', ',')
+                  : '0';
+                return (
                   <div
-                    className={`mt-2 pt-2 border-t text-[11.5px] flex flex-wrap items-center justify-between gap-2 ${
+                    key={sc.id}
+                    onClick={() => setSelectedScenarioId(sc.id)}
+                    className={`group rounded-[18px] p-4 text-left transition-all cursor-pointer border relative ${
                       isSelected
-                        ? 'border-white/15 text-white/80'
-                        : 'border-[#EFECE4] text-[#6E6E73]'
+                        ? 'bg-[#4E6A85] text-white border-[#4E6A85] shadow-[0_10px_24px_rgba(78,106,133,0.22)]'
+                        : 'bg-white hover:bg-[#F5F2EB] text-[#1D1D1F] border-[#E4DEC9]'
                     }`}
                   >
-                    <span>Цель: {sc.targetMonthLabel}</span>
-                    <span className="font-semibold">
-                      За 2027 г.: {annualMln} млн ₽ · {agg?.modelsCount || 0} мод.
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`text-[11.5px] font-semibold ${
+                          isSelected ? 'text-white/85' : 'text-[#6E6E73]'
+                        }`}
+                      >
+                        {sc.title} · {sc.scopeLabel}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isSelected && (
+                          <span className="h-5 w-5 rounded-full bg-[#F5E6CE] text-[#2C3E50] flex items-center justify-center">
+                            <Check className="h-3 w-3 stroke-[3]" />
+                          </span>
+                        )}
+                        {scenarios.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteScenario(sc);
+                            }}
+                            title={`Удалить сценарий «${sc.title}»`}
+                            className={`h-6 w-6 rounded-full flex items-center justify-center transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-white/15 hover:bg-[#C93B2B] text-white/85 hover:text-white border border-white/25'
+                                : 'bg-[#FAF8F4] hover:bg-[#FFF2F0] text-[#7A756C] hover:text-[#C93B2B] border border-[#DED8CC] hover:border-[#F0C7C2]'
+                            }`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-[24px] font-bold tracking-[-0.02em] mt-1">
+                      {String(sc.monthlyTargetMln).replace('.', ',')} млн ₽{' '}
+                      <span className="text-[14px] font-normal opacity-75">/ дек</span>
+                    </div>
+
+                    <div
+                      className={`mt-2 pt-2 border-t text-[11.5px] flex flex-wrap items-center justify-between gap-2 ${
+                        isSelected
+                          ? 'border-white/15 text-white/80'
+                          : 'border-[#EFECE4] text-[#6E6E73]'
+                      }`}
+                    >
+                      <span>Цель: {sc.targetMonthLabel}</span>
+                      <span className="font-semibold">
+                        За 2027 г.: {annualMln} млн ₽ · {agg?.modelsCount || 0} мод.
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
 
           {/* C. Четыре ключевых показателя выбранного сценария (ровно 4, п. 3.2 C ТЗ) */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
-              <div className="text-[11.5px] text-[#6E6E73]">Выручка за год</div>
-              <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {(currentAgg.annualRevenueRub / 1_000_000)
-                  .toFixed(1)
-                  .replace('.', ',')}{' '}
-                млн ₽
-              </div>
-              <div className="text-[11px] font-medium text-[#2E6B4E]">
-                Сумма 12 мес. всех моделей сценария
-              </div>
-            </div>
+          {currentScenario.id === ACTING_2027_SCENARIO_ID ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    План выручки / год
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                    {(currentAgg.annualRevenueRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽
+                  </div>
+                  <div className="text-[11px] font-medium text-[#2E6B4E]">
+                    {currentAgg.annualRevenueRub.toLocaleString('ru-RU')} ₽ · 84 записи (7 SKU × 12 мес.)
+                  </div>
+                </div>
 
-            <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
-              <div className="text-[11.5px] text-[#6E6E73]">Плановая прибыль</div>
-              <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {(currentAgg.annualProfitRub / 1_000_000)
-                  .toFixed(1)
-                  .replace('.', ',')}{' '}
-                млн ₽
-              </div>
-              <div className="text-[11px] text-[#6E6E73]">
-                После закупки, комиссии, логистики и DRR
-              </div>
-            </div>
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    Выкупы / год
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                    {ACTING_2027_CONTROL_TOTALS.annualBuyoutsSets.toLocaleString('ru-RU')} компл.
+                  </div>
+                  <div className="text-[11px] text-[#6E6E73]">
+                    ИП Нерсесянц · без подушек, носков и fukai4-2
+                  </div>
+                </div>
 
-            <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
-              <div className="text-[11.5px] text-[#6E6E73]">
-                Потребность в закупках
-              </div>
-              <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {(currentAgg.totalPurchaseNeedRub / 1_000_000)
-                  .toFixed(1)
-                  .replace('.', ',')}{' '}
-                млн ₽
-              </div>
-              <div className="text-[11px] text-[#6E6E73]">
-                Себестоимость партий с доставкой в РФ
-              </div>
-            </div>
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    Выручка / декабрь
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#8B6F47]">
+                    {(currentAgg.targetMonthRevenueRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽
+                  </div>
+                  <div className="text-[11px] text-[#6E6E73]">
+                    {currentAgg.targetMonthRevenueRub.toLocaleString('ru-RU')} ₽ в декабре 2027
+                  </div>
+                </div>
 
-            <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
-              <div className="text-[11.5px] text-[#6E6E73]">Выполнение цели</div>
-              <div className="text-[24px] font-bold tracking-[-0.02em] text-[#8B6F47]">
-                {currentAgg.goalCompletionPct.toFixed(1).replace('.', ',')}%
+                <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                  <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                    Товарные затраты / год
+                  </div>
+                  <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                    {(currentAgg.totalPurchaseNeedRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽
+                  </div>
+                  <div className="text-[11px] text-[#6E6E73]">
+                    Товар + упаковка + приёмка (не себестоимость будущих закупок)
+                  </div>
+                </div>
               </div>
-              <div className="text-[11px] text-[#6E6E73]">
-                {(currentAgg.targetMonthRevenueRub / 1_000_000)
-                  .toFixed(1)
-                  .replace('.', ',')}{' '}
-                из {currentScenario.monthlyTargetMln} млн ₽ в декабре
+
+              <div className="rounded-[14px] bg-[#FAF4EC] border border-[#E8D8C3] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#5A564F]">
+                <div>
+                  <span className="font-bold text-[#1D1D1F]">
+                    ✓ Контроль безопасности пройден:
+                  </span>{' '}
+                  84 записи · 223 713 выкупов · 267 731 943 ₽ за год · 22 729 352 ₽ в декабре. Рост объёма 10% и цены 1%/мес. уже включены.
+                </div>
+                <div className="text-[#8B6F47] font-semibold">
+                  Комиссии, реклама, логистика WB и налоги не включены (прибыль без них не считается)
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                <div className="text-[11.5px] text-[#6E6E73]">Выручка за год</div>
+                <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                  {(currentAgg.annualRevenueRub / 1_000_000)
+                    .toFixed(1)
+                    .replace('.', ',')}{' '}
+                  млн ₽
+                </div>
+                <div className="text-[11px] font-medium text-[#2E6B4E]">
+                  Сумма 12 мес. всех моделей сценария
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                <div className="text-[11.5px] text-[#6E6E73]">Плановая прибыль</div>
+                <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                  {(currentAgg.annualProfitRub / 1_000_000)
+                    .toFixed(1)
+                    .replace('.', ',')}{' '}
+                  млн ₽
+                </div>
+                <div className="text-[11px] text-[#6E6E73]">
+                  После закупки, комиссии, логистики и DRR
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                <div className="text-[11.5px] text-[#6E6E73]">
+                  Потребность в закупках
+                </div>
+                <div className="text-[24px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                  {(currentAgg.totalPurchaseNeedRub / 1_000_000)
+                    .toFixed(1)
+                    .replace('.', ',')}{' '}
+                  млн ₽
+                </div>
+                <div className="text-[11px] text-[#6E6E73]">
+                  Себестоимость партий с доставкой в РФ
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-white border border-[#E6E0D4] p-4 space-y-1 shadow-2xs">
+                <div className="text-[11.5px] text-[#6E6E73]">Выполнение цели</div>
+                <div className="text-[24px] font-bold tracking-[-0.02em] text-[#8B6F47]">
+                  {currentAgg.goalCompletionPct.toFixed(1).replace('.', ',')}%
+                </div>
+                <div className="text-[11px] text-[#6E6E73]">
+                  {(currentAgg.targetMonthRevenueRub / 1_000_000)
+                    .toFixed(1)
+                    .replace('.', ',')}{' '}
+                  из {currentScenario.monthlyTargetMln} млн ₽ в декабре
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* D. Каталог моделей («Модели в сценарии №...» — макет Стр. 13) */}
           <div className="space-y-4 pt-1">
@@ -902,6 +1063,7 @@ export function GrowthScenariosShowcase({
                 const mainGallery =
                   mod.gallery.find((g) => g.isMain) || mod.gallery[0];
                 const colors = mod.palettes[0]?.colors || [];
+                const actingMeta = getActingSkuByWbOrVendor(mod.code, mod.title);
 
                 return (
                   <div
@@ -915,20 +1077,25 @@ export function GrowthScenariosShowcase({
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-2.5">
                         <span className="text-[11px] font-bold tracking-[0.04em] text-[#6E6E73]">
-                          {mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}{' '}
-                          {mod.code}
+                          {actingMeta
+                            ? `WB ${actingMeta.wbSku}`
+                            : `${mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ${mod.code}`}
                         </span>
                         <div className="flex items-center gap-1.5">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              mod.launchStatus === 'Утверждено'
+                              actingMeta && actingMeta.wbSku === '72302360'
+                                ? 'bg-[#FEF3C7] text-[#B45309] border border-[#FCD34D]'
+                                : actingMeta && actingMeta.wbSku === '86205435'
+                                ? 'bg-[#F3F4F6] text-[#4B5563] border border-[#D1D5DB]'
+                                : mod.launchStatus === 'Утверждено'
                                 ? 'bg-[#2E6B4E]/12 text-[#2E6B4E]'
                                 : mod.launchStatus === 'В разработке'
                                 ? 'bg-[#D97706]/15 text-[#B45309]'
                                 : 'bg-[#EFECE4] text-[#5A564F]'
                             }`}
                           >
-                            {mod.launchStatus}
+                            {actingMeta ? actingMeta.brandStatus : mod.launchStatus}
                           </span>
                           <button
                             type="button"
@@ -966,7 +1133,7 @@ export function GrowthScenariosShowcase({
                       <div>
                         <div className="text-[16px] font-bold text-[#1D1D1F]">
                           {(met.annualRevenueRub / 1_000_000)
-                            .toFixed(1)
+                            .toFixed(actingMeta ? 2 : 1)
                             .replace('.', ',')}{' '}
                           млн ₽{' '}
                           <span className="text-[11px] font-normal text-[#6E6E73]">
@@ -977,10 +1144,15 @@ export function GrowthScenariosShowcase({
                           Декабрь:{' '}
                           <span className="font-semibold text-[#1D1D1F]">
                             {(met.targetMonthRevenueRub / 1_000_000)
-                              .toFixed(1)
+                              .toFixed(actingMeta ? 2 : 1)
                               .replace('.', ',')}{' '}
                             млн ₽
                           </span>
+                          {actingMeta && (
+                            <span>
+                              {' '}· {met.annualPacks.toLocaleString('ru-RU')} вык.
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -1009,6 +1181,108 @@ export function GrowthScenariosShowcase({
                 </p>
               </button>
             </div>
+
+            {/* Сводка плана по 7 SKU · без подушек и носков (Стр. 2 PDF) */}
+            {currentScenario.id === ACTING_2027_SCENARIO_ID && (
+              <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-3 shadow-2xs mt-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-[16px] font-bold text-[#1D1D1F]">
+                      Сводка плана · без подушек и носков (ИП Нерсесянц · 7 SKU)
+                    </h4>
+                    <p className="text-[11.5px] text-[#6E6E73]">
+                      Отдельный артикул fukai4-2 не включён. Никаких дополнительных коэффициентов роста не применяется. Нажмите на строку, чтобы открыть карточку и помесячный план.
+                    </p>
+                  </div>
+                  <a
+                    href="docs/acting-2027/BORNERS_2027_acting_assortment.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-8 px-3 rounded-[9px] bg-[#1F242D] hover:bg-[#111827] text-white text-[11.5px] font-semibold inline-flex items-center gap-1.5 transition"
+                  >
+                    <span>Открыть исходный PDF (10 стр.)</span>
+                  </a>
+                </div>
+
+                <div className="overflow-x-auto rounded-[14px] border border-[#E6E0D4]">
+                  <table className="w-full text-left border-collapse text-[12.5px]">
+                    <thead>
+                      <tr className="bg-[#162234] text-white text-[11.5px]">
+                        <th className="py-2.5 px-4 font-semibold">Артикул продавца</th>
+                        <th className="py-2.5 px-4 font-semibold">Артикул WB</th>
+                        <th className="py-2.5 px-4 font-semibold">Статус бренда</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Выкупы / год</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Выручка / год</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Декабрь</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Затраты / год</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#EFECE4]">
+                      {ACTING_2027_SKUS.map((sku) => (
+                        <tr
+                          key={sku.wbSku}
+                          onClick={() => navigateScreen('model', `scen-wb-${sku.wbSku}`)}
+                          className="hover:bg-[#FAF7F0] transition cursor-pointer"
+                        >
+                          <td className="py-2.5 px-4 font-bold text-[#1D1D1F]">
+                            {sku.vendorSku}
+                          </td>
+                          <td className="py-2.5 px-4 font-mono text-[#4B5563]">
+                            {sku.wbSku}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10.5px] font-semibold ${
+                                sku.wbSku === '72302360'
+                                  ? 'bg-[#FEF3C7] text-[#B45309]'
+                                  : sku.wbSku === '86205435'
+                                  ? 'bg-[#F3F4F6] text-[#4B5563]'
+                                  : 'bg-[#2E6B4E]/12 text-[#2E6B4E]'
+                              }`}
+                            >
+                              {sku.brandStatus}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-semibold text-[#1D1D1F]">
+                            {sku.totalBuyoutsSets.toLocaleString('ru-RU')}
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-bold text-[#1D1D1F]">
+                            {(sku.totalRevenueRub / 1_000_000).toFixed(2).replace('.', ',')} млн ({sku.totalRevenueRub.toLocaleString('ru-RU')} ₽)
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-[#4B5563]">
+                            {(sku.decemberRevenueRub / 1_000_000).toFixed(2).replace('.', ',')} млн
+                          </td>
+                          <td className="py-2.5 px-4 text-right text-[#4B5563]">
+                            {(sku.totalCostOfGoodsRub / 1_000_000).toFixed(2).replace('.', ',')} млн
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-[#F5ECE0] font-bold text-[#1D1D1F]">
+                        <td className="py-3 px-4">ИТОГО</td>
+                        <td className="py-3 px-4">7 SKU</td>
+                        <td className="py-3 px-4 text-[11px] font-medium text-[#6E6E73]">
+                          84 записи (12 мес.)
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {ACTING_2027_CONTROL_TOTALS.annualBuyoutsSets.toLocaleString('ru-RU')}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          267,73 млн ({ACTING_2027_CONTROL_TOTALS.annualRevenueRub.toLocaleString('ru-RU')} ₽)
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          22,73 млн ({ACTING_2027_CONTROL_TOTALS.decemberRevenueRub.toLocaleString('ru-RU')} ₽)
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          91,46 млн ({ACTING_2027_CONTROL_TOTALS.annualCostOfGoodsRub.toLocaleString('ru-RU')} ₽)
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* E. Общий график (ровно ОДИН график ниже каталога — п. 3.2 E ТЗ и макет Стр. 13) */}

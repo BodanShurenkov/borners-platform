@@ -1,3 +1,10 @@
+import {
+  ACTING_2027_SCENARIO_DEF,
+  ACTING_2027_SCENARIO_ID,
+  ACTING_2027_SCENARIO_MODELS,
+  getActingSkuByWbOrVendor,
+} from './actingAssortment2027.ts';
+
 export interface PackColor {
   nameRu: string;
   pantone: string;
@@ -173,6 +180,7 @@ export const INITIAL_SCENARIOS: GrowthScenarioDef[] = [
     includedBrands: ['BORNERS', 'NA_TELE'],
     year: 2027,
   },
+  ACTING_2027_SCENARIO_DEF,
 ];
 
 function buildPlan(
@@ -939,6 +947,7 @@ export const INITIAL_SCENARIO_MODELS: ScenarioModelSpec[] = [
       ),
     },
   },
+  ...ACTING_2027_SCENARIO_MODELS,
 ];
 
 // Расчёт экономики одного комплекта и модели в выбранном сценарии (снизу вверх по ТЗ п. 8)
@@ -961,9 +970,19 @@ export function computeModelScenarioMetrics(
       warehouseArrivalDateLabel: '18 марта',
     };
 
-  const monthlyRevenuesRub = plan.monthlyPacks.map(
-    (packs, idx) => packs * (plan.monthlyPricesRub[idx] ?? model.retailPriceRub)
-  );
+  const actingSku = getActingSkuByWbOrVendor(model.code, model.title);
+  const isUnmodifiedActingPlan =
+    actingSku &&
+    plan.monthlyPacks.every((p, idx) => p === actingSku.monthly[idx]?.buyouts_sets) &&
+    plan.monthlyPricesRub.every(
+      (pr, idx) => pr === actingSku.monthly[idx]?.realization_price_rub
+    );
+
+  const monthlyRevenuesRub = isUnmodifiedActingPlan
+    ? actingSku.monthly.map((m) => m.revenue_rub)
+    : plan.monthlyPacks.map(
+        (packs, idx) => packs * (plan.monthlyPricesRub[idx] ?? model.retailPriceRub)
+      );
 
   const annualRevenueRub = monthlyRevenuesRub.reduce((acc, v) => acc + v, 0);
   const annualPacks = plan.monthlyPacks.reduce((acc, v) => acc + v, 0);
@@ -988,15 +1007,23 @@ export function computeModelScenarioMetrics(
   const targetMonthIdx = scenario.targetMonthIdx ?? 11;
   const targetMonthRevenueRub = monthlyRevenuesRub[targetMonthIdx] || 0;
   const targetMonthPacks = plan.monthlyPacks[targetMonthIdx] || 0;
-  const scenarioTargetRub = scenario.monthlyTargetMln * 1_000_000;
+  const scenarioTargetRub =
+    scenario.id === ACTING_2027_SCENARIO_ID
+      ? 22_729_352
+      : scenario.monthlyTargetMln * 1_000_000;
   const goalSharePct =
     scenarioTargetRub > 0
       ? Math.round((targetMonthRevenueRub / scenarioTargetRub) * 1000) / 10
       : 0;
 
-  // Закупка на год и плановая прибыль:
-  const totalPurchaseNeedRub = annualPacks * model.unitCostRub;
-  const annualProfitRub = annualPacks * unitMarginRub;
+  // Закупка / товарные затраты на год и плановая прибыль:
+  const totalPurchaseNeedRub = isUnmodifiedActingPlan
+    ? actingSku.totalCostOfGoodsRub
+    : annualPacks * model.unitCostRub;
+  const annualProfitRub =
+    scenario.id === ACTING_2027_SCENARIO_ID || actingSku
+      ? 0
+      : annualPacks * unitMarginRub;
 
   // Помесячное движение остатков (Конечный остаток = начальный остаток + поступления − продажи)
   let runningStock = plan.initialStockPacks;

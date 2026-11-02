@@ -33,6 +33,7 @@ import {
   ScenarioModelSpec,
   computeModelScenarioMetrics,
 } from '@/lib/scenarioData';
+import { getActingSkuByWbOrVendor } from '@/lib/actingAssortment2027';
 import {
   BoxerPackStackSvg,
   TechnicalFlatDrawingSvg,
@@ -972,97 +973,209 @@ export function ScenarioModelCardScreen({
 
         {/* Правая половина (6 колонок): Финансовая сводка — РОВНО 6 АВТОМАТИЧЕСКИХ ПОКАЗАТЕЛЕЙ (п. 4.2 ТЗ) */}
         <div className="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3 content-between">
-          {/* 1. Прогноз выручки за год */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-            <div className="text-[11.5px] text-[#6E6E73]">Прогноз выручки за год</div>
-            <div className="my-2">
-              <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {(metrics.annualRevenueRub / 1_000_000).toFixed(1).replace('.', ',')} млн ₽
-              </div>
-              <div className="text-[11px] text-[#8B6F47] font-semibold mt-0.5">
-                Сумма 12 месяцев {scenario.year}
-              </div>
-            </div>
-          </div>
+          {(() => {
+            const actingSku = getActingSkuByWbOrVendor(model.code, model.title);
+            if (actingSku) {
+              return (
+                <>
+                  {/* 1. Выручка / год */}
+                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                      Выручка / год
+                    </div>
+                    <div className="my-2">
+                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                        {(actingSku.totalRevenueRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽
+                      </div>
+                      <div className="text-[11px] text-[#8B6F47] font-semibold mt-0.5">
+                        {actingSku.totalRevenueRub.toLocaleString('ru-RU')} ₽ · 12 мес.
+                      </div>
+                    </div>
+                  </div>
 
-          {/* 2. Выручка в целевом месяце */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-            <div className="text-[11.5px] text-[#6E6E73]">
-              Выручка в целевом месяце
-            </div>
-            <div className="my-2">
-              <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {(metrics.targetMonthRevenueRub / 1_000_000)
-                  .toFixed(1)
-                  .replace('.', ',')}{' '}
-                млн ₽
-              </div>
-              <div className="text-[11px] font-semibold text-[#2E6B4E] mt-0.5">
-                Вклад в цель: {metrics.goalSharePct.toFixed(1).replace('.', ',')}% (
-                {scenario.targetMonthLabel})
-              </div>
-            </div>
-          </div>
+                  {/* 2. Выкупы / год */}
+                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                      Выкупы / год
+                    </div>
+                    <div className="my-2">
+                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                        {actingSku.totalBuyoutsSets.toLocaleString('ru-RU')}
+                      </div>
+                      <div className="text-[11px] font-semibold text-[#2E6B4E] mt-0.5">
+                        Заказы: {actingSku.totalOrdersSets.toLocaleString('ru-RU')} · Выкуп {actingSku.avgBuyoutRatePct}%
+                      </div>
+                    </div>
+                  </div>
 
-          {/* 3. Средняя цена реализации */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-            <div className="text-[11.5px] text-[#6E6E73]">Средняя цена реализации</div>
-            <div className="my-2">
-              <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {metrics.avgRetailPriceRub.toLocaleString('ru-RU')} ₽
-              </div>
-              <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                за комплект ({model.unitsInPack} шт.)
-              </div>
-            </div>
-          </div>
+                  {/* 3. Декабрь */}
+                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
+                      Декабрь
+                    </div>
+                    <div className="my-2">
+                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                        {(actingSku.decemberRevenueRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽
+                      </div>
+                      <div className="text-[11px] text-[#6E6E73] mt-0.5">
+                        {actingSku.decemberRevenueRub.toLocaleString('ru-RU')} ₽ в дек. 2027
+                      </div>
+                    </div>
+                  </div>
 
-          {/* 4. Закупочная себестоимость под ключ */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-            <div className="text-[11.5px] text-[#6E6E73]">
-              Закупочная себестоимость
-            </div>
-            <div className="my-2">
-              <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {model.unitCostRub.toLocaleString('ru-RU')} ₽
-              </div>
-              <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                под ключ в РФ ({Math.round(model.unitCostRub / model.unitsInPack)} ₽ / шт.)
-              </div>
-            </div>
-          </div>
+                  {/* 4. Годовая цена (выручка / выкупы) */}
+                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                    <div className="text-[11.5px] text-[#6E6E73]">
+                      Годовая цена (выручка / выкупы)
+                    </div>
+                    <div className="my-2">
+                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                        {actingSku.weightedAvgPriceRub.toLocaleString('ru-RU')} ₽
+                      </div>
+                      <div className="text-[11px] text-[#6E6E73] mt-0.5">
+                        за комплект ({actingSku.unitsInPack} шт.)
+                      </div>
+                    </div>
+                  </div>
 
-          {/* 5. Маржинальность (с формулой по наведению) */}
-          <div
-            title={`Формула: (Цена ${metrics.avgRetailPriceRub} ₽ − Себестоимость ${model.unitCostRub} ₽ − Комиссия ${metrics.feeRub} ₽ − Логистика ${model.logisticsRub} ₽ − Реклама ${metrics.adsRub} ₽) ÷ Цена = ${metrics.unitMarginRub} ₽ (${metrics.unitMarginPct}%)`}
-            className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs cursor-help"
-          >
-            <div className="flex items-center justify-between text-[11.5px] text-[#6E6E73]">
-              <span>Маржинальность</span>
-              <Info className="h-3.5 w-3.5 text-[#8B6F47]" />
-            </div>
-            <div className="my-2">
-              <div className="text-[23px] font-bold tracking-[-0.02em] text-[#2E6B4E]">
-                {metrics.unitMarginPct}%
-              </div>
-              <div className="text-[11px] text-[#2E6B4E] font-semibold mt-0.5">
-                +{metrics.unitMarginRub} ₽ чистыми с комплекта
-              </div>
-            </div>
-          </div>
+                  {/* 5. Затраты / год */}
+                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                    <div className="text-[11.5px] text-[#6E6E73]">
+                      Товарные затраты / год
+                    </div>
+                    <div className="my-2">
+                      <div className="text-[21px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                        {(actingSku.totalCostOfGoodsRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽
+                      </div>
+                      <div className="text-[10.5px] text-[#6E6E73] mt-0.5">
+                        {actingSku.totalCostOfGoodsRub.toLocaleString('ru-RU')} ₽ (товар + упак. + приёмка)
+                      </div>
+                    </div>
+                  </div>
 
-          {/* 6. План продаж за год (в комплектах) */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-            <div className="text-[11.5px] text-[#6E6E73]">План продаж за год</div>
-            <div className="my-2">
-              <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                {metrics.annualPacks.toLocaleString('ru-RU')}
-              </div>
-              <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                компл. (~{metrics.avgMonthlyPacks.toLocaleString('ru-RU')} компл./мес)
-              </div>
-            </div>
-          </div>
+                  {/* 6. Статус проверки и ограничения */}
+                  <div className="rounded-[18px] bg-[#FAF4EC] border border-[#E8D8C3] p-4 flex flex-col justify-between shadow-2xs">
+                    <div className="text-[11.5px] font-semibold text-[#8B6F47]">
+                      Статус бренда · WB {actingSku.wbSku}
+                    </div>
+                    <div className="my-1">
+                      <div className="text-[14px] font-bold text-[#1D1D1F]">
+                        {actingSku.brandStatus}
+                      </div>
+                      <div className="text-[10.5px] text-[#5A564F] mt-1">
+                        Комиссии, реклама, логистика WB и налоги не включены (прибыль без них не считается)
+                      </div>
+                    </div>
+                  </div>
+                </>
+              );
+            }
+
+            return (
+              <>
+                {/* 1. Прогноз выручки за год */}
+                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                  <div className="text-[11.5px] text-[#6E6E73]">Прогноз выручки за год</div>
+                  <div className="my-2">
+                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                      {(metrics.annualRevenueRub / 1_000_000).toFixed(1).replace('.', ',')} млн ₽
+                    </div>
+                    <div className="text-[11px] text-[#8B6F47] font-semibold mt-0.5">
+                      Сумма 12 месяцев {scenario.year}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Выручка в целевом месяце */}
+                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                  <div className="text-[11.5px] text-[#6E6E73]">
+                    Выручка в целевом месяце
+                  </div>
+                  <div className="my-2">
+                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                      {(metrics.targetMonthRevenueRub / 1_000_000)
+                        .toFixed(1)
+                        .replace('.', ',')}{' '}
+                      млн ₽
+                    </div>
+                    <div className="text-[11px] font-semibold text-[#2E6B4E] mt-0.5">
+                      Вклад в цель: {metrics.goalSharePct.toFixed(1).replace('.', ',')}% (
+                      {scenario.targetMonthLabel})
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Средняя цена реализации */}
+                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                  <div className="text-[11.5px] text-[#6E6E73]">Средняя цена реализации</div>
+                  <div className="my-2">
+                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                      {metrics.avgRetailPriceRub.toLocaleString('ru-RU')} ₽
+                    </div>
+                    <div className="text-[11px] text-[#6E6E73] mt-0.5">
+                      за комплект ({model.unitsInPack} шт.)
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Закупочная себестоимость под ключ */}
+                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                  <div className="text-[11.5px] text-[#6E6E73]">
+                    Закупочная себестоимость
+                  </div>
+                  <div className="my-2">
+                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                      {model.unitCostRub.toLocaleString('ru-RU')} ₽
+                    </div>
+                    <div className="text-[11px] text-[#6E6E73] mt-0.5">
+                      под ключ в РФ ({Math.round(model.unitCostRub / model.unitsInPack)} ₽ / шт.)
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Маржинальность (с формулой по наведению) */}
+                <div
+                  title={`Формула: (Цена ${metrics.avgRetailPriceRub} ₽ − Себестоимость ${model.unitCostRub} ₽ − Комиссия ${metrics.feeRub} ₽ − Логистика ${model.logisticsRub} ₽ − Реклама ${metrics.adsRub} ₽) ÷ Цена = ${metrics.unitMarginRub} ₽ (${metrics.unitMarginPct}%)`}
+                  className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs cursor-help"
+                >
+                  <div className="flex items-center justify-between text-[11.5px] text-[#6E6E73]">
+                    <span>Маржинальность</span>
+                    <Info className="h-3.5 w-3.5 text-[#8B6F47]" />
+                  </div>
+                  <div className="my-2">
+                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#2E6B4E]">
+                      {metrics.unitMarginPct}%
+                    </div>
+                    <div className="text-[11px] text-[#2E6B4E] font-semibold mt-0.5">
+                      +{metrics.unitMarginRub} ₽ чистыми с комплекта
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. План продаж за год (в комплектах) */}
+                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
+                  <div className="text-[11.5px] text-[#6E6E73]">План продаж за год</div>
+                  <div className="my-2">
+                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                      {metrics.annualPacks.toLocaleString('ru-RU')}
+                    </div>
+                    <div className="text-[11px] text-[#6E6E73] mt-0.5">
+                      компл. (~{metrics.avgMonthlyPacks.toLocaleString('ru-RU')} компл./мес)
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Кнопка быстрого перехода на Экран №3 (План продаж и производства) */}
           <div className="col-span-2 sm:col-span-3 rounded-[16px] bg-[#1D1D1F] text-white p-3.5 flex flex-wrap items-center justify-between gap-3">
@@ -1172,6 +1285,112 @@ export function ScenarioModelCardScreen({
       {/* СОДЕРЖИМОЕ ВЫБРАННОЙ ВКЛАДКИ (ВСЕГДА ТОЛЬКО ОДНА АКТИВНАЯ ВКЛАДКА) */}
       {activeTab === 'overview' && (
         <div className="space-y-5">
+          {/* Если открыт один из 7 действующих артикулов ИП Нерсесянц — выводим полную помесячную таблицу по макету Стр. 3–9 PDF */}
+          {(() => {
+            const actingSku = getActingSkuByWbOrVendor(model.code, model.title);
+            if (!actingSku) return null;
+            return (
+              <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-3 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#8B6F47]">
+                      Карточка артикула 0{actingSku.orderNum} / 07 · ИП Нерсесянц · WB {actingSku.wbSku}
+                    </div>
+                    <h4 className="text-[16px] font-bold text-[#1D1D1F] mt-0.5">
+                      ПО МЕСЯЦАМ · ПЛАН 2027 ({actingSku.vendorSku})
+                    </h4>
+                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold ${
+                      actingSku.wbSku === '72302360'
+                        ? 'bg-[#FEF3C7] text-[#B45309] border border-[#FCD34D]'
+                        : actingSku.wbSku === '86205435'
+                        ? 'bg-[#F3F4F6] text-[#4B5563] border border-[#D1D5DB]'
+                        : 'bg-[#2E6B4E]/12 text-[#2E6B4E]'
+                    }`}
+                  >
+                    {actingSku.brandStatus}
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-[14px] border border-[#E6E0D4]">
+                  <table className="w-full text-left border-collapse text-[12.5px]">
+                    <thead>
+                      <tr className="bg-[#162234] text-white text-[11.5px]">
+                        <th className="py-2.5 px-4 font-semibold">Месяц</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Заказы</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Выкупы</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Выкуп %</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Цена, ₽</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Выручка, ₽</th>
+                        <th className="py-2.5 px-4 font-semibold text-right">Затраты, ₽</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#EFECE4]">
+                      {actingSku.monthly.map((row, idx) => (
+                        <tr key={row.period} className="hover:bg-[#FAF7F0]">
+                          <td className="py-2 px-4 font-semibold text-[#1D1D1F]">
+                            {MONTHS_SHORT_RU[idx]}
+                          </td>
+                          <td className="py-2 px-4 text-right text-[#4B5563]">
+                            {row.orders_sets.toLocaleString('ru-RU')}
+                          </td>
+                          <td className="py-2 px-4 text-right font-semibold text-[#1D1D1F]">
+                            {row.buyouts_sets.toLocaleString('ru-RU')}
+                          </td>
+                          <td className="py-2 px-4 text-right text-[#4B5563]">
+                            {(row.buyout_rate * 100).toFixed(1)}%
+                          </td>
+                          <td className="py-2 px-4 text-right text-[#1D1D1F]">
+                            {row.realization_price_rub.toLocaleString('ru-RU')}
+                          </td>
+                          <td className="py-2 px-4 text-right font-bold text-[#1D1D1F]">
+                            {row.revenue_rub.toLocaleString('ru-RU')}
+                          </td>
+                          <td className="py-2 px-4 text-right text-[#4B5563]">
+                            {row.cost_of_goods_rub.toLocaleString('ru-RU')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-[#F5ECE0] font-bold text-[#1D1D1F]">
+                        <td className="py-2.5 px-4">ИТОГО</td>
+                        <td className="py-2.5 px-4 text-right">
+                          {actingSku.totalOrdersSets.toLocaleString('ru-RU')}
+                        </td>
+                        <td className="py-2.5 px-4 text-right">
+                          {actingSku.totalBuyoutsSets.toLocaleString('ru-RU')}
+                        </td>
+                        <td className="py-2.5 px-4 text-right">
+                          {actingSku.avgBuyoutRatePct.toFixed(1)}%
+                        </td>
+                        <td className="py-2.5 px-4 text-right">
+                          {actingSku.weightedAvgPriceRub.toLocaleString('ru-RU')}
+                        </td>
+                        <td className="py-2.5 px-4 text-right">
+                          {actingSku.totalRevenueRub.toLocaleString('ru-RU')}
+                        </td>
+                        <td className="py-2.5 px-4 text-right">
+                          {actingSku.totalCostOfGoodsRub.toLocaleString('ru-RU')}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                <div className="text-[11px] text-[#6E6E73] space-y-0.5 pt-1">
+                  <div>
+                    Выручка = выкупы × средняя цена; затраты = товар + упаковка + приёмка (не означает себестоимость будущих закупок).
+                  </div>
+                  <div>
+                    Годовая цена в строке «Итого» = выручка / выкупы; не среднее из 12 цен. План, не факт. Комиссии, реклама, логистика WB, налоги не включены.
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Верхняя сводка обзора + 3 технических блока (Характеристики, Состав, Резинка) — кликабельно и редактируемо */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">

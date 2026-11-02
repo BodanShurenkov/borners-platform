@@ -26,6 +26,7 @@ import {
   formatCurrencyRub,
 } from '@/lib/finance';
 import { INITIAL_SCENARIO_MODELS, ScenarioModelSpec } from '@/lib/scenarioData';
+import { getActingSkuByWbOrVendor } from '@/lib/actingAssortment2027';
 import { BoxerPackStackSvg } from '@/components/sections/ScenarioVisualParts';
 import { STORAGE_KEY_MODELS } from '@/components/sections/GrowthScenariosShowcase';
 import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
@@ -695,6 +696,7 @@ export function ProductCatalogView() {
             const st = STATUS_META[product.status];
             const calc = calculateUnitEconomics(product.economics);
             const isBorners = product.brandId === 'BORNERS';
+            const actingMeta = getActingSkuByWbOrVendor(product.sku, product.name);
 
             return (
               <div
@@ -732,11 +734,24 @@ export function ProductCatalogView() {
                   <div className="flex items-center justify-between gap-2 text-[13px]">
                     <div className="flex items-center gap-2 font-semibold">
                       <span
-                        style={{ color: isBorners ? '#D97745' : '#8B8078' }}
+                        style={{
+                          color:
+                            actingMeta && actingMeta.wbSku === '72302360'
+                              ? '#B45309'
+                              : isBorners
+                              ? '#D97745'
+                              : '#8B8078',
+                        }}
                       >
-                        {isBorners ? 'BORNERS' : 'НА ТЕЛЕ'}
+                        {actingMeta
+                          ? actingMeta.brandStatus
+                          : isBorners
+                          ? 'BORNERS'
+                          : 'НА ТЕЛЕ'}
                       </span>
-                      <span className="text-[#737373]">· {product.sku}</span>
+                      <span className="text-[#737373]">
+                        · {actingMeta ? `WB ${actingMeta.wbSku}` : product.sku}
+                      </span>
                       {product.isDemo && (
                         <span className="px-1.5 py-0.5 rounded bg-[#F7F7F5] border border-[#E8E8E5] text-[10px] font-semibold text-[#737373]">
                           DEMO
@@ -756,7 +771,9 @@ export function ProductCatalogView() {
                       {product.name}
                     </h3>
                     <div className="text-[14px] text-[#737373] mt-1">
-                      {product.category} · {product.collection} · {product.productType}
+                      {actingMeta
+                        ? `${actingMeta.subtitle} · ИП Нерсесянц`
+                        : `${product.category} · ${product.collection} · ${product.productType}`}
                     </div>
                   </div>
 
@@ -766,37 +783,60 @@ export function ProductCatalogView() {
                   </p>
                 </div>
 
-                {/* Нижний блок: Цена, Себестоимость и Маржа */}
-                <div className="pt-4 border-t border-[#E8E8E5] grid grid-cols-3 gap-4">
-                  <div>
-                    <div className="text-[12px] text-[#737373]">РРЦ</div>
-                    <div className="text-[18px] font-bold text-[#171717] dark:text-white mt-0.5">
-                      {formatCurrencyRub(product.economics.actualRetailPrice)}
+                {/* Нижний блок: Цена, Себестоимость и Маржа / План 2027 */}
+                {actingMeta ? (
+                  <div className="pt-4 border-t border-[#E8E8E5] grid grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-[12px] text-[#737373]">Цена (выр./вык.)</div>
+                      <div className="text-[18px] font-bold text-[#171717] dark:text-white mt-0.5">
+                        {formatCurrencyRub(actingMeta.weightedAvgPriceRub)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[12px] text-[#737373]">Выкупы / год</div>
+                      <div className="text-[18px] font-bold text-[#171717] dark:text-white mt-0.5">
+                        {actingMeta.totalBuyoutsSets.toLocaleString('ru-RU')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[12px] text-[#737373]">План 2027</div>
+                      <div className="text-[18px] font-bold text-[#16805D] mt-0.5">
+                        {(actingMeta.totalRevenueRub / 1_000_000).toFixed(2).replace('.', ',')} млн ₽
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-[12px] text-[#737373]">Себестоимость</div>
-                    <div className="text-[18px] font-bold text-[#171717] dark:text-white mt-0.5">
-                      {hasCostAccess
-                        ? formatCurrencyRub(product.economics.unitCostPrice)
-                        : 'Скрыто'}
+                ) : (
+                  <div className="pt-4 border-t border-[#E8E8E5] grid grid-cols-3 gap-4">
+                    <div>
+                      <div className="text-[12px] text-[#737373]">РРЦ</div>
+                      <div className="text-[18px] font-bold text-[#171717] dark:text-white mt-0.5">
+                        {formatCurrencyRub(product.economics.actualRetailPrice)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[12px] text-[#737373]">Себестоимость</div>
+                      <div className="text-[18px] font-bold text-[#171717] dark:text-white mt-0.5">
+                        {hasCostAccess
+                          ? formatCurrencyRub(product.economics.unitCostPrice)
+                          : 'Скрыто'}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[12px] text-[#737373]">Маржа</div>
+                      <div
+                        className={`text-[18px] font-bold mt-0.5 ${
+                          hasFinance
+                            ? calc.marginPct >= 30
+                              ? 'text-[#16805D]'
+                              : 'text-[#D99527]'
+                            : 'text-[#737373]'
+                        }`}
+                      >
+                        {hasFinance ? `${calc.marginPct}%` : '—'}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[12px] text-[#737373]">Маржа</div>
-                    <div
-                      className={`text-[18px] font-bold mt-0.5 ${
-                        hasFinance
-                          ? calc.marginPct >= 30
-                            ? 'text-[#16805D]'
-                            : 'text-[#D99527]'
-                          : 'text-[#737373]'
-                      }`}
-                    >
-                      {hasFinance ? `${calc.marginPct}%` : '—'}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}
