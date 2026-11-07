@@ -50,11 +50,18 @@ export interface ProductionStep {
   confirmation: 'factory_confirmed' | 'planned' | 'needs_confirmation';
 }
 
+import type {
+  ChannelSplitPct,
+  GalleryCategoryV11,
+  SharedSkuSupplyAndFact,
+} from './unifiedBusinessEngine.ts';
+
 export interface GalleryMediaItem {
   id: string;
-  category: 'pack' | 'single' | 'waistband' | 'fabric' | 'fit' | 'video';
+  category: GalleryCategoryV11;
   label: string;
   url?: string;
+  originalUrl?: string;
   isMain: boolean;
 }
 
@@ -69,6 +76,7 @@ export interface ScenarioCommercialPlan {
   salesStartMonthIdx: number; // e.g., 2 = March (0-indexed)
   warehouseArrivalMonthIdx: number; // e.g., 2 = March, or 3 = April (conflict!)
   warehouseArrivalDateLabel: string; // e.g., '18 марта' or '12 апреля'
+  channelSplitPct?: ChannelSplitPct;
 }
 
 export interface ScenarioModelSpec {
@@ -90,6 +98,7 @@ export interface ScenarioModelSpec {
   palettes: PalettePack[];
   gallery: GalleryMediaItem[];
   attachedPdfs?: AttachedModelPdf[];
+  sharedSupplyAndFact?: SharedSkuSupplyAndFact;
   construction: {
     type: string;
     fit: string;

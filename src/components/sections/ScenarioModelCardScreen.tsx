@@ -1,43 +1,59 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  ChevronRight,
-  MoreHorizontal,
   Edit3,
   Printer,
+  MoreHorizontal,
   Copy,
-  Archive,
   Trash2,
   Upload,
-  Star,
   CheckCircle2,
+  AlertTriangle,
   Info,
   FileText,
-  Sparkles,
+  ZoomIn,
+  Download,
+  ExternalLink,
+  Eye,
   Plus,
   X,
-  Image as ImageIcon,
-  Palette,
-  ExternalLink,
-  Download,
-  Eye,
+  BarChart3,
+  Table as TableIcon,
+  ShieldCheck,
+  Clock,
+  Package,
+  Wallet,
+  Layers,
+  History,
 } from 'lucide-react';
 import {
   AttachedModelPdf,
   GrowthScenarioDef,
   MONTHS_SHORT_RU,
-  PackColor,
-  PalettePack,
   ScenarioModelSpec,
   computeModelScenarioMetrics,
 } from '@/lib/scenarioData';
-import { getActingSkuByWbOrVendor } from '@/lib/actingAssortment2027';
 import {
-  BoxerPackStackSvg,
-  TechnicalFlatDrawingSvg,
-} from '@/components/sections/ScenarioVisualParts';
+  GALLERY_CATEGORY_LABELS_RU,
+  VALUE_STATUS_LABELS_RU,
+  approveRecommendedBatch,
+  computeFinancialPnL,
+  computeProcurementPlan,
+  detectModelBrandPortfolioLabel,
+  ensureModelUnifiedV11,
+  exportStructuredScenarioPlan,
+  getModelChannelSplit,
+  importStructuredScenarioPlan,
+  parseStructuredPlanCsvOrJson,
+  serializeStructuredPlanToCsv,
+  type GalleryCategoryV11,
+  type ModelAuditEntry,
+  type StructuredPlanRowV11,
+  type ValueStatusCode,
+} from '@/lib/unifiedBusinessEngine';
+import { FullscreenPhotoLightbox } from '@/components/sections/FullscreenPhotoLightbox';
 import { compressImageFileToDataUrl } from '@/lib/document-export';
 import {
   savePdfBlobToIdb,
@@ -48,6 +64,8 @@ import {
 interface ScenarioModelCardScreenProps {
   model: ScenarioModelSpec;
   scenario: GrowthScenarioDef;
+  allScenarios?: GrowthScenarioDef[];
+  onSelectScenario?: (scenarioId: number) => void;
   onBackToScenarios: () => void;
   onOpenSalesPlan: () => void;
   onUpdateModel: (updated: ScenarioModelSpec) => void;
@@ -57,9 +75,41 @@ interface ScenarioModelCardScreenProps {
   notify: (type: 'success' | 'warning' | 'error', title: string, desc?: string) => void;
 }
 
+function StatusPill({ status }: { status: ValueStatusCode }) {
+  const styles: Record<ValueStatusCode, string> = {
+    fact: 'bg-[#E6F4EC] text-[#17643A] border-[#BCE3CC]',
+    approved: 'bg-[#E7F0FA] text-[#1E4F8A] border-[#C3D9F3]',
+    plan: 'bg-[#F4F1EA] text-[#4E4A42] border-[#DED8CC]',
+    hypothesis: 'bg-[#FFF5E5] text-[#9A5B00] border-[#F4D9A6]',
+    not_filled: 'bg-[#FBEAEA] text-[#9F2D2D] border-[#F1C3C3]',
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${styles[status]}`}
+    >
+      {VALUE_STATUS_LABELS_RU[status]}
+    </span>
+  );
+}
+
+function formatRub(val: number): string {
+  return `${Math.round(val).toLocaleString('ru-RU')} ₽`;
+}
+
+function formatMln(valRub: number): string {
+  return `${(valRub / 1_000_000).toFixed(2).replace('.', ',')} млн ₽`;
+}
+
+function normalizeAssetUrl(url?: string): string {
+  if (!url) return '';
+  return url.replace(/^\/(images|docs)\//, '$1/');
+}
+
 export function ScenarioModelCardScreen({
-  model,
+  model: rawModel,
   scenario,
+  allScenarios = [],
+  onSelectScenario,
   onBackToScenarios,
   onOpenSalesPlan,
   onUpdateModel,
@@ -68,24 +118,40 @@ export function ScenarioModelCardScreen({
   onOpenPdfModal,
   notify,
 }: ScenarioModelCardScreenProps) {
-  // По умолчанию всегда открыта вкладка «Обзор» (п. 4.3 ТЗ)
+  const model = useMemo(() => ensureModelUnifiedV11(rawModel), [rawModel]);
+  const shared = model.sharedSupplyAndFact!;
+
+  // Четыре вкладки карточки (Раздел 02 и 03 ТЗ v1.1): Продукт / Продажи / Закупки / Финансы
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'production' | 'economics' | 'spec'
-  >('overview');
+    'product' | 'sales' | 'procurement' | 'finance'
+  >('product');
+
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState<number>(
+    scenario.targetMonthIdx ?? 11
+  );
+  const [salesViewMode, setSalesViewMode] = useState<'table' | 'chart'>('table');
+  const [galleryCategoryFilter, setGalleryCategoryFilter] = useState<
+    'ALL' | GalleryCategoryV11
+  >('ALL');
   const [selectedGalleryId, setSelectedGalleryId] = useState<string>(
     () => model.gallery.find((g) => g.isMain)?.id || model.gallery[0]?.id || 'g-1'
   );
-  const [expandedPaletteIds, setExpandedPaletteIds] = useState<string[]>([
-    model.palettes[0]?.id || 'pal-sorbet',
-    model.palettes[1]?.id || 'pal-riviera',
-  ]);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editingGalleryId, setEditingGalleryId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [formulaOpenKey, setFormulaOpenKey] = useState<string | null>(null);
+
   const [pdfUrlsById, setPdfUrlsById] = useState<Record<string, string>>({});
   const [previewPdfId, setPreviewPdfId] = useState<string | null>(null);
+  const [newPhotoCategory, setNewPhotoCategory] = useState<GalleryCategoryV11>('pack');
 
-  const attachedPdfs = model.attachedPdfs || [];
+  const importPlanInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setSelectedGalleryId(
+      model.gallery.find((g) => g.isMain)?.id || model.gallery[0]?.id || 'g-1'
+    );
+  }, [model.id, model.gallery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,540 +177,524 @@ export function ScenarioModelCardScreen({
     return () => {
       cancelled = true;
     };
-  }, [model.id, model.attachedPdfs]);
+  }, [model.id, model.attachedPdfs, previewPdfId]);
 
-  const metrics = computeModelScenarioMetrics(model, scenario);
+  const baseMetrics = useMemo(
+    () => computeModelScenarioMetrics(model, scenario),
+    [model, scenario]
+  );
+  const procurement = useMemo(
+    () => computeProcurementPlan(model, scenario),
+    [model, scenario]
+  );
+  const pnl = useMemo(
+    () => computeFinancialPnL(model, scenario, procurement),
+    [model, scenario, procurement]
+  );
+
+  const plan = baseMetrics.plan;
+  const channelSplit = getModelChannelSplit(model, scenario.id);
+  const brandPortfolioLabel = detectModelBrandPortfolioLabel(model);
+
+  const filteredGallery = useMemo(() => {
+    const withUrl = model.gallery.filter((g) => Boolean(g.url || g.originalUrl));
+    if (galleryCategoryFilter === 'ALL') return withUrl;
+    const subset = withUrl.filter((g) => g.category === galleryCategoryFilter);
+    return subset.length > 0 ? subset : withUrl;
+  }, [model.gallery, galleryCategoryFilter]);
+
   const activeGalleryItem =
-    model.gallery.find((g) => g.id === selectedGalleryId) ||
-    model.gallery.find((g) => g.isMain) ||
+    filteredGallery.find((g) => g.id === selectedGalleryId) ||
+    model.gallery.find((g) => g.isMain && (g.url || g.originalUrl)) ||
+    filteredGallery[0] ||
     model.gallery[0];
 
-  const primaryColors = model.palettes[0]?.colors || [];
+  const mainImageSrc = normalizeAssetUrl(
+    activeGalleryItem?.url ||
+      activeGalleryItem?.originalUrl ||
+      model.palettes[0]?.imageUrl ||
+      ''
+  );
 
-  const handleSetMainGallery = (galleryId: string) => {
-    const nextGallery = model.gallery.map((g) => ({
-      ...g,
-      isMain: g.id === galleryId,
-    }));
-    onUpdateModel({
-      ...model,
-      gallery: nextGallery,
-    });
-    notify('success', 'Главное фото карточки модели обновлено и сохранено');
-  };
-
-  const handleRenameGalleryItem = (galleryId: string, newLabel: string) => {
-    const nextGallery = model.gallery.map((g) =>
-      g.id === galleryId ? { ...g, label: newLabel } : g
-    );
-    onUpdateModel({
-      ...model,
-      gallery: nextGallery,
-    });
-  };
-
-  const handleDeleteGalleryItem = (galleryId: string) => {
-    const filtered = model.gallery.filter((g) => g.id !== galleryId);
-    const nextGallery: ScenarioModelSpec['gallery'] =
-      filtered.length > 0
-        ? filtered.map((g, idx) => ({
-            ...g,
-            isMain: filtered.some((item) => item.isMain) ? g.isMain : idx === 0,
-          }))
-        : [
-            {
-              id: `g-main-${Date.now()}`,
-              category: 'pack',
-              label: 'Главное фото',
-              isMain: true,
-            },
-          ];
-    onUpdateModel({
-      ...model,
-      gallery: nextGallery,
-    });
-    if (selectedGalleryId === galleryId || !nextGallery.some((g) => g.id === selectedGalleryId)) {
-      const nextActive = nextGallery.find((g) => g.isMain) || nextGallery[0];
-      if (nextActive) setSelectedGalleryId(nextActive.id);
-    }
-    notify('warning', 'Строка галереи удалена');
-  };
-
-  const handleAddGalleryItem = () => {
-    const newId = `g-custom-${Date.now()}`;
-    const newItem: ScenarioModelSpec['gallery'][number] = {
-      id: newId,
-      category: 'pack',
-      label: `Фото ${model.gallery.length + 1}`,
-      isMain: model.gallery.length === 0,
-    };
-    const nextGallery = [...model.gallery, newItem];
-    onUpdateModel({
-      ...model,
-      gallery: nextGallery,
-    });
-    setSelectedGalleryId(newId);
-    setEditingGalleryId(newId);
-  };
-
-  const handleClearTemplateGalleryItems = () => {
-    const withPhotos = model.gallery.filter((g) => Boolean(g.url));
-    const nextGallery: ScenarioModelSpec['gallery'] =
-      withPhotos.length > 0
-        ? withPhotos.map((g, idx) => ({
-            ...g,
-            isMain: withPhotos.some((item) => item.isMain) ? g.isMain : idx === 0,
-          }))
-        : [
-            {
-              id: `g-main-${Date.now()}`,
-              category: 'pack',
-              label: 'Главное фото',
-              isMain: true,
-            },
-          ];
-    onUpdateModel({
-      ...model,
-      gallery: nextGallery,
-    });
-    const nextActive = nextGallery.find((g) => g.isMain) || nextGallery[0];
-    if (nextActive) setSelectedGalleryId(nextActive.id);
-    notify('success', 'Шаблонные вкладки очищены');
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    // Если выбрана пустая вкладка без фото и загружается 1 файл — подставляем фото прямо в неё
-    if (files.length === 1 && activeGalleryItem && !activeGalleryItem.url) {
-      try {
-        const dataUrl = await compressImageFileToDataUrl(files[0], 680, 0.78);
-        if (dataUrl) {
-          const hasAnyUploadedMain = model.gallery.some((g) => g.url && g.isMain);
-          const nextGallery = model.gallery.map((g) =>
-            g.id === activeGalleryItem.id
-              ? {
-                  ...g,
-                  url: dataUrl,
-                  isMain: !hasAnyUploadedMain ? true : g.isMain,
-                }
-              : !hasAnyUploadedMain
-                ? { ...g, isMain: false }
-                : g
-          );
-          onUpdateModel({
-            ...model,
-            gallery: nextGallery,
-          });
-          setSelectedGalleryId(activeGalleryItem.id);
-          notify('success', `Фото загружено в «${activeGalleryItem.label}»`);
-        }
-      } catch {
-        // ignore broken image
-      }
-      e.target.value = '';
-      return;
-    }
-
-    const uploadedItems: ScenarioModelSpec['gallery'] = [];
-    const existingUploadedCount = model.gallery.filter((g) => Boolean(g.url)).length;
-    for (let idx = 0; idx < files.length; idx++) {
-      const file = files[idx];
-      try {
-        const dataUrl = await compressImageFileToDataUrl(file, 680, 0.78);
-        if (!dataUrl) continue;
-        uploadedItems.push({
-          id: `g-upload-${Date.now()}-${idx}`,
-          category: 'pack' as const,
-          label: `Фото ${existingUploadedCount + idx + 1}`,
-          url: dataUrl,
-          isMain: existingUploadedCount === 0 && idx === 0,
-        });
-      } catch {
-        // ignore broken image
-      }
-    }
-    if (uploadedItems.length > 0) {
-      const promoteFirstUploaded = existingUploadedCount === 0;
-      const baseGallery = promoteFirstUploaded
-        ? model.gallery.map((g) => ({ ...g, isMain: false }))
-        : model.gallery;
-      const nextGallery = [...baseGallery, ...uploadedItems];
-      onUpdateModel({
-        ...model,
-        gallery: nextGallery,
-      });
-      setSelectedGalleryId(uploadedItems[uploadedItems.length - 1].id);
-      notify('success', `Загружено и сохранено фото: ${uploadedItems.length} шт.`);
-    }
-    e.target.value = '';
-  };
-
-  const handleExplicitSave = () => {
-    onUpdateModel({ ...model });
-    setIsEditing(false);
-    notify(
-      'success',
-      '✓ Карточка модели сохранена',
-      `${model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ${model.code} / ${model.title}`
-    );
-  };
-
-  const togglePaletteExpand = (id: string) => {
-    setExpandedPaletteIds((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  };
-
-  /* --- УПРАВЛЕНИЕ ПАЛИТРАМИ И ЦВЕТАМИ / ФОТО ПАЛИТРЫ --- */
-  const handleAddPalette = () => {
-    const newPalId = `pal-${Date.now()}`;
-    const newPal: PalettePack = {
-      id: newPalId,
-      title: `ПАЛИТРА №${model.palettes.length + 1} — НОВЫЙ НАБОР`,
-      subtitle: `${model.unitsInPack} шт. в комплекте`,
-      statusLabel: 'В работе',
-      colors: [
-        {
-          nameRu: 'Цвет 1',
-          pantone: 'PANTONE 11-0601 TCX',
-          hex: '#F3F3F1',
-          bandHex: '#DCDCD8',
-          textHex: '#1D1D1F',
-        },
-      ],
-    };
-    const nextPalettes = [...model.palettes, newPal];
-    onUpdateModel({ ...model, palettes: nextPalettes });
-    setExpandedPaletteIds((prev) => [...prev, newPalId]);
-    notify('success', 'Добавлена новая палитра');
-  };
-
-  const handleDeletePalette = (palId: string) => {
-    const nextPalettes = model.palettes.filter((p) => p.id !== palId);
-    onUpdateModel({ ...model, palettes: nextPalettes });
-    notify('warning', 'Палитра удалена');
-  };
-
-  const handleUpdatePalette = (palId: string, patch: Partial<PalettePack>) => {
-    const nextPalettes = model.palettes.map((p) =>
-      p.id === palId ? { ...p, ...patch } : p
-    );
-    onUpdateModel({ ...model, palettes: nextPalettes });
-  };
-
-  const handlePalettePhotoUpload = async (
-    palId: string,
-    e: React.ChangeEvent<HTMLInputElement>
+  // Добавление записи в журнал истории изменений (Audit Trail, Раздел 06 ТЗ v1.1)
+  const commitWithAudit = (
+    nextModel: ScenarioModelSpec,
+    category: ModelAuditEntry['category'],
+    summary: string,
+    beforeValue?: string,
+    afterValue?: string,
+    bumpPassport = false
   ) => {
+    const baseS = ensureModelUnifiedV11(nextModel).sharedSupplyAndFact!;
+    const nextPassportVer = bumpPassport
+      ? baseS.passportVersion + 1
+      : baseS.passportVersion;
+    const entry: ModelAuditEntry = {
+      id: `aud-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      author: 'Владелец',
+      category,
+      summary,
+      beforeValue,
+      afterValue,
+      passportVersion: nextPassportVer,
+    };
+
+    onUpdateModel({
+      ...nextModel,
+      sharedSupplyAndFact: {
+        ...baseS,
+        passportVersion: nextPassportVer,
+        auditHistory: [entry, ...baseS.auditHistory].slice(0, 50),
+      },
+    });
+  };
+
+  // Загрузка оригинальной фотографии с сохранением полного оригинала без потери разрешения
+  const handleUploadOriginalPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const dataUrl = await compressImageFileToDataUrl(file, 760, 0.8);
-      if (dataUrl) {
-        handleUpdatePalette(palId, { imageUrl: dataUrl });
-        if (!expandedPaletteIds.includes(palId)) {
-          setExpandedPaletteIds((prev) => [...prev, palId]);
-        }
-        notify('success', 'Фото раскладки палитры загружено и сохранено');
-      }
-    } catch {
-      // ignore
-    }
-    e.target.value = '';
-  };
+      const originalDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Read error'));
+        reader.readAsDataURL(file);
+      });
+      const previewUrl =
+        file.size > 350_000
+          ? await compressImageFileToDataUrl(file, 1400, 0.9)
+          : originalDataUrl;
 
-  const handleAddColorToPalette = (palId: string) => {
-    const nextPalettes = model.palettes.map((p) => {
-      if (p.id !== palId) return p;
-      const idx = p.colors.length + 1;
-      const newColor: PackColor = {
-        nameRu: `Цвет ${idx}`,
-        pantone: 'PANTONE TCX',
-        hex: '#C7BEB2',
-        bandHex: '#B2A89B',
-        textHex: '#1D1D1F',
-      };
-      return { ...p, colors: [...p.colors, newColor] };
-    });
-    onUpdateModel({ ...model, palettes: nextPalettes });
-    if (!expandedPaletteIds.includes(palId)) {
-      setExpandedPaletteIds((prev) => [...prev, palId]);
-    }
-  };
-
-  const handleUpdatePaletteColor = (
-    palId: string,
-    colorIdx: number,
-    patch: Partial<PackColor>
-  ) => {
-    const nextPalettes = model.palettes.map((p) => {
-      if (p.id !== palId) return p;
-      const nextColors = p.colors.map((c, idx) =>
-        idx === colorIdx
-          ? {
-              ...c,
-              ...patch,
-              bandHex: patch.hex ? patch.hex : c.bandHex,
-            }
-          : c
+      const newItemId = `gal-${Date.now()}`;
+      const isFirst = model.gallery.filter((g) => Boolean(g.url)).length === 0;
+      const nextGallery = [
+        ...model.gallery,
+        {
+          id: newItemId,
+          category: newPhotoCategory,
+          label: file.name.replace(/\.[^.]+$/, ''),
+          url: previewUrl,
+          originalUrl: previewUrl,
+          isMain: isFirst,
+        },
+      ];
+      commitWithAudit(
+        { ...model, gallery: nextGallery },
+        'product',
+        `Добавлено фото «${file.name}» (${GALLERY_CATEGORY_LABELS_RU[newPhotoCategory]})`,
+        undefined,
+        file.name,
+        true
       );
-      return { ...p, colors: nextColors };
-    });
-    onUpdateModel({ ...model, palettes: nextPalettes });
-  };
-
-  const handleDeletePaletteColor = (palId: string, colorIdx: number) => {
-    const nextPalettes = model.palettes.map((p) => {
-      if (p.id !== palId) return p;
-      return { ...p, colors: p.colors.filter((_, idx) => idx !== colorIdx) };
-    });
-    onUpdateModel({ ...model, palettes: nextPalettes });
-  };
-
-  /* --- ЗАГРУЗКА И ПРОСМОТР PDF-ФАЙЛОВ В КАРТОЧКЕ МОДЕЛИ --- */
-  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const addedMeta: AttachedModelPdf[] = [];
-    const addedUrls: Record<string, string> = {};
-
-    for (let idx = 0; idx < files.length; idx++) {
-      const file = files[idx];
-      const pdfId = `pdf-${model.id}-${Date.now()}-${idx}`;
-      await savePdfBlobToIdb(pdfId, file);
-      const blobUrl = URL.createObjectURL(file);
-      addedUrls[pdfId] = blobUrl;
-      addedMeta.push({
-        id: pdfId,
-        name: file.name,
-        sizeBytes: file.size,
-        uploadedAt: new Date().toLocaleDateString('ru-RU'),
-      });
-    }
-
-    if (addedMeta.length > 0) {
-      const nextPdfs = [...(model.attachedPdfs || []), ...addedMeta];
-      setPdfUrlsById((prev) => ({ ...prev, ...addedUrls }));
-      setPreviewPdfId(addedMeta[addedMeta.length - 1].id);
-      onUpdateModel({
-        ...model,
-        attachedPdfs: nextPdfs,
-      });
+      setSelectedGalleryId(newItemId);
       notify(
         'success',
-        `✓ PDF загружен в карточку: ${addedMeta.map((p) => p.name).join(', ')}`,
-        'Документ сохранён в карточке модели и доступен для просмотра и скачивания.'
+        'Фотография добавлена в паспорт модели',
+        'Отражена во всех сценариях без дублирования товара.'
       );
+    } catch {
+      notify('error', 'Не удалось прочитать файл изображения');
     }
     e.target.value = '';
   };
 
-  const handleDeleteAttachedPdf = async (pdfId: string) => {
-    await deletePdfBlobFromIdb(pdfId);
-    const nextPdfs = (model.attachedPdfs || []).filter((p) => p.id !== pdfId);
-    onUpdateModel({
-      ...model,
-      attachedPdfs: nextPdfs,
-    });
-    if (previewPdfId === pdfId) {
-      setPreviewPdfId(nextPdfs[0]?.id || null);
-    }
-    notify('warning', 'PDF-файл удалён из карточки');
+  // Загрузка фабричного PDF
+  const handleUploadFactoryPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const pdfId = `pdf-u-${Date.now()}`;
+    await savePdfBlobToIdb(pdfId, file);
+    const nextPdf: AttachedModelPdf = {
+      id: pdfId,
+      name: file.name,
+      sizeBytes: file.size,
+      uploadedAt: new Date().toLocaleDateString('ru-RU'),
+    };
+    commitWithAudit(
+      {
+        ...model,
+        attachedPdfs: [...(model.attachedPdfs || []), nextPdf],
+      },
+      'product',
+      `Прикреплён фабричный PDF «${file.name}»`,
+      undefined,
+      file.name,
+      true
+    );
+    setPreviewPdfId(pdfId);
+    notify('success', `Файл ${file.name} прикреплён к паспорту модели`);
+    e.target.value = '';
   };
 
+  const handleRemovePdf = async (pdfId: string) => {
+    await deletePdfBlobFromIdb(pdfId);
+    const nextList = (model.attachedPdfs || []).filter((p) => p.id !== pdfId);
+    commitWithAudit(
+      { ...model, attachedPdfs: nextList },
+      'product',
+      'Удалён прикреплённый PDF из карточки'
+    );
+    if (previewPdfId === pdfId) {
+      setPreviewPdfId(nextList[0]?.id || null);
+    }
+  };
+
+  // Обновление цены в текущем сценарии (без перезаписи других сценариев!)
+  const handleScenarioPriceChange = (nextPriceRub: number) => {
+    const clean = Math.max(0, Math.round(nextPriceRub));
+    const prevPrice = plan.monthlyPricesRub[selectedMonthIdx] ?? model.retailPriceRub;
+    const nextPlan = {
+      ...plan,
+      scenarioId: scenario.id,
+      monthlyPricesRub: Array(12).fill(clean),
+    };
+    commitWithAudit(
+      {
+        ...model,
+        retailPriceRub: scenario.id === 1 ? clean : model.retailPriceRub,
+        plansByScenario: {
+          ...model.plansByScenario,
+          [scenario.id]: nextPlan,
+        },
+      },
+      'sales',
+      `Изменена плановая цена в ${scenario.title}`,
+      `${prevPrice} ₽`,
+      `${clean} ₽`
+    );
+  };
+
+  // Обновление целевой себестоимости комплекта (Тест-кейс №6: меняются затраты, маржа и бюджет закупок; выкупы НЕ меняются!)
+  const handleUnitCostChange = (nextCostRub: number) => {
+    const clean = Math.max(0, Math.round(nextCostRub));
+    const prev = model.unitCostRub;
+    commitWithAudit(
+      {
+        ...model,
+        unitCostRub: clean,
+        sharedSupplyAndFact: {
+          ...shared,
+          costStatus: clean > 0 ? 'plan' : 'not_filled',
+        },
+      },
+      'finance',
+      'Изменена целевая закупочная себестоимость комплекта (выкупы неизменны)',
+      `${prev} ₽`,
+      `${clean} ₽`
+    );
+  };
+
+  // Обновление плановых выкупов конкретного месяца (Тест-кейс №2: август на Sorbet -> меняются выручка, сценарий, остатки и закупки!)
+  const handleMonthBuyoutsChange = (monthIdx: number, nextPacks: number) => {
+    const clean = Math.max(0, Math.round(nextPacks));
+    const prev = plan.monthlyPacks[monthIdx] || 0;
+    const nextMonthlyPacks = plan.monthlyPacks.map((v, idx) =>
+      idx === monthIdx ? clean : v
+    );
+    commitWithAudit(
+      {
+        ...model,
+        plansByScenario: {
+          ...model.plansByScenario,
+          [scenario.id]: {
+            ...plan,
+            scenarioId: scenario.id,
+            monthlyPacks: nextMonthlyPacks,
+          },
+        },
+      },
+      'sales',
+      `Изменён план выкупов за ${MONTHS_SHORT_RU[monthIdx]} (${scenario.title})`,
+      `${prev} компл.`,
+      `${clean} компл.`
+    );
+  };
+
+  // Обновление фактических продаж месяца (общее для всех сценариев!)
+  const handleMonthActualSaleChange = (
+    monthIdx: number,
+    actualPacksRaw: string,
+    actualPriceRaw?: string
+  ) => {
+    const currentAct = shared.actualSalesByMonth[monthIdx] || {
+      monthIdx,
+      actualBuyoutsPacks: null,
+      actualPriceRub: null,
+    };
+    const nextActualPacks =
+      actualPacksRaw.trim() === ''
+        ? null
+        : Math.max(0, Math.round(Number(actualPacksRaw)));
+    const nextActualPrice =
+      actualPriceRaw === undefined
+        ? currentAct.actualPriceRub
+        : actualPriceRaw.trim() === ''
+        ? null
+        : Math.max(0, Math.round(Number(actualPriceRaw)));
+
+    const nextActuals = shared.actualSalesByMonth.map((r, idx) =>
+      idx === monthIdx
+        ? {
+            monthIdx: idx,
+            actualBuyoutsPacks: nextActualPacks,
+            actualPriceRub: nextActualPrice,
+          }
+        : r
+    );
+
+    commitWithAudit(
+      {
+        ...model,
+        sharedSupplyAndFact: {
+          ...shared,
+          actualSalesByMonth: nextActuals,
+        },
+      },
+      'sales',
+      `Обновлён факт продаж за ${MONTHS_SHORT_RU[monthIdx]}`,
+      currentAct.actualBuyoutsPacks === null
+        ? 'Не заполнено'
+        : `${currentAct.actualBuyoutsPacks} компл.`,
+      nextActualPacks === null ? 'Не заполнено' : `${nextActualPacks} компл.`
+    );
+  };
+
+  // Экспорт плана текущего SKU (CSV или JSON)
+  const handleExportSkuPlan = (format: 'csv' | 'json') => {
+    const rows = exportStructuredScenarioPlan([model], scenario);
+    const content =
+      format === 'csv'
+        ? serializeStructuredPlanToCsv(rows)
+        : JSON.stringify(rows, null, 2);
+    const blob = new Blob([content], {
+      type: format === 'csv' ? 'text/csv;charset=utf-8' : 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${model.code.replace(/\s+/g, '_')}_plan_${scenario.id}.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify(
+      'success',
+      `План ${model.code} экспортирован в ${format.toUpperCase()}`,
+      'Сохранены идентификатор SKU, периоды, цены, выкупы и статусы значений.'
+    );
+  };
+
+  // Импорт плана из JSON / CSV без потери и двойного счёта (Тест-кейс №9)
+  const handleImportSkuPlanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsedRows = parseStructuredPlanCsvOrJson(text, scenario.id);
+
+      const res = importStructuredScenarioPlan([model], parsedRows, scenario.id);
+      if (res.importedRowsCount > 0 && res.updatedModels[0]) {
+        commitWithAudit(
+          res.updatedModels[0],
+          'sales',
+          `Импортирован план из файла ${file.name} (${res.importedRowsCount} мес., пропущено дублей: ${res.duplicatesSkipped})`
+        );
+        notify(
+          'success',
+          `Импортировано ${res.importedRowsCount} периодов по ${model.code}`,
+          res.duplicatesSkipped > 0
+            ? `Защита от двойного счёта: отсеяно ${res.duplicatesSkipped} дублирующихся строк.`
+            : 'Идентификатор SKU, цены, выкупы и статусы применены.'
+        );
+      } else {
+        notify(
+          'warning',
+          `В файле не найдено строк для артикула ${model.code}`
+        );
+      }
+    } catch {
+      notify('error', 'Ошибка чтения файла плана (поддерживаются JSON и CSV)');
+    }
+    e.target.value = '';
+  };
+
+  // Выбранный месяц для первого экрана карточки
+  const selMonthAct = shared.actualSalesByMonth[selectedMonthIdx];
+  const selMonthPacks =
+    selMonthAct && selMonthAct.actualBuyoutsPacks !== null
+      ? selMonthAct.actualBuyoutsPacks
+      : plan.monthlyPacks[selectedMonthIdx] || 0;
+  const selMonthUnits = selMonthPacks * model.unitsInPack;
+  const selMonthPrice =
+    selMonthAct && selMonthAct.actualPriceRub !== null
+      ? selMonthAct.actualPriceRub
+      : plan.monthlyPricesRub[selectedMonthIdx] ?? model.retailPriceRub;
+  const selMonthRevRub =
+    selMonthAct && selMonthAct.actualBuyoutsPacks !== null
+      ? selMonthPacks * selMonthPrice
+      : baseMetrics.monthlyRevenuesRub[selectedMonthIdx] || 0;
+  const selMonthStatus: ValueStatusCode =
+    selMonthAct && selMonthAct.actualBuyoutsPacks !== null
+      ? 'fact'
+      : pnl.revenueStatus;
+
+  const maxSalesBarRub = Math.max(1, ...baseMetrics.monthlyRevenuesRub);
+
   return (
-    <div
-      data-tour="model-passport"
-      className="rounded-[24px] bg-[#FAF8F4] border border-[#E6E0D4] p-5 md:p-7 space-y-6 shadow-[0_12px_36px_rgba(24,23,21,0.05)]"
-    >
-      {/* 4.1. ВЕРХНЯЯ ПАНЕЛЬ КАРТОЧКИ МОДЕЛИ (Стр. 5 и Стр. 14 макета) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#E6E0D4]">
-        <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-[#6E6E73]">
-            <button
-              type="button"
-              onClick={onBackToScenarios}
-              className="inline-flex items-center gap-1.5 font-semibold text-[#1D1D1F] hover:text-[#8B6F47] transition cursor-pointer"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Стратегия роста</span>
-            </button>
-            <span>/</span>
-            <span>{scenario.title}</span>
-            <span>/</span>
-            <span>Модели</span>
-            <span>/</span>
-            <span className="font-bold text-[#1D1D1F]">
-              {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} {model.code}
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            {isEditing ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={model.brandId}
-                  onChange={(e) =>
-                    onUpdateModel({
-                      ...model,
-                      brandId: e.target.value as 'BORNERS' | 'NA_TELE',
-                    })
-                  }
-                  className="h-9 px-2.5 rounded-[10px] bg-white border border-[#C8A97E] text-[14px] font-bold text-[#1D1D1F] cursor-pointer"
-                >
-                  <option value="BORNERS">BORNERS</option>
-                  <option value="NA_TELE">НА ТЕЛЕ</option>
-                </select>
-                <input
-                  type="text"
-                  value={model.code}
-                  onChange={(e) => onUpdateModel({ ...model, code: e.target.value })}
-                  placeholder="№003"
-                  className="h-9 w-24 px-2.5 rounded-[10px] bg-white border border-[#C8A97E] text-[15px] font-bold text-[#1D1D1F]"
-                  title="Артикул / номер модели"
-                />
-                <span className="text-[18px] font-bold text-[#8A857C]">/</span>
-                <input
-                  type="text"
-                  value={model.title}
-                  onChange={(e) => onUpdateModel({ ...model, title: e.target.value })}
-                  placeholder="Название модели"
-                  className="h-9 w-48 sm:w-64 px-2.5 rounded-[10px] bg-white border border-[#C8A97E] text-[15px] font-bold text-[#1D1D1F]"
-                  title="Название модели"
-                />
-                <input
-                  type="text"
-                  value={model.subtitle}
-                  onChange={(e) => onUpdateModel({ ...model, subtitle: e.target.value })}
-                  placeholder="Боксеры (trunks) · 4 шт. в комплекте"
-                  className="h-9 w-64 sm:w-80 px-3 rounded-full bg-[#EFECE4] border border-[#C8A97E] text-[#1D1D1F] text-[12px] font-semibold"
-                  title="Подзаголовок / тип и комплектация"
-                />
-              </div>
-            ) : (
-              <>
-                <h2
-                  onClick={() => setIsEditing(true)}
-                  title="Нажмите, чтобы редактировать бренд, номер и название модели"
-                  className="text-[22px] md:text-[26px] font-bold tracking-[-0.02em] text-[#1D1D1F] hover:text-[#8B6F47] transition cursor-pointer inline-flex items-center gap-2 group"
-                >
-                  <span>
-                    {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} {model.code} /{' '}
-                    {model.title}
-                  </span>
-                  <Edit3 className="h-4 w-4 text-[#8B6F47] opacity-60 group-hover:opacity-100 transition" />
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  title="Нажмите, чтобы изменить описание комплектации и типа изделия"
-                  className="px-2.5 py-1 rounded-full bg-[#EFECE4] hover:bg-[#E5DFD3] text-[#5A564F] text-[11.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
-                >
-                  <span>{model.subtitle}</span>
-                  <Edit3 className="h-3 w-3 text-[#8B6F47]" />
-                </button>
-              </>
-            )}
+    <div className="space-y-5">
+      {/* ПОЛНОЭКРАННАЯ ГАЛЕРЕЯ С ZOOM / PAN / 100% / ОРИГИНАЛОМ (Раздел 02 ТЗ v1.1) */}
+      <FullscreenPhotoLightbox
+        open={lightboxOpen}
+        items={
+          model.gallery.filter((g) => Boolean(g.url || g.originalUrl)).length > 0
+            ? model.gallery
+            : [
+                {
+                  id: 'fallback-main',
+                  category: 'pack',
+                  label: `${model.code} · ${model.title}`,
+                  url: mainImageSrc,
+                  originalUrl: mainImageSrc,
+                  isMain: true,
+                },
+              ]
+        }
+        activeId={activeGalleryItem?.id || 'fallback-main'}
+        modelCode={model.code}
+        modelTitle={model.title}
+        onSelectId={(id) => setSelectedGalleryId(id)}
+        onClose={() => setLightboxOpen(false)}
+      />
+
+      {/* 1. КОМПАКТНАЯ ШАПКА КАРТОЧКИ БЕЗ ДУБЛИРОВАНИЯ ЗАГОЛОВКОВ (Раздел 02 ТЗ v1.1) */}
+      <div className="rounded-[20px] bg-white border border-[#E6E0D4] px-5 py-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={onBackToScenarios}
+            className="h-9 px-3 rounded-[10px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[12.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 transition cursor-pointer"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Сценарии</span>
+          </button>
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#1D1D1F] text-white font-mono text-[11px] font-semibold">
+                {model.code}
+              </span>
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#F4EFE6] text-[#5C4928] text-[11px] font-semibold">
+                {brandPortfolioLabel}
+              </span>
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#EEF2F6] text-[#334E68] text-[11px] font-semibold">
+                {model.launchStatus}
+              </span>
+              <span className="text-[11px] text-[#6E6E73]">
+                Паспорт v{shared.passportVersion} · {model.unitsInPack} изд. в комплекте
+              </span>
+            </div>
+            <h1 className="text-[19px] md:text-[22px] font-bold tracking-[-0.02em] text-[#1D1D1F] truncate mt-0.5">
+              {model.title}
+            </h1>
           </div>
         </div>
 
-        {/* Справа: статус, Редактировать, меню «⋯» */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <select
-            value={model.launchStatus}
-            onChange={(e) =>
-              onUpdateModel({
-                ...model,
-                launchStatus: e.target.value as ScenarioModelSpec['launchStatus'],
-              })
-            }
-            className="h-9 px-3 rounded-[10px] bg-white border border-[#DED8CC] text-[12.5px] font-semibold text-[#1D1D1F] cursor-pointer"
-          >
-            <option value="В плане">Статус: В плане</option>
-            <option value="В разработке">Статус: В разработке</option>
-            <option value="Утверждено">Статус: Утверждено</option>
-            <option value="В архиве">Статус: В архиве</option>
-          </select>
+        {/* Переключатель активного сценария + 3 чистые кнопки действий */}
+        <div className="flex flex-wrap items-center gap-2">
+          {allScenarios.length > 0 && onSelectScenario ? (
+            <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-[10px] bg-[#FAF8F4] border border-[#DED8CC]">
+              <span className="text-[11px] font-medium text-[#6E6E73]">Сценарий:</span>
+              <select
+                value={scenario.id}
+                onChange={(e) => onSelectScenario(Number(e.target.value))}
+                className="bg-transparent text-[12px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
+              >
+                {allScenarios.map((sc) => (
+                  <option key={sc.id} value={sc.id}>
+                    {sc.title} ({sc.monthlyTargetMln} млн ₽/мес)
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <span className="h-9 px-3 rounded-[10px] bg-[#FAF8F4] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center">
+              {scenario.title} · {scenario.monthlyTargetMln} млн ₽/мес
+            </span>
+          )}
 
           <button
             type="button"
             onClick={() => setIsEditing((v) => !v)}
-            className={`h-9 px-3.5 rounded-[10px] border text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${
+            className={`h-9 px-3.5 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 border transition cursor-pointer ${
               isEditing
-                ? 'bg-[#FAF4EC] text-[#8B6F47] border-[#C8A97E]'
-                : 'bg-white hover:bg-[#F3F0E8] text-[#1D1D1F] border-[#DED8CC]'
+                ? 'bg-[#17643A] text-white border-[#17643A]'
+                : 'bg-white hover:bg-[#FAF8F4] text-[#1D1D1F] border-[#DED8CC]'
             }`}
           >
-            <Edit3 className="h-3.5 w-3.5" />
-            <span>{isEditing ? 'Режим правки' : 'Редактировать'}</span>
+            {isEditing ? (
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Сохранить</span>
+              </>
+            ) : (
+              <>
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Редактировать</span>
+              </>
+            )}
           </button>
 
           <button
             type="button"
-            onClick={handleExplicitSave}
-            className="h-9 px-4 rounded-[10px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+            onClick={onOpenPdfModal}
+            className="h-9 px-3.5 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
           >
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>Сохранить карточку</span>
+            <Printer className="h-3.5 w-3.5" />
+            <span>Экспорт ТЗ PDF</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => onDeleteOrArchiveModel(model)}
-            title="Удалить карточку модели"
-            className="h-9 px-3 rounded-[10px] bg-white hover:bg-[#FFF4F2] border border-[#DED8CC] hover:border-[#F0C7C2] text-[#C93B2B] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Удалить</span>
-          </button>
-
-          {/* Меню «⋯» (Дублировать, Экспортировать ТЗ в PDF, Удалить) */}
           <div className="relative">
             <button
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
-              className="h-9 w-9 rounded-[10px] bg-white hover:bg-[#F3F0E8] border border-[#DED8CC] flex items-center justify-center text-[#1D1D1F] cursor-pointer"
-              title="Действия с моделью"
+              aria-label="Дополнительные действия"
+              className="h-9 w-9 rounded-[10px] bg-white hover:bg-[#FAF8F4] border border-[#DED8CC] flex items-center justify-center text-[#1D1D1F] cursor-pointer"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-1.5 w-60 rounded-[14px] bg-white border border-[#DED8CC] shadow-xl py-1.5 z-30 text-[12.5px]">
+              <div className="absolute right-0 mt-1.5 w-56 rounded-[14px] bg-white border border-[#E6E0D4] shadow-xl py-1.5 z-30 text-[12.5px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenSalesPlan();
+                  }}
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#FAF8F4] flex items-center gap-2 cursor-pointer"
+                >
+                  <TableIcon className="h-3.5 w-3.5 text-[#6E6E73]" />
+                  <span>Матрица продаж (экран №3)</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
                     onDuplicateModel(model);
                   }}
-                  className="w-full px-3.5 py-2 text-left hover:bg-[#FAF8F4] flex items-center gap-2.5 text-[#1D1D1F] cursor-pointer"
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#FAF8F4] flex items-center gap-2 cursor-pointer"
                 >
                   <Copy className="h-3.5 w-3.5 text-[#6E6E73]" />
-                  <span>Дублировать модель</span>
+                  <span>Создать цветовой вариант</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenPdfModal();
-                  }}
-                  className="w-full px-3.5 py-2 text-left hover:bg-[#FAF8F4] flex items-center gap-2.5 text-[#1D1D1F] cursor-pointer"
-                >
-                  <Printer className="h-3.5 w-3.5 text-[#6E6E73]" />
-                  <span>Экспортировать ТЗ в PDF</span>
-                </button>
-                <div className="my-1 border-t border-[#EFECE4]" />
                 <button
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
                     onDeleteOrArchiveModel(model);
                   }}
-                  className="w-full px-3.5 py-2 text-left hover:bg-[#FFF4F2] flex items-center gap-2.5 text-[#C93B2B] cursor-pointer"
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#FFF2F2] text-[#B42318] flex items-center gap-2 cursor-pointer"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  <span>Удалить модель</span>
+                  <span>Удалить / В архив</span>
                 </button>
               </div>
             )}
@@ -652,1729 +702,1939 @@ export function ScenarioModelCardScreen({
         </div>
       </div>
 
-      {/* Быстрая панель редактирования основных параметров, если включён режим «Редактировать» */}
-      {isEditing && (
-        <div className="rounded-[16px] bg-white border border-[#C8A97E] p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 shadow-xs">
-          <div>
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Бренд
-            </label>
-            <select
-              value={model.brandId}
-              onChange={(e) =>
-                onUpdateModel({
-                  ...model,
-                  brandId: e.target.value as 'BORNERS' | 'NA_TELE',
-                })
-              }
-              className="w-full h-8 px-2 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold bg-white"
-            >
-              <option value="BORNERS">BORNERS</option>
-              <option value="NA_TELE">НА ТЕЛЕ</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Код / № модели
-            </label>
-            <input
-              type="text"
-              value={model.code}
-              onChange={(e) => onUpdateModel({ ...model, code: e.target.value })}
-              placeholder="№003"
-              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Название модели
-            </label>
-            <input
-              type="text"
-              value={model.title}
-              onChange={(e) => onUpdateModel({ ...model, title: e.target.value })}
-              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
-            />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-1">
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Подзаголовок в шапке
-            </label>
-            <input
-              type="text"
-              value={model.subtitle}
-              onChange={(e) => onUpdateModel({ ...model, subtitle: e.target.value })}
-              placeholder="Боксеры (trunks) · 4 шт."
-              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Комплектация (шт.)
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={model.unitsInPack}
-              onChange={(e) =>
-                onUpdateModel({
-                  ...model,
-                  unitsInPack: Math.max(1, Number(e.target.value) || 1),
-                })
-              }
-              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Розничная цена (₽)
-            </label>
-            <input
-              type="number"
-              value={model.retailPriceRub}
-              onChange={(e) => {
-                const nextPrice = Math.max(100, Number(e.target.value) || 0);
-                const plan = model.plansByScenario[scenario.id];
-                onUpdateModel({
-                  ...model,
-                  retailPriceRub: nextPrice,
-                  plansByScenario: plan
-                    ? {
-                        ...model.plansByScenario,
-                        [scenario.id]: {
-                          ...plan,
-                          monthlyPricesRub: Array(12).fill(nextPrice),
-                        },
-                      }
-                    : model.plansByScenario,
-                });
-              }}
-              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
-            />
-          </div>
-          <div>
-            <label className="text-[11px] font-semibold text-[#6E6E73]">
-              Себестоимость (₽)
-            </label>
-            <input
-              type="number"
-              value={model.unitCostRub}
-              onChange={(e) =>
-                onUpdateModel({
-                  ...model,
-                  unitCostRub: Math.max(50, Number(e.target.value) || 0),
-                })
-              }
-              className="w-full h-8 px-2.5 mt-1 rounded-[8px] border border-[#D4CDC2] text-[12.5px] font-semibold"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 4.2. ГЛАВНЫЙ БЛОК — ДВЕ КОЛОНКИ: СЛЕВА ГАЛЕРЕЯ + ФОТО, СПРАВА 6 ФИНАНСОВЫХ ПОКАЗАТЕЛЕЙ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* Левая половина (6 колонок): Вертикальная галерея миниатюр + Крупное главное фото */}
-        <div className="lg:col-span-6 rounded-[20px] bg-white border border-[#E6E0D4] p-4 flex flex-col sm:flex-row gap-3.5 shadow-2xs">
-          {/* Вертикальная галерея миниатюр (с возможностью переименования и удаления любой строки) */}
-          <div className="sm:w-[162px] flex sm:flex-col gap-1.5 overflow-x-auto sm:overflow-visible shrink-0">
-            {model.gallery.map((item) => {
-              const isSelected = item.id === activeGalleryItem?.id;
-              const isRenaming = editingGalleryId === item.id;
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedGalleryId(item.id)}
-                  onDoubleClick={() => setEditingGalleryId(item.id)}
-                  className={`group px-2 py-1.5 rounded-[10px] border text-left transition cursor-pointer flex items-center justify-between gap-1 shrink-0 ${
-                    isSelected
-                      ? 'bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-2xs'
-                      : 'bg-[#FAF8F4] hover:bg-[#F2EFE8] text-[#4A4740] border-[#E6E0D4]'
-                  }`}
-                >
-                  {isRenaming ? (
-                    <input
-                      type="text"
-                      autoFocus
-                      value={item.label}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => handleRenameGalleryItem(item.id, e.target.value)}
-                      onBlur={() => setEditingGalleryId(null)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === 'Escape') {
-                          setEditingGalleryId(null);
-                        }
-                      }}
-                      className={`w-full h-6 px-1.5 rounded-[6px] text-[11px] font-semibold outline-none ${
-                        isSelected
-                          ? 'bg-white/15 text-white border border-white/30'
-                          : 'bg-white text-[#1D1D1F] border border-[#C8A97E]'
-                      }`}
-                    />
-                  ) : (
-                    <span
-                      className="text-[11.5px] font-semibold truncate flex-1"
-                      title={`${item.label} (двойной клик или ✎ — переименовать)`}
-                    >
-                      {item.label}
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    {item.isMain && (
-                      <Star
-                        className={`h-3 w-3 shrink-0 ${
-                          isSelected
-                            ? 'text-[#E5B869] fill-[#E5B869]'
-                            : 'text-[#C89D54] fill-[#C89D54]'
-                        }`}
-                      />
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedGalleryId(item.id);
-                        setEditingGalleryId(
-                          editingGalleryId === item.id ? null : item.id
-                        );
-                      }}
-                      title="Переименовать эту строку"
-                      className={`p-0.5 rounded hover:bg-black/10 transition cursor-pointer ${
-                        isSelected
-                          ? 'text-white/75 hover:text-white'
-                          : 'text-[#8A857C] hover:text-[#1D1D1F]'
-                      }`}
-                    >
-                      <Edit3 className="h-2.5 w-2.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteGalleryItem(item.id);
-                      }}
-                      title="Удалить эту строку"
-                      className={`p-0.5 rounded transition cursor-pointer ${
-                        isSelected
-                          ? 'text-white/75 hover:text-[#FF8A80] hover:bg-white/10'
-                          : 'text-[#8A857C] hover:text-[#C93B2B] hover:bg-[#FFF0EE]'
-                      }`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+      {/* 2. ПЕРВЫЙ ЭКРАН: ЛЕВАЯ КОЛОНКА (ОРИГИНАЛЬНОЕ ФОТО БЕЗ ОБРЕЗКИ) + ПРАВАЯ КОЛОНКА (5 КЛЮЧЕВЫХ МЕТРИК) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* ЛЕВАЯ КОЛОНКА: Галерея оригинала без обрезки */}
+        <div className="lg:col-span-6 rounded-[22px] bg-white border border-[#E6E0D4] p-4 md:p-5 flex flex-col justify-between space-y-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  'ALL',
+                  'pack',
+                  'single',
+                  'construction',
+                  'waistband',
+                  'fabric',
+                  'pantone',
+                  'packaging',
+                ] as const
+              ).map((cat) => {
+                const count =
+                  cat === 'ALL'
+                    ? model.gallery.filter((g) => Boolean(g.url || g.originalUrl)).length
+                    : model.gallery.filter(
+                        (g) => g.category === cat && Boolean(g.url || g.originalUrl)
+                      ).length;
+                if (cat !== 'ALL' && count === 0 && !isEditing) return null;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setGalleryCategoryFilter(cat)}
+                    className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition cursor-pointer ${
+                      galleryCategoryFilter === cat
+                        ? 'bg-[#1D1D1F] text-white'
+                        : 'bg-[#F5F3EE] text-[#5A564F] hover:bg-[#EAE6DC]'
+                    }`}
+                  >
+                    {cat === 'ALL'
+                      ? `Все (${count})`
+                      : `${GALLERY_CATEGORY_LABELS_RU[cat]} (${count})`}
+                  </button>
+                );
+              })}
+            </div>
 
             <button
               type="button"
-              onClick={handleAddGalleryItem}
-              className="px-2.5 py-1.5 rounded-[10px] border border-[#E6E0D4] bg-white hover:bg-[#FAF8F4] text-[#4A4740] text-[11px] font-semibold inline-flex items-center justify-center gap-1 cursor-pointer transition shrink-0"
+              onClick={() => setLightboxOpen(true)}
+              className="h-7 px-2.5 rounded-full bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1 transition cursor-pointer"
             >
-              <Plus className="h-3 w-3" />
-              <span>Добавить строку</span>
+              <ZoomIn className="h-3.5 w-3.5 text-[#8B6F47]" />
+              <span>Во весь экран · Zoom</span>
             </button>
+          </div>
 
-            <label className="px-2.5 py-2 rounded-[10px] border border-dashed border-[#C8A97E] bg-[#FAF6EE] hover:bg-[#F3ECE0] text-[#7A5C38] text-[11px] font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer transition shrink-0">
-              <Upload className="h-3.5 w-3.5" />
-              <span>+ Загрузить фото</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-            </label>
-
-            {model.gallery.some((g) => !g.url) && model.gallery.length > 1 && (
-              <button
-                type="button"
-                onClick={handleClearTemplateGalleryItems}
-                title="Удалить все пустые шаблонные вкладки без загруженных фото"
-                className="px-2 py-1 rounded-[8px] text-[10px] font-semibold text-[#C93B2B] hover:bg-[#FFF4F2] transition cursor-pointer text-center shrink-0"
-              >
-                Очистить пустые вкладки
-              </button>
+          {/* Крупное фото целиком без обрезки (object-contain) */}
+          <div
+            onClick={() => mainImageSrc && setLightboxOpen(true)}
+            title="Нажмите для полноэкранного просмотра оригинала с увеличением"
+            className="relative rounded-[16px] bg-[#F5F4F1] border border-[#ECE8DF] h-[310px] md:h-[360px] flex items-center justify-center p-3 overflow-hidden group cursor-zoom-in"
+          >
+            {mainImageSrc ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={mainImageSrc}
+                  alt={`${model.code} ${model.title}`}
+                  className="max-h-full max-w-full w-auto h-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+                />
+                <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#1D1D1F]/80 text-white text-[11px] font-medium inline-flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
+                  <ZoomIn className="h-3.5 w-3.5" />
+                  <span>Открыть оригинал (Zoom / 100%)</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-center text-[13px] text-[#8E8A82]">
+                Оригинальная фотография ещё не загружена
+              </div>
             )}
           </div>
 
-          {/* Крупное главное изображение товара + прямое редактирование названия вкладки + кнопка «Назначить главным» */}
-          <div className="flex-1 rounded-[16px] bg-gradient-to-b from-[#FAF7F0] to-[#F2ECE1] border border-[#EAE3D5] p-4 flex flex-col justify-between relative">
-            <div className="flex flex-wrap items-center justify-between gap-2 z-10">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 border border-[#E5DEC9] shadow-2xs">
-                <Edit3 className="h-3 w-3 text-[#8B6F47] shrink-0" />
+          {/* Миниатюры кадров + загрузка оригинала */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {filteredGallery.map((g) => {
+                const isSel = g.id === activeGalleryItem?.id;
+                const src = normalizeAssetUrl(g.url || g.originalUrl || '');
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setSelectedGalleryId(g.id)}
+                    className={`shrink-0 rounded-[10px] p-1 border transition cursor-pointer ${
+                      isSel
+                        ? 'border-[#1D1D1F] bg-[#FAF8F4] ring-1 ring-[#1D1D1F]'
+                        : 'border-[#E6E0D4] bg-white hover:border-[#B8B0A0]'
+                    }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={g.label}
+                      className="h-12 w-14 object-contain rounded-[6px] bg-[#F5F4F1]"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isEditing && (
+                <select
+                  value={newPhotoCategory}
+                  onChange={(e) =>
+                    setNewPhotoCategory(e.target.value as GalleryCategoryV11)
+                  }
+                  className="h-8 px-2 rounded-[8px] border border-[#DED8CC] bg-[#FAF8F4] text-[11px] font-medium"
+                >
+                  {(Object.keys(GALLERY_CATEGORY_LABELS_RU) as GalleryCategoryV11[]).map(
+                    (cat) => (
+                      <option key={cat} value={cat}>
+                        {GALLERY_CATEGORY_LABELS_RU[cat]}
+                      </option>
+                    )
+                  )}
+                </select>
+              )}
+              <label className="h-8 px-2.5 rounded-[9px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer transition">
+                <Upload className="h-3.5 w-3.5 text-[#8B6F47]" />
+                <span>+ Фото</span>
                 <input
-                  type="text"
-                  value={activeGalleryItem?.label || ''}
-                  onChange={(e) => {
-                    if (activeGalleryItem) {
-                      handleRenameGalleryItem(activeGalleryItem.id, e.target.value);
-                    }
-                  }}
-                  placeholder="Название вкладки..."
-                  title="Нажмите и введите своё название для этого фото/вкладки"
-                  className="text-[11.5px] font-semibold text-[#1D1D1F] bg-transparent outline-none w-32 sm:w-40"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadOriginalPhoto}
+                  className="hidden"
                 />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {/* ПРАВАЯ КОЛОНКА: Строго 5 ключевых показателей с единицами, периодом, статусом и формулой (Раздел 02 и 06 ТЗ v1.1) */}
+        <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5 content-start">
+          {/* Метрика 1: Выручка выбранного месяца (на всю ширину правой колонки) */}
+          <div className="sm:col-span-2 rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-[#5A564F]">
+                  1. Выручка выбранного месяца
+                </span>
+                <select
+                  value={selectedMonthIdx}
+                  onChange={(e) => setSelectedMonthIdx(Number(e.target.value))}
+                  className="h-6 px-2 rounded-[6px] bg-[#FAF8F4] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] cursor-pointer"
+                >
+                  {MONTHS_SHORT_RU.map((mName, idx) => (
+                    <option key={mName} value={idx}>
+                      {mName} {scenario.year}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center gap-1.5">
-                {activeGalleryItem && !activeGalleryItem.isMain ? (
-                  <button
-                    type="button"
-                    onClick={() => handleSetMainGallery(activeGalleryItem.id)}
-                    className="h-7 px-2.5 rounded-full bg-[#1D1D1F] text-white text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer shadow-2xs"
-                  >
-                    <Star className="h-3 w-3 text-[#E5B869]" />
-                    <span>Назначить главным</span>
-                  </button>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[11px] font-bold inline-flex items-center gap-1">
-                    <Star className="h-3 w-3 fill-[#2E6B4E]" />
-                    Главное фото
-                  </span>
-                )}
-
-                {activeGalleryItem && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteGalleryItem(activeGalleryItem.id)}
-                    title="Удалить это фото / вкладку"
-                    className="h-7 w-7 rounded-full bg-white/90 hover:bg-[#FFF0EE] border border-[#E5DEC9] hover:border-[#F0C7C2] text-[#C93B2B] flex items-center justify-center cursor-pointer transition"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="my-auto py-2">
-              <BoxerPackStackSvg
-                colors={primaryColors}
-                large
-                brandLabel={model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
-                category={activeGalleryItem?.category || 'pack'}
-                customPhotoUrl={activeGalleryItem?.url}
-              />
-            </div>
-
-            <div className="flex items-center justify-between text-[11px] text-[#6E6E73] pt-1 border-t border-[#E6DFD1]">
-              <span>
-                1 комплект = {model.unitsInPack} шт. · {model.palettes.length} палитры
-              </span>
-              <span className="font-semibold text-[#1D1D1F]">
-                {model.fabric.composition.split(',')[0]}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Правая половина (6 колонок): Финансовая сводка — РОВНО 6 АВТОМАТИЧЕСКИХ ПОКАЗАТЕЛЕЙ (п. 4.2 ТЗ) */}
-        <div className="lg:col-span-6 grid grid-cols-2 sm:grid-cols-3 gap-3 content-between">
-          {(() => {
-            const actingSku = getActingSkuByWbOrVendor(model.code, model.title);
-            if (actingSku) {
-              return (
-                <>
-                  {/* 1. Выручка / год */}
-                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
-                      Выручка / год
-                    </div>
-                    <div className="my-2">
-                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                        {(actingSku.totalRevenueRub / 1_000_000)
-                          .toFixed(2)
-                          .replace('.', ',')}{' '}
-                        млн ₽
-                      </div>
-                      <div className="text-[11px] text-[#8B6F47] font-semibold mt-0.5">
-                        {actingSku.totalRevenueRub.toLocaleString('ru-RU')} ₽ · 12 мес.
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 2. Выкупы / год */}
-                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
-                      Выкупы / год
-                    </div>
-                    <div className="my-2">
-                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                        {actingSku.totalBuyoutsSets.toLocaleString('ru-RU')}
-                      </div>
-                      <div className="text-[11px] font-semibold text-[#2E6B4E] mt-0.5">
-                        Заказы: {actingSku.totalOrdersSets.toLocaleString('ru-RU')} · Выкуп {actingSku.avgBuyoutRatePct}%
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 3. Декабрь */}
-                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                    <div className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-[#6E6E73]">
-                      Декабрь
-                    </div>
-                    <div className="my-2">
-                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                        {(actingSku.decemberRevenueRub / 1_000_000)
-                          .toFixed(2)
-                          .replace('.', ',')}{' '}
-                        млн ₽
-                      </div>
-                      <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                        {actingSku.decemberRevenueRub.toLocaleString('ru-RU')} ₽ в дек. 2027
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4. Годовая цена (выручка / выкупы) */}
-                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                    <div className="text-[11.5px] text-[#6E6E73]">
-                      Годовая цена (выручка / выкупы)
-                    </div>
-                    <div className="my-2">
-                      <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                        {actingSku.weightedAvgPriceRub.toLocaleString('ru-RU')} ₽
-                      </div>
-                      <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                        за комплект ({actingSku.unitsInPack} шт.)
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5. Затраты / год */}
-                  <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                    <div className="text-[11.5px] text-[#6E6E73]">
-                      Товарные затраты / год
-                    </div>
-                    <div className="my-2">
-                      <div className="text-[21px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                        {(actingSku.totalCostOfGoodsRub / 1_000_000)
-                          .toFixed(2)
-                          .replace('.', ',')}{' '}
-                        млн ₽
-                      </div>
-                      <div className="text-[10.5px] text-[#6E6E73] mt-0.5">
-                        {actingSku.totalCostOfGoodsRub.toLocaleString('ru-RU')} ₽ (товар + упак. + приёмка)
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 6. Статус проверки и ограничения */}
-                  <div className="rounded-[18px] bg-[#FAF4EC] border border-[#E8D8C3] p-4 flex flex-col justify-between shadow-2xs">
-                    <div className="text-[11.5px] font-semibold text-[#8B6F47]">
-                      Статус бренда · WB {actingSku.wbSku}
-                    </div>
-                    <div className="my-1">
-                      <div className="text-[14px] font-bold text-[#1D1D1F]">
-                        {actingSku.brandStatus}
-                      </div>
-                      <div className="text-[10.5px] text-[#5A564F] mt-1">
-                        Комиссии, реклама, логистика WB и налоги не включены (прибыль без них не считается)
-                      </div>
-                    </div>
-                  </div>
-                </>
-              );
-            }
-
-            return (
-              <>
-                {/* 1. Прогноз выручки за год */}
-                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                  <div className="text-[11.5px] text-[#6E6E73]">Прогноз выручки за год</div>
-                  <div className="my-2">
-                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                      {(metrics.annualRevenueRub / 1_000_000).toFixed(1).replace('.', ',')} млн ₽
-                    </div>
-                    <div className="text-[11px] text-[#8B6F47] font-semibold mt-0.5">
-                      Сумма 12 месяцев {scenario.year}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. Выручка в целевом месяце */}
-                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                  <div className="text-[11.5px] text-[#6E6E73]">
-                    Выручка в целевом месяце
-                  </div>
-                  <div className="my-2">
-                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                      {(metrics.targetMonthRevenueRub / 1_000_000)
-                        .toFixed(1)
-                        .replace('.', ',')}{' '}
-                      млн ₽
-                    </div>
-                    <div className="text-[11px] font-semibold text-[#2E6B4E] mt-0.5">
-                      Вклад в цель: {metrics.goalSharePct.toFixed(1).replace('.', ',')}% (
-                      {scenario.targetMonthLabel})
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Средняя цена реализации */}
-                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                  <div className="text-[11.5px] text-[#6E6E73]">Средняя цена реализации</div>
-                  <div className="my-2">
-                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                      {metrics.avgRetailPriceRub.toLocaleString('ru-RU')} ₽
-                    </div>
-                    <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                      за комплект ({model.unitsInPack} шт.)
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Закупочная себестоимость под ключ */}
-                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                  <div className="text-[11.5px] text-[#6E6E73]">
-                    Закупочная себестоимость
-                  </div>
-                  <div className="my-2">
-                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                      {model.unitCostRub.toLocaleString('ru-RU')} ₽
-                    </div>
-                    <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                      под ключ в РФ ({Math.round(model.unitCostRub / model.unitsInPack)} ₽ / шт.)
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. Маржинальность (с формулой по наведению) */}
-                <div
-                  title={`Формула: (Цена ${metrics.avgRetailPriceRub} ₽ − Себестоимость ${model.unitCostRub} ₽ − Комиссия ${metrics.feeRub} ₽ − Логистика ${model.logisticsRub} ₽ − Реклама ${metrics.adsRub} ₽) ÷ Цена = ${metrics.unitMarginRub} ₽ (${metrics.unitMarginPct}%)`}
-                  className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs cursor-help"
-                >
-                  <div className="flex items-center justify-between text-[11.5px] text-[#6E6E73]">
-                    <span>Маржинальность</span>
-                    <Info className="h-3.5 w-3.5 text-[#8B6F47]" />
-                  </div>
-                  <div className="my-2">
-                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#2E6B4E]">
-                      {metrics.unitMarginPct}%
-                    </div>
-                    <div className="text-[11px] text-[#2E6B4E] font-semibold mt-0.5">
-                      +{metrics.unitMarginRub} ₽ чистыми с комплекта
-                    </div>
-                  </div>
-                </div>
-
-                {/* 6. План продаж за год (в комплектах) */}
-                <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 flex flex-col justify-between shadow-2xs">
-                  <div className="text-[11.5px] text-[#6E6E73]">План продаж за год</div>
-                  <div className="my-2">
-                    <div className="text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
-                      {metrics.annualPacks.toLocaleString('ru-RU')}
-                    </div>
-                    <div className="text-[11px] text-[#6E6E73] mt-0.5">
-                      компл. (~{metrics.avgMonthlyPacks.toLocaleString('ru-RU')} компл./мес)
-                    </div>
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-
-          {/* Кнопка быстрого перехода на Экран №3 (План продаж и производства) */}
-          <div className="col-span-2 sm:col-span-3 rounded-[16px] bg-[#1D1D1F] text-white p-3.5 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[13px] font-bold">
-                Детальный помесячный план продаж, поставок и остатков ({scenario.year})
-              </div>
-              <div className="text-[11.5px] text-white/70">
-                1-й заказ: {(metrics.plan.firstOrderPacks * model.unitsInPack).toLocaleString('ru-RU')}{' '}
-                шт. ({metrics.plan.firstOrderPacks.toLocaleString('ru-RU')} комплектов) · старт
-                продаж: {MONTHS_SHORT_RU[metrics.plan.salesStartMonthIdx]} {scenario.year}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onOpenSalesPlan}
-              className="h-9 px-4 rounded-[10px] bg-white text-[#1D1D1F] hover:bg-[#F5F2EB] text-[12.5px] font-bold inline-flex items-center gap-1.5 transition cursor-pointer shrink-0"
-            >
-              <span>Открыть План продаж (Экран №3)</span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 4.3. ПЯТЬ ВКЛАДОК КАРТОЧКИ МОДЕЛИ (открыта всегда только одна, по умолчанию — «Обзор») */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-b border-[#E6E0D4] pb-3">
-        <div className="inline-flex flex-wrap gap-1.5 rounded-[12px] bg-[#EFECE4] p-1 border border-[#E2DDD2]">
-          <button
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold transition cursor-pointer ${
-              activeTab === 'overview'
-                ? 'bg-[#1D1D1F] text-white shadow-2xs'
-                : 'text-[#5A564F] hover:text-[#1D1D1F]'
-            }`}
-          >
-            Обзор
-          </button>
-          <button
-            type="button"
-            onClick={onOpenSalesPlan}
-            className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-[#5A564F] hover:text-[#1D1D1F] hover:bg-white/60 transition cursor-pointer inline-flex items-center gap-1"
-          >
-            <span>План продаж</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('production')}
-            className={`h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold transition cursor-pointer ${
-              activeTab === 'production'
-                ? 'bg-[#1D1D1F] text-white shadow-2xs'
-                : 'text-[#5A564F] hover:text-[#1D1D1F]'
-            }`}
-          >
-            Производство
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('economics')}
-            className={`h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold transition cursor-pointer ${
-              activeTab === 'economics'
-                ? 'bg-[#1D1D1F] text-white shadow-2xs'
-                : 'text-[#5A564F] hover:text-[#1D1D1F]'
-            }`}
-          >
-            Экономика
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('spec')}
-            className={`h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold transition cursor-pointer ${
-              activeTab === 'spec'
-                ? 'bg-[#1D1D1F] text-white shadow-2xs'
-                : 'text-[#5A564F] hover:text-[#1D1D1F]'
-            }`}
-          >
-            Спецификация
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="h-8 px-3.5 rounded-[9px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs">
-            <Upload className="h-3.5 w-3.5 text-[#E5B869]" />
-            <span>+ Загрузить PDF в карточку</span>
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              multiple
-              onChange={handlePdfUpload}
-              className="hidden"
-            />
-          </label>
-
-          <button
-            type="button"
-            onClick={onOpenPdfModal}
-            className="h-8 px-3.5 rounded-[9px] bg-white hover:bg-[#F3F0E8] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer"
-          >
-            <Printer className="h-3.5 w-3.5 text-[#8B6F47]" />
-            <span>Скачать техническое задание PDF</span>
-          </button>
-        </div>
-      </div>
-
-      {/* СОДЕРЖИМОЕ ВЫБРАННОЙ ВКЛАДКИ (ВСЕГДА ТОЛЬКО ОДНА АКТИВНАЯ ВКЛАДКА) */}
-      {activeTab === 'overview' && (
-        <div className="space-y-5">
-          {/* Если открыт один из 7 действующих артикулов ИП Нерсесянц — выводим полную помесячную таблицу по макету Стр. 3–9 PDF */}
-          {(() => {
-            const actingSku = getActingSkuByWbOrVendor(model.code, model.title);
-            if (!actingSku) return null;
-            return (
-              <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-3 shadow-2xs">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.06em] text-[#8B6F47]">
-                      Карточка артикула 0{actingSku.orderNum} / 07 · ИП Нерсесянц · WB {actingSku.wbSku}
-                    </div>
-                    <h4 className="text-[16px] font-bold text-[#1D1D1F] mt-0.5">
-                      ПО МЕСЯЦАМ · ПЛАН 2027 ({actingSku.vendorSku})
-                    </h4>
-                  </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold ${
-                      actingSku.wbSku === '72302360'
-                        ? 'bg-[#FEF3C7] text-[#B45309] border border-[#FCD34D]'
-                        : actingSku.wbSku === '86205435'
-                        ? 'bg-[#F3F4F6] text-[#4B5563] border border-[#D1D5DB]'
-                        : 'bg-[#2E6B4E]/12 text-[#2E6B4E]'
-                    }`}
-                  >
-                    {actingSku.brandStatus}
-                  </span>
-                </div>
-
-                <div className="overflow-x-auto rounded-[14px] border border-[#E6E0D4]">
-                  <table className="w-full text-left border-collapse text-[12.5px]">
-                    <thead>
-                      <tr className="bg-[#162234] text-white text-[11.5px]">
-                        <th className="py-2.5 px-4 font-semibold">Месяц</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Заказы</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Выкупы</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Выкуп %</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Цена, ₽</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Выручка, ₽</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Затраты, ₽</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#EFECE4]">
-                      {actingSku.monthly.map((row, idx) => (
-                        <tr key={row.period} className="hover:bg-[#FAF7F0]">
-                          <td className="py-2 px-4 font-semibold text-[#1D1D1F]">
-                            {MONTHS_SHORT_RU[idx]}
-                          </td>
-                          <td className="py-2 px-4 text-right text-[#4B5563]">
-                            {row.orders_sets.toLocaleString('ru-RU')}
-                          </td>
-                          <td className="py-2 px-4 text-right font-semibold text-[#1D1D1F]">
-                            {row.buyouts_sets.toLocaleString('ru-RU')}
-                          </td>
-                          <td className="py-2 px-4 text-right text-[#4B5563]">
-                            {(row.buyout_rate * 100).toFixed(1)}%
-                          </td>
-                          <td className="py-2 px-4 text-right text-[#1D1D1F]">
-                            {row.realization_price_rub.toLocaleString('ru-RU')}
-                          </td>
-                          <td className="py-2 px-4 text-right font-bold text-[#1D1D1F]">
-                            {row.revenue_rub.toLocaleString('ru-RU')}
-                          </td>
-                          <td className="py-2 px-4 text-right text-[#4B5563]">
-                            {row.cost_of_goods_rub.toLocaleString('ru-RU')}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-[#F5ECE0] font-bold text-[#1D1D1F]">
-                        <td className="py-2.5 px-4">ИТОГО</td>
-                        <td className="py-2.5 px-4 text-right">
-                          {actingSku.totalOrdersSets.toLocaleString('ru-RU')}
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          {actingSku.totalBuyoutsSets.toLocaleString('ru-RU')}
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          {actingSku.avgBuyoutRatePct.toFixed(1)}%
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          {actingSku.weightedAvgPriceRub.toLocaleString('ru-RU')}
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          {actingSku.totalRevenueRub.toLocaleString('ru-RU')}
-                        </td>
-                        <td className="py-2.5 px-4 text-right">
-                          {actingSku.totalCostOfGoodsRub.toLocaleString('ru-RU')}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                <div className="text-[11px] text-[#6E6E73] space-y-0.5 pt-1">
-                  <div>
-                    Выручка = выкупы × средняя цена; затраты = товар + упаковка + приёмка (не означает себестоимость будущих закупок).
-                  </div>
-                  <div>
-                    Годовая цена в строке «Итого» = выручка / выкупы; не среднее из 12 цен. План, не факт. Комиссии, реклама, логистика WB, налоги не включены.
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Верхняя сводка обзора + 3 технических блока (Характеристики, Состав, Резинка) — кликабельно и редактируемо */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[13.5px] font-bold text-[#1D1D1F]">Характеристики</div>
+                <StatusPill status={selMonthStatus} />
                 <button
                   type="button"
-                  onClick={() => setIsEditing((v) => !v)}
-                  className="text-[11px] font-semibold text-[#8B6F47] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                  onClick={() =>
+                    setFormulaOpenKey(formulaOpenKey === 'rev' ? null : 'rev')
+                  }
+                  title="Показать проверяемую формулу"
+                  className="h-6 w-6 rounded-full hover:bg-[#FAF8F4] flex items-center justify-center text-[#8E8A82] cursor-pointer"
                 >
-                  <Edit3 className="h-3 w-3" />
-                  <span>{isEditing ? 'Готово' : 'Изменить'}</span>
+                  <Info className="h-3.5 w-3.5" />
                 </button>
-              </div>
-              <div className="space-y-1.5 text-[12px]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Тип изделия:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.construction.type}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          construction: { ...model.construction, type: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.construction.type}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Комплектация:</span>
-                  <span className="font-semibold text-[#1D1D1F] text-right">
-                    1 комплект = {model.unitsInPack} шт.
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Посадка:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.construction.fit}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          construction: { ...model.construction, fit: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.construction.fit}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Передняя панель:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.construction.frontPanel}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          construction: { ...model.construction, frontPanel: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.construction.frontPanel}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Ластовица:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.construction.gusset}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          construction: { ...model.construction, gusset: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.construction.gusset}
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
 
-            <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[13.5px] font-bold text-[#1D1D1F]">
-                  Состав и материалы
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing((v) => !v)}
-                  className="text-[11px] font-semibold text-[#8B6F47] hover:underline inline-flex items-center gap-1 cursor-pointer"
-                >
-                  <Edit3 className="h-3 w-3" />
-                  <span>{isEditing ? 'Готово' : 'Изменить'}</span>
-                </button>
-              </div>
-              <div className="space-y-1.5 text-[12px]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Основное полотно:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.fabric.composition}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          fabric: { ...model.fabric, composition: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.fabric.composition}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Плотность:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.fabric.density}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          fabric: { ...model.fabric, density: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.fabric.density}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Переплетение:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.fabric.knitType}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          fabric: { ...model.fabric, knitType: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.fabric.knitType}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Тактильность:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.fabric.touchFeel}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          fabric: { ...model.fabric, touchFeel: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.fabric.touchFeel}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Старт продаж:</span>
-                  <span className="font-bold text-[#2E6B4E] text-right">
-                    {MONTHS_SHORT_RU[metrics.plan.salesStartMonthIdx]} {scenario.year}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2.5 shadow-2xs">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[13.5px] font-bold text-[#1D1D1F]">
-                  Резинка {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing((v) => !v)}
-                  className="text-[11px] font-semibold text-[#8B6F47] hover:underline inline-flex items-center gap-1 cursor-pointer"
-                >
-                  <Edit3 className="h-3 w-3" />
-                  <span>{isEditing ? 'Готово' : 'Изменить'}</span>
-                </button>
-              </div>
-              <div className="space-y-1.5 text-[12px]">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Ширина:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.waistband.width}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          waistband: { ...model.waistband, width: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.waistband.width}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Цвет резинки:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.waistband.colorRule}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          waistband: { ...model.waistband, colorRule: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.waistband.colorRule}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#6E6E73]">Логотип:</span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={model.waistband.logoRepeat}
-                      onChange={(e) =>
-                        onUpdateModel({
-                          ...model,
-                          waistband: { ...model.waistband, logoRepeat: e.target.value },
-                        })
-                      }
-                      className="h-7 w-44 px-2 rounded-[6px] border border-[#D4CDC2] text-right font-semibold text-[#1D1D1F]"
-                    />
-                  ) : (
-                    <span className="font-semibold text-[#1D1D1F] text-right">
-                      {model.waistband.logoRepeat}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div
-                className="h-8 rounded-[8px] flex items-center justify-around px-3 text-[10.5px] font-extrabold tracking-[0.2em]"
-                style={{
-                  backgroundColor: model.waistband.bandBgHex,
-                  color: model.waistband.bandTextHex,
-                }}
-              >
-                <span>{model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}</span>
-                <span>{model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}</span>
-                <span>{model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Цветовые палитры и наборы: загрузка фото палитры + добавление/редактирование/удаление цветов и палитр */}
-          <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-4 shadow-2xs">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <h3 className="text-[15px] font-bold text-[#1D1D1F]">
-                  Цветовые палитры и наборы ({model.palettes.length})
-                </h3>
-                <p className="text-[11.5px] text-[#6E6E73]">
-                  Вы можете загрузить фото раскладки комплекта или добавить/изменить цвета и коды Pantone в каждой палитре
-                </p>
+                <div className="text-[26px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                  {formatMln(selMonthRevRub)}
+                </div>
+                <div className="text-[12px] text-[#6E6E73]">
+                  {formatRub(selMonthRevRub)} · Выкупы:{' '}
+                  <strong className="text-[#1D1D1F]">
+                    {selMonthPacks.toLocaleString('ru-RU')} компл.
+                  </strong>{' '}
+                  ({selMonthUnits.toLocaleString('ru-RU')} изд.)
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={handleAddPalette}
-                className="h-8 px-3.5 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>+ Добавить палитру / набор</span>
-              </button>
+
+              <div className="text-right">
+                <div className="text-[11px] text-[#6E6E73]">Сумма 12 мес. {scenario.year}</div>
+                <div className="text-[15px] font-bold text-[#1D1D1F]">
+                  {formatMln(pnl.annualRevenueRub)}
+                </div>
+                <div className="text-[11px] text-[#6E6E73]">
+                  {pnl.annualBuyoutsPacks.toLocaleString('ru-RU')} компл. ·{' '}
+                  {pnl.annualBuyoutsUnits.toLocaleString('ru-RU')} изд.
+                </div>
+              </div>
             </div>
 
-            {model.palettes.length === 0 ? (
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-dashed border-[#D6CEC0] p-6 text-center space-y-2">
-                <div className="text-[13px] font-semibold text-[#4A4740]">
-                  В этой модели пока нет цветовых палитр
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddPalette}
-                  className="h-8 px-4 rounded-[10px] bg-[#1D1D1F] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Создать первую палитру</span>
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {model.palettes.map((pal) => {
-                  const isExpanded = expandedPaletteIds.includes(pal.id);
-                  return (
-                    <div
-                      key={pal.id}
-                      className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-3"
-                    >
-                      {/* Шапка палитры: редактируемое название + кнопки Загрузить фото / Добавить цвет / Удалить */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                          <input
-                            type="text"
-                            value={pal.title}
-                            onChange={(e) =>
-                              handleUpdatePalette(pal.id, { title: e.target.value })
-                            }
-                            placeholder="Название палитры..."
-                            title="Нажмите, чтобы переименовать палитру"
-                            className="text-[12.5px] font-bold text-[#1D1D1F] bg-white px-2.5 py-1 rounded-[8px] border border-[#E2DBD0] focus:border-[#8B6F47] outline-none flex-1"
-                          />
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <label className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3ECE0] border border-[#D4CDC2] text-[#7A5C38] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition">
-                            <ImageIcon className="h-3 w-3" />
-                            <span>{pal.imageUrl ? 'Заменить фото' : '+ Фото'}</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => handlePalettePhotoUpload(pal.id, e)}
-                              className="hidden"
-                            />
-                          </label>
-
-                          <button
-                            type="button"
-                            onClick={() => handleAddColorToPalette(pal.id)}
-                            className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3F0E8] border border-[#D4CDC2] text-[#1D1D1F] text-[11px] font-semibold inline-flex items-center gap-1 cursor-pointer transition"
-                          >
-                            <Plus className="h-3 w-3" />
-                            <span>+ Цвет</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => togglePaletteExpand(pal.id)}
-                            className="h-7 px-2 rounded-[8px] bg-white border border-[#E2DBD0] text-[11px] font-semibold text-[#8B6F47] cursor-pointer"
-                          >
-                            {isExpanded ? 'Свернуть' : 'Развернуть'}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePalette(pal.id)}
-                            title="Удалить эту палитру"
-                            className="h-7 w-7 rounded-[8px] bg-white hover:bg-[#FFF0EE] border border-[#E2DBD0] hover:border-[#F0C7C2] text-[#C93B2B] flex items-center justify-center cursor-pointer transition"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Если загружено фото палитры / раскладки комплекта — показываем его */}
-                      {pal.imageUrl && (
-                        <div className="relative rounded-[12px] overflow-hidden bg-white border border-[#E5DEC9] p-2">
-                          <img
-                            src={pal.imageUrl}
-                            alt={pal.title}
-                            className="w-full max-h-56 object-contain rounded-[8px] mx-auto"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleUpdatePalette(pal.id, { imageUrl: undefined })
-                            }
-                            title="Убрать фото палитры"
-                            className="absolute top-3 right-3 h-7 px-2 rounded-full bg-black/70 hover:bg-black text-white text-[10.5px] font-semibold inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <X className="h-3 w-3" />
-                            <span>Убрать фото</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Карточки цветов палитры (редактируемые цвет HEX, название и Pantone) */}
-                      {isExpanded && pal.colors.length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                          {pal.colors.map((c, colorIdx) => (
-                            <div
-                              key={`${pal.id}-c-${colorIdx}`}
-                              className="rounded-[12px] bg-white border border-[#E5DEC9] p-2.5 space-y-1.5 relative group"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => handleDeletePaletteColor(pal.id, colorIdx)}
-                                title="Удалить этот цвет"
-                                className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-white/90 hover:bg-[#FFF0EE] border border-[#E2DBD0] text-[#C93B2B] flex items-center justify-center opacity-80 group-hover:opacity-100 cursor-pointer z-10"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-
-                              <label
-                                title="Нажмите, чтобы выбрать оттенок"
-                                className="block h-10 rounded-[8px] border border-black/10 cursor-pointer relative overflow-hidden"
-                                style={{ backgroundColor: c.hex }}
-                              >
-                                <input
-                                  type="color"
-                                  value={c.hex.startsWith('#') && c.hex.length === 7 ? c.hex : '#C7BEB2'}
-                                  onChange={(e) =>
-                                    handleUpdatePaletteColor(pal.id, colorIdx, {
-                                      hex: e.target.value.toUpperCase(),
-                                    })
-                                  }
-                                  className="opacity-0 inset-0 w-full h-full cursor-pointer"
-                                />
-                              </label>
-
-                              <input
-                                type="text"
-                                value={c.nameRu}
-                                onChange={(e) =>
-                                  handleUpdatePaletteColor(pal.id, colorIdx, {
-                                    nameRu: e.target.value,
-                                  })
-                                }
-                                placeholder="Название цвета"
-                                className="w-full text-[11px] font-bold text-[#1D1D1F] bg-transparent border-b border-transparent focus:border-[#C8A97E] outline-none leading-tight"
-                              />
-                              <input
-                                type="text"
-                                value={c.pantone}
-                                onChange={(e) =>
-                                  handleUpdatePaletteColor(pal.id, colorIdx, {
-                                    pantone: e.target.value,
-                                  })
-                                }
-                                placeholder="PANTONE / HEX"
-                                className="w-full text-[10px] font-mono text-[#6E6E73] bg-transparent border-b border-transparent focus:border-[#C8A97E] outline-none"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            {formulaOpenKey === 'rev' && (
+              <div className="rounded-[10px] bg-[#FAF8F4] border border-[#E6E0D4] px-3 py-2 text-[11.5px] text-[#4E4A42]">
+                <strong>Формула:</strong> Выкупленные комплекты ({selMonthPacks.toLocaleString('ru-RU')}{' '}
+                компл.) × Средняя цена реализации комплекта ({selMonthPrice.toLocaleString('ru-RU')} ₽) ={' '}
+                {formatRub(selMonthRevRub)}. Изделия в комплекте ({model.unitsInPack} шт.) учитываются справочно и не умножают выручку повторно.
               </div>
             )}
           </div>
 
-          {/* БЛОК ЗАГРУЗКИ И ПРОСМОТРА PDF-ФАЙЛОВ ПРЯМО В КАРТОЧКЕ МОДЕЛИ */}
-          <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-4 shadow-2xs">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-[12px] bg-[#FAF6EE] border border-[#E5DEC9] flex items-center justify-center text-[#8B6F47]">
-                  <FileText className="h-5 w-5" />
+          {/* Метрика 2: Цена реализации */}
+          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-semibold text-[#5A564F]">
+                2. Цена комплекта
+              </span>
+              <StatusPill status={pnl.revenueStatus} />
+            </div>
+
+            {isEditing ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={plan.monthlyPricesRub[selectedMonthIdx] ?? model.retailPriceRub}
+                  onChange={(e) => handleScenarioPriceChange(Number(e.target.value))}
+                  className="h-9 w-full rounded-[9px] border border-[#C8BFB0] px-2.5 text-[16px] font-bold text-[#1D1D1F]"
+                />
+                <span className="text-[13px] font-semibold text-[#6E6E73]">₽</span>
+              </div>
+            ) : (
+              <div className="text-[22px] font-bold text-[#1D1D1F]">
+                {formatRub(pnl.avgRealizedPricePerPackRub)}
+              </div>
+            )}
+
+            <div className="text-[11.5px] text-[#6E6E73]">
+              За 1 компл. ({model.unitsInPack} шт.) ·{' '}
+              <span className="font-medium text-[#1D1D1F]">
+                {formatRub(pnl.avgRealizedPricePerUnitRub)} / изд.
+              </span>
+            </div>
+          </div>
+
+          {/* Метрика 3: Себестоимость под ключ */}
+          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-semibold text-[#5A564F]">
+                3. Себестоимость под ключ
+              </span>
+              <StatusPill status={pnl.costStatus} />
+            </div>
+
+            {isEditing ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={model.unitCostRub || ''}
+                  placeholder="Не заполнено"
+                  onChange={(e) => handleUnitCostChange(Number(e.target.value))}
+                  className="h-9 w-full rounded-[9px] border border-[#C8BFB0] px-2.5 text-[16px] font-bold text-[#1D1D1F]"
+                />
+                <span className="text-[13px] font-semibold text-[#6E6E73]">₽</span>
+              </div>
+            ) : pnl.unitCostPerPackRub !== null ? (
+              <div className="text-[22px] font-bold text-[#1D1D1F]">
+                {formatRub(pnl.unitCostPerPackRub)}
+              </div>
+            ) : (
+              <div className="text-[16px] font-bold text-[#9F2D2D]">
+                Не заполнено
+              </div>
+            )}
+
+            <div className="text-[11.5px] text-[#6E6E73]">
+              {pnl.unitCostPerSingleItemRub !== null
+                ? `За 1 компл. · ${pnl.unitCostPerSingleItemRub.toLocaleString('ru-RU')} ₽ / изд.`
+                : 'Укажите себестоимость для расчёта маржи и бюджета партий'}
+            </div>
+          </div>
+
+          {/* Метрика 4: Обеспеченность товаром (единый реальный остаток + утверждённые PO!) */}
+          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-semibold text-[#5A564F]">
+                4. Обеспеченность товаром
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('procurement')}
+                className="text-[11px] font-semibold text-[#4E6A85] hover:underline cursor-pointer"
+              >
+                К партиям →
+              </button>
+            </div>
+
+            <div
+              className={`text-[15px] font-bold leading-snug ${
+                procurement.supplyStatusTone === 'danger'
+                  ? 'text-[#B42318]'
+                  : procurement.supplyStatusTone === 'warning'
+                  ? 'text-[#9A5B00]'
+                  : procurement.supplyStatusTone === 'success'
+                  ? 'text-[#17643A]'
+                  : 'text-[#1D1D1F]'
+              }`}
+            >
+              {procurement.hasDeficit
+                ? `Дефицит ${procurement.totalDeficitPacks.toLocaleString('ru-RU')} компл.`
+                : procurement.annualDemandPacks > 0
+                ? 'Обеспечено запасом и PO'
+                : 'Спрос не задан'}
+            </div>
+
+            <div className="text-[11.5px] text-[#6E6E73]">
+              Склад: <strong>{procurement.netOpeningAvailablePacks}</strong> компл. · PO в пути:{' '}
+              <strong>{procurement.totalApprovedReceiptsPacks}</strong> компл. · К заказу:{' '}
+              <strong>{procurement.recommendedBatches.length} парт.</strong>
+            </div>
+          </div>
+
+          {/* Метрика 5: Операционная прибыль (Тест-кейс №8: честное «Не рассчитана» без ложных 75%!) */}
+          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] font-semibold text-[#5A564F]">
+                5. Операционная прибыль
+              </span>
+              <div className="flex items-center gap-1">
+                <StatusPill status={pnl.operatingProfitStatus} />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormulaOpenKey(formulaOpenKey === 'op' ? null : 'op')
+                  }
+                  className="h-6 w-6 rounded-full hover:bg-[#FAF8F4] flex items-center justify-center text-[#8E8A82] cursor-pointer"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {pnl.annualOperatingProfitRub !== null ? (
+              <>
+                <div
+                  className={`text-[20px] font-bold ${
+                    pnl.annualOperatingProfitRub >= 0
+                      ? 'text-[#17643A]'
+                      : 'text-[#B42318]'
+                  }`}
+                >
+                  {formatMln(pnl.annualOperatingProfitRub)}{' '}
+                  <span className="text-[13px] font-semibold">
+                    ({pnl.operatingMarginPct}%)
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-[15px] font-bold text-[#1D1D1F]">
-                    Прикреплённые PDF-файлы и техзадания ({attachedPdfs.length})
+                <div className="text-[11.5px] text-[#6E6E73]">
+                  За 2027 г. · {formatRub(pnl.unitOperatingProfitRub || 0)} / компл. (после MP, рекламы и OPEX)
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-[15px] font-bold text-[#9F2D2D]">
+                  Не рассчитана
+                </div>
+                <div className="text-[11px] text-[#6E6E73] leading-snug">
+                  {pnl.operatingProfitNotCalculatedReason}
+                </div>
+              </>
+            )}
+
+            {formulaOpenKey === 'op' && (
+              <div className="rounded-[10px] bg-[#FAF8F4] border border-[#E6E0D4] px-2.5 py-1.5 text-[11px] text-[#4E4A42]">
+                Выручка − Себестоимость − Комиссии MP − Логистика − Реклама − Постоянные OPEX. При незаполненных расходах ложный % не выводится.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 3. ПЕРЕКЛЮЧАТЕЛЬ 4 ВКЛАДОК ПОД ГАЛЕРЕЕЙ (ОДНА ВКЛАДКА ВИДНА ОДНОВРЕМЕННО, Стр. 3–4 ТЗ v1.1) */}
+      <div className="rounded-[22px] bg-white border border-[#E6E0D4] shadow-2xs overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 bg-[#FAF8F4] border-b border-[#E6E0D4]">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(
+              [
+                { id: 'product', label: 'Продукт', icon: Layers },
+                { id: 'sales', label: 'Продажи (12 мес.)', icon: BarChart3 },
+                {
+                  id: 'procurement',
+                  label: `Закупки (${procurement.recommendedBatches.length} рек. / ${procurement.approvedOrders.length} PO)`,
+                  icon: Package,
+                },
+                { id: 'finance', label: 'Финансы (P&L и Капитал)', icon: Wallet },
+              ] as const
+            ).map((tab) => {
+              const Icon = tab.icon;
+              const isAct = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`h-9 px-4 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-2 transition cursor-pointer ${
+                    isAct
+                      ? 'bg-[#1D1D1F] text-white shadow-xs'
+                      : 'text-[#5A564F] hover:bg-[#EFECE4] hover:text-[#1D1D1F]'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="text-[11px] text-[#6E6E73]">
+            Единый SKU · изменения паспорта и общих остатков синхронны во всех сценариях
+          </span>
+        </div>
+
+        {/* ==================== ВКЛАДКА 1: ПРОДУКТ ==================== */}
+        {activeTab === 'product' && (
+          <div className="p-5 md:p-6 space-y-6">
+            {/* Спецификация ткани, конструкции, пояса и комплектности */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
+                <div className="text-[12px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                  Ткань и плотность
+                </div>
+                {isEditing ? (
+                  <div className="space-y-2 text-[12.5px]">
+                    <label className="block">
+                      <span className="text-[#6E6E73] text-[11px]">Состав</span>
+                      <input
+                        type="text"
+                        value={model.fabric.composition}
+                        onChange={(e) =>
+                          commitWithAudit(
+                            {
+                              ...model,
+                              fabric: { ...model.fabric, composition: e.target.value },
+                            },
+                            'product',
+                            'Обновлён состав ткани (новая версия паспорта PDF)',
+                            model.fabric.composition,
+                            e.target.value,
+                            true
+                          )
+                        }
+                        className="mt-0.5 w-full h-8 px-2.5 rounded-[8px] border border-[#DED8CC] bg-white"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[#6E6E73] text-[11px]">Плотность</span>
+                      <input
+                        type="text"
+                        value={model.fabric.density}
+                        onChange={(e) =>
+                          commitWithAudit(
+                            {
+                              ...model,
+                              fabric: { ...model.fabric, density: e.target.value },
+                            },
+                            'product',
+                            'Обновлена плотность ткани',
+                            model.fabric.density,
+                            e.target.value,
+                            true
+                          )
+                        }
+                        className="mt-0.5 w-full h-8 px-2.5 rounded-[8px] border border-[#DED8CC] bg-white"
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
+                    <div>
+                      <span className="text-[#6E6E73]">Состав:</span>{' '}
+                      <strong>{model.fabric.composition}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[#6E6E73]">Плотность:</span>{' '}
+                      <strong>{model.fabric.density}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[#6E6E73]">Переплетение:</span>{' '}
+                      {model.fabric.knitType}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
+                <div className="text-[12px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                  Конструкция и посадка
+                </div>
+                <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
+                  <div>
+                    <span className="text-[#6E6E73]">Тип и комплект:</span>{' '}
+                    <strong>
+                      {model.construction.type} ({model.unitsInPack} изд. = 1 компл.)
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[#6E6E73]">Посадка:</span> {model.construction.fit}
+                  </div>
+                  <div>
+                    <span className="text-[#6E6E73]">Передняя панель:</span>{' '}
+                    {model.construction.frontPanel}
+                  </div>
+                  <div>
+                    <span className="text-[#6E6E73]">Швы и ластовица:</span>{' '}
+                    {model.construction.gusset} · {model.construction.seams}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
+                <div className="text-[12px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                  Резинка / пояс и размеры
+                </div>
+                <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
+                  <div>
+                    <span className="text-[#6E6E73]">Ширина и тип:</span>{' '}
+                    <strong>
+                      {model.waistband.width} · {model.waistband.type}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-[#6E6E73]">Шаг логотипа:</span>{' '}
+                    {model.waistband.logoRepeat}
+                  </div>
+                  <div className="pt-1">
+                    <span className="text-[#6E6E73] text-[12px]">
+                      Размерная матрица партии (%):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {(['S', 'M', 'L', 'XL', 'XXL'] as const).map((sz) => (
+                        <span
+                          key={sz}
+                          className="px-2 py-0.5 rounded-[6px] bg-white border border-[#DED8CC] text-[11px] font-semibold"
+                        >
+                          {sz}: {shared.factoryParams.sizeSharesPct[sz]}%
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Палитры и Pantone */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[15px] font-bold text-[#1D1D1F]">
+                  Комплектация цветов и Pantone ({model.unitsInPack} изд. в 1 комплекте)
+                </h3>
+                <span className="text-[11.5px] text-[#6E6E73]">
+                  Изменение цвета создаёт новую версию паспорта PDF, не меняя старые утверждённые PO
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {model.palettes.map((pal) => (
+                  <div
+                    key={pal.id}
+                    className="rounded-[16px] border border-[#E6E0D4] p-4 space-y-3 bg-white"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-[13.5px] font-bold text-[#1D1D1F]">
+                          {pal.title}
+                        </div>
+                        <div className="text-[11.5px] text-[#6E6E73]">{pal.subtitle}</div>
+                      </div>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#FAF8F4] border border-[#DED8CC] text-[11px] font-semibold text-[#5A564F]">
+                        {pal.statusLabel}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {pal.colors.map((c, cIdx) => (
+                        <div
+                          key={`${pal.id}-${cIdx}`}
+                          className="rounded-[10px] border border-[#ECE8DF] p-2 bg-[#FAF8F4] space-y-1.5"
+                        >
+                          <div
+                            className="h-8 w-full rounded-[6px] border border-black/10"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={c.nameRu}
+                              onChange={(e) => {
+                                const nextPalettes = model.palettes.map((p) =>
+                                  p.id !== pal.id
+                                    ? p
+                                    : {
+                                        ...p,
+                                        colors: p.colors.map((col, idx) =>
+                                          idx === cIdx
+                                            ? { ...col, nameRu: e.target.value }
+                                            : col
+                                        ),
+                                      }
+                                );
+                                commitWithAudit(
+                                  { ...model, palettes: nextPalettes },
+                                  'product',
+                                  `Изменён цвет #${cIdx + 1} в палитре ${pal.title}`,
+                                  c.nameRu,
+                                  e.target.value,
+                                  true
+                                );
+                              }}
+                              className="w-full h-6 px-1.5 rounded border border-[#DED8CC] bg-white text-[11px]"
+                            />
+                          ) : (
+                            <div className="text-[11.5px] font-semibold text-[#1D1D1F] leading-tight">
+                              {c.nameRu}
+                            </div>
+                          )}
+                          <div className="text-[10px] font-mono text-[#6E6E73] truncate">
+                            {c.pantone}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Оригинальные PDF техкарты фабрики */}
+            <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#8B6F47]" />
+                  <h3 className="text-[14px] font-bold text-[#1D1D1F]">
+                    Оригиналы и фабричные техкарты PDF ({(model.attachedPdfs || []).length})
                   </h3>
-                  <p className="text-[11.5px] text-[#6E6E73]">
-                    Загрузите готовый PDF-паспорт или техзадание для фабрики — файл сохранится прямо в карточке модели
-                  </p>
+                </div>
+
+                <label className="h-8 px-3 rounded-[9px] bg-white hover:bg-[#EFECE4] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer transition">
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Прикрепить PDF фабрики</span>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleUploadFactoryPdf}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {(model.attachedPdfs || []).length === 0 ? (
+                <div className="text-[12.5px] text-[#6E6E73]">
+                  К модели пока не прикреплён исходный PDF-файл техкарты.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(model.attachedPdfs || []).map((pdf) => {
+                    const url = pdfUrlsById[pdf.id] || pdf.staticUrl || '';
+                    return (
+                      <div
+                        key={pdf.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] bg-white border border-[#E6E0D4] px-3.5 py-2.5 text-[12.5px]"
+                      >
+                        <div className="font-medium text-[#1D1D1F] truncate">
+                          {pdf.name}{' '}
+                          <span className="text-[11px] text-[#6E6E73]">
+                            · добавлен {pdf.uploadedAt}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {url && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPreviewPdfId(previewPdfId === pdf.id ? null : pdf.id)
+                                }
+                                className="h-7 px-2.5 rounded-[8px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11.5px] font-semibold inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                                <span>{previewPdfId === pdf.id ? 'Скрыть' : 'Просмотр'}</span>
+                              </button>
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="h-7 px-2.5 rounded-[8px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11.5px] font-semibold inline-flex items-center gap-1"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                <span>Открыть</span>
+                              </a>
+                              <a
+                                href={url}
+                                download={pdf.name.split('/').pop() || 'techpack.pdf'}
+                                className="h-7 px-2.5 rounded-[8px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11.5px] font-semibold inline-flex items-center gap-1"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                <span>Скачать</span>
+                              </a>
+                            </>
+                          )}
+                          {isEditing && !pdf.staticUrl && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePdf(pdf.id)}
+                              className="h-7 w-7 rounded-[8px] hover:bg-[#FFF2F2] text-[#B42318] flex items-center justify-center cursor-pointer"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {previewPdfId && pdfUrlsById[previewPdfId] && (
+                    <iframe
+                      title="Предпросмотр фабричной техкарты PDF"
+                      src={pdfUrlsById[previewPdfId]}
+                      className="w-full h-[420px] rounded-[12px] border border-[#DED8CC] bg-white mt-2"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* История изменений паспорта, прогнозов и заказов (Раздел 06 ТЗ v1.1) */}
+            <div className="rounded-[16px] border border-[#E6E0D4] p-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-[13.5px] font-bold text-[#1D1D1F]">
+                <History className="h-4 w-4 text-[#6E6E73]" />
+                <span>История изменений и версий (Audit Log · v{shared.passportVersion})</span>
+              </div>
+              <div className="max-h-44 overflow-y-auto divide-y divide-[#EFECE4] text-[12px]">
+                {shared.auditHistory.slice(0, 12).map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="py-1.5 flex flex-wrap items-center justify-between gap-2"
+                  >
+                    <div>
+                      <span className="font-semibold text-[#1D1D1F]">{entry.summary}</span>
+                      {entry.beforeValue || entry.afterValue ? (
+                        <span className="text-[#6E6E73] ml-1.5">
+                          ({entry.beforeValue ? `${entry.beforeValue} → ` : ''}
+                          {entry.afterValue})
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-[11px] text-[#8E8A82]">
+                      {entry.author} · {entry.timestamp}
+                      {entry.passportVersion ? ` · PDF v${entry.passportVersion}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== ВКЛАДКА 2: ПРОДАЖИ (12 МЕСЯЦЕВ) ==================== */}
+        {activeTab === 'sales' && (
+          <div className="p-5 md:p-6 space-y-5">
+            {/* Панель каналов, переключения График/Таблица и Экспорта/Импорта */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="inline-flex rounded-[10px] bg-[#FAF8F4] border border-[#DED8CC] p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setSalesViewMode('table')}
+                    className={`h-8 px-3 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer ${
+                      salesViewMode === 'table'
+                        ? 'bg-[#1D1D1F] text-white'
+                        : 'text-[#5A564F]'
+                    }`}
+                  >
+                    <TableIcon className="h-3.5 w-3.5" />
+                    <span>Таблица 12 мес.</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSalesViewMode('chart')}
+                    className={`h-8 px-3 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer ${
+                      salesViewMode === 'chart'
+                        ? 'bg-[#1D1D1F] text-white'
+                        : 'text-[#5A564F]'
+                    }`}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    <span>График</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-[11.5px] text-[#5A564F] bg-[#FAF8F4] border border-[#E6E0D4] rounded-[10px] px-3 py-1.5">
+                  <span>Каналы продаж:</span>
+                  <strong>WB {channelSplit.wb}%</strong>
+                  <span>·</span>
+                  <strong>Другие MP {channelSplit.otherMp}%</strong>
+                  <span>·</span>
+                  <strong>Сайт {channelSplit.website}%</strong>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <label className="h-9 px-4 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition shadow-2xs">
-                  <Upload className="h-3.5 w-3.5 text-[#E5B869]" />
-                  <span>+ Загрузить PDF файл</span>
+                <button
+                  type="button"
+                  onClick={() => handleExportSkuPlan('csv')}
+                  className="h-8 px-3 rounded-[9px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Экспорт CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportSkuPlan('json')}
+                  className="h-8 px-3 rounded-[9px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Экспорт JSON</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => importPlanInputRef.current?.click()}
+                  className="h-8 px-3 rounded-[9px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Импорт плана</span>
+                </button>
+                <input
+                  ref={importPlanInputRef}
+                  type="file"
+                  accept=".json,.csv"
+                  onChange={handleImportSkuPlanFile}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {salesViewMode === 'chart' ? (
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-5 space-y-4">
+                <div className="flex items-center justify-between text-[12.5px] text-[#5A564F]">
+                  <span>
+                    Помесячная динамика выручки и выкупов ({scenario.title} · {scenario.year})
+                  </span>
+                  <strong>Годовой итог: {formatMln(pnl.annualRevenueRub)}</strong>
+                </div>
+                <div className="grid grid-cols-12 gap-2 items-end h-52 pt-4">
+                  {MONTHS_SHORT_RU.map((mLabel, mIdx) => {
+                    const rev = baseMetrics.monthlyRevenuesRub[mIdx] || 0;
+                    const packs = plan.monthlyPacks[mIdx] || 0;
+                    const hPct = Math.max(4, Math.round((rev / maxSalesBarRub) * 100));
+                    return (
+                      <div
+                        key={mLabel}
+                        className="flex flex-col items-center justify-end h-full gap-1.5"
+                      >
+                        <span className="text-[10px] font-semibold text-[#4E4A42]">
+                          {(rev / 1_000_000).toFixed(1)}м
+                        </span>
+                        <div
+                          style={{ height: `${hPct}%` }}
+                          className="w-full max-w-[34px] rounded-t-[8px] bg-[#4E6A85] transition-all"
+                          title={`${mLabel}: ${packs.toLocaleString('ru-RU')} компл. (${(
+                            packs * model.unitsInPack
+                          ).toLocaleString('ru-RU')} изд.) = ${formatRub(rev)}`}
+                        />
+                        <span className="text-[11px] font-semibold text-[#1D1D1F]">
+                          {mLabel}
+                        </span>
+                        <span className="text-[10px] text-[#6E6E73]">{packs} к.</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-[16px] border border-[#E6E0D4]">
+                <table className="w-full text-left border-collapse text-[12.5px]">
+                  <thead>
+                    <tr className="bg-[#FAF8F4] border-b border-[#E6E0D4] text-[11px] uppercase tracking-wider text-[#6E6E73]">
+                      <th className="py-2.5 px-3">Месяц</th>
+                      <th className="py-2.5 px-3">План цены (₽/компл.)</th>
+                      <th className="py-2.5 px-3">План выкупов (компл.)</th>
+                      <th className="py-2.5 px-3">Физические изделия (шт.)</th>
+                      <th className="py-2.5 px-3">Плановая выручка</th>
+                      <th className="py-2.5 px-3">Факт выкупов (компл.)</th>
+                      <th className="py-2.5 px-3">Отклонение</th>
+                      <th className="py-2.5 px-3">Статус</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#EFECE4]">
+                    {MONTHS_SHORT_RU.map((mLabel, mIdx) => {
+                      const planPacks = plan.monthlyPacks[mIdx] || 0;
+                      const planUnits = planPacks * model.unitsInPack;
+                      const planPrice =
+                        plan.monthlyPricesRub[mIdx] ?? model.retailPriceRub;
+                      const planRev = baseMetrics.monthlyRevenuesRub[mIdx] || 0;
+                      const actRec = shared.actualSalesByMonth[mIdx];
+                      const actPacks = actRec?.actualBuyoutsPacks ?? null;
+                      const diffPacks =
+                        actPacks !== null ? actPacks - planPacks : null;
+                      const rowStatus: ValueStatusCode =
+                        actPacks !== null ? 'fact' : pnl.revenueStatus;
+
+                      return (
+                        <tr key={mLabel} className="hover:bg-[#FAF8F4]/60">
+                          <td className="py-2 px-3 font-semibold text-[#1D1D1F]">
+                            {mLabel} {scenario.year}
+                          </td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              min={0}
+                              step={10}
+                              value={planPrice}
+                              onChange={(e) => {
+                                const val = Math.max(0, Math.round(Number(e.target.value)));
+                                const nextPrices = plan.monthlyPricesRub.map((pr, idx) =>
+                                  idx === mIdx ? val : pr
+                                );
+                                commitWithAudit(
+                                  {
+                                    ...model,
+                                    plansByScenario: {
+                                      ...model.plansByScenario,
+                                      [scenario.id]: {
+                                        ...plan,
+                                        scenarioId: scenario.id,
+                                        monthlyPricesRub: nextPrices,
+                                      },
+                                    },
+                                  },
+                                  'sales',
+                                  `Изменена цена ${mLabel} (${scenario.title})`,
+                                  `${planPrice} ₽`,
+                                  `${val} ₽`
+                                );
+                              }}
+                              className="h-7 w-24 rounded-[7px] border border-[#DED8CC] bg-white px-2 font-medium text-[#1D1D1F]"
+                            />
+                          </td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              min={0}
+                              step={50}
+                              value={planPacks}
+                              onChange={(e) =>
+                                handleMonthBuyoutsChange(mIdx, Number(e.target.value))
+                              }
+                              className="h-7 w-24 rounded-[7px] border border-[#DED8CC] bg-white px-2 font-semibold text-[#1D1D1F]"
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-[#5A564F]">
+                            {planUnits.toLocaleString('ru-RU')} изд.
+                          </td>
+                          <td className="py-2 px-3 font-semibold text-[#1D1D1F]">
+                            {formatRub(planRev)}
+                          </td>
+                          <td className="py-2 px-3">
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Не заполнено"
+                              value={actPacks === null ? '' : actPacks}
+                              onChange={(e) =>
+                                handleMonthActualSaleChange(mIdx, e.target.value)
+                              }
+                              className="h-7 w-28 rounded-[7px] border border-[#DED8CC] bg-[#FAF8F4] px-2 text-[12px]"
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-[12px]">
+                            {diffPacks === null ? (
+                              <span className="text-[#8E8A82]">—</span>
+                            ) : (
+                              <span
+                                className={
+                                  diffPacks >= 0
+                                    ? 'font-semibold text-[#17643A]'
+                                    : 'font-semibold text-[#B42318]'
+                                }
+                              >
+                                {diffPacks >= 0 ? `+${diffPacks}` : diffPacks} компл.
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3">
+                            <StatusPill status={rowStatus} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-[#FAF8F4] border-t border-[#DED8CC] font-bold text-[#1D1D1F]">
+                      <td className="py-2.5 px-3">ИТОГО 12 мес.</td>
+                      <td className="py-2.5 px-3">
+                        ср. {formatRub(pnl.avgRealizedPricePerPackRub)}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {baseMetrics.annualPacks.toLocaleString('ru-RU')} компл.
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {baseMetrics.annualUnits.toLocaleString('ru-RU')} изд.
+                      </td>
+                      <td className="py-2.5 px-3">
+                        {formatRub(baseMetrics.annualRevenueRub)}
+                      </td>
+                      <td className="py-2.5 px-3" colSpan={3}>
+                        Изменение плана пересчитывает сценарий, остатки и партии закупок
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ==================== ВКЛАДКА 3: ЗАКУПКИ (УПРАВЛЯЕМЫЙ ЦИКЛ РАЗДЕЛ 04 ТЗ v1.1) ==================== */}
+        {activeTab === 'procurement' && (
+          <div className="p-5 md:p-6 space-y-6">
+            {/* 4 шага цепочки обеспечения по ТЗ v1.1 Стр. 5 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-1">
+                <div className="text-[11px] font-bold uppercase text-[#8B6F47]">
+                  1. Помесячный спрос (год)
+                </div>
+                <div className="text-[20px] font-bold text-[#1D1D1F]">
+                  {procurement.annualDemandPacks.toLocaleString('ru-RU')} компл.
+                </div>
+                <div className="text-[11.5px] text-[#6E6E73]">
+                  = {procurement.annualDemandUnits.toLocaleString('ru-RU')} физ. изделий (по{' '}
+                  {model.unitsInPack} шт.)
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-1">
+                <div className="text-[11px] font-bold uppercase text-[#8B6F47]">
+                  2. Доступное обеспечение
+                </div>
+                <div className="text-[20px] font-bold text-[#1D1D1F]">
+                  {(
+                    procurement.netOpeningAvailablePacks +
+                    procurement.totalApprovedReceiptsPacks
+                  ).toLocaleString('ru-RU')}{' '}
+                  компл.
+                </div>
+                <div className="text-[11.5px] text-[#6E6E73]">
+                  Остаток {procurement.netOpeningAvailablePacks} + Утверждено PO{' '}
+                  {procurement.totalApprovedReceiptsPacks} − Резерв {procurement.reservedStockPacks}
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-1">
+                <div className="text-[11px] font-bold uppercase text-[#8B6F47]">
+                  3. Непокрытый дефицит
+                </div>
+                <div
+                  className={`text-[20px] font-bold ${
+                    procurement.hasDeficit ? 'text-[#B42318]' : 'text-[#17643A]'
+                  }`}
+                >
+                  {procurement.totalDeficitPacks.toLocaleString('ru-RU')} компл.
+                </div>
+                <div className="text-[11.5px] text-[#6E6E73]">
+                  {procurement.totalDeficitUnits.toLocaleString('ru-RU')} изд. без подтверждённых PO
+                </div>
+              </div>
+
+              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-1">
+                <div className="text-[11px] font-bold uppercase text-[#8B6F47]">
+                  4. Рекомендовано к заказу
+                </div>
+                <div className="text-[20px] font-bold text-[#1D1D1F]">
+                  {procurement.totalRecommendedPacks.toLocaleString('ru-RU')} компл.
+                </div>
+                <div className="text-[11.5px] text-[#6E6E73]">
+                  {procurement.totalRecommendedUnits.toLocaleString('ru-RU')} изд. ·{' '}
+                  {procurement.totalRecommendedBudgetRub !== null
+                    ? formatMln(procurement.totalRecommendedBudgetRub)
+                    : 'бюджет ждёт себестоимость'}
+                </div>
+              </div>
+            </div>
+
+            {/* Настройки общих остатков и производственно-логистического цикла фабрики */}
+            <div className="rounded-[16px] border border-[#E6E0D4] p-4 space-y-3.5 bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[14px] font-bold text-[#1D1D1F]">
+                  Общие реальные остатки и цикл поставки фабрики (единые для всех сценариев)
+                </div>
+                <span className="text-[11.5px] font-semibold text-[#4E6A85]">
+                  Полный цикл поставки: {procurement.totalLeadDays} дн. (производство{' '}
+                  {shared.factoryParams.productionLeadDays} + QC {shared.factoryParams.qcDays} +
+                  доставка {shared.factoryParams.logisticsLeadDays} + приёмка{' '}
+                  {shared.factoryParams.acceptanceDays})
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-[12px]">
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Начальный остаток (компл.)</span>
                   <input
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    multiple
-                    onChange={handlePdfUpload}
-                    className="hidden"
+                    type="number"
+                    min={0}
+                    step={50}
+                    value={shared.actualOpeningStockPacks}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            actualOpeningStockPacks: val,
+                          },
+                        },
+                        'procurement',
+                        'Изменён реальный начальный остаток на складе (общий для всех сценариев)',
+                        `${shared.actualOpeningStockPacks} компл.`,
+                        `${val} компл.`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">MOQ фабрики (компл.)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={100}
+                    value={shared.factoryParams.moqPacks}
+                    onChange={(e) => {
+                      const val = Math.max(1, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            factoryParams: { ...shared.factoryParams, moqPacks: val },
+                          },
+                        },
+                        'procurement',
+                        'Обновлён MOQ фабрики',
+                        `${shared.factoryParams.moqPacks} компл.`,
+                        `${val} компл.`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Производство (дней)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={5}
+                    value={shared.factoryParams.productionLeadDays}
+                    onChange={(e) => {
+                      const val = Math.max(1, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            factoryParams: {
+                              ...shared.factoryParams,
+                              productionLeadDays: val,
+                            },
+                          },
+                        },
+                        'procurement',
+                        'Изменён срок производства фабрики (утверждённые PO сохранены)',
+                        `${shared.factoryParams.productionLeadDays} дн.`,
+                        `${val} дн.`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Доставка в РФ (дней)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={shared.factoryParams.logisticsLeadDays}
+                    onChange={(e) => {
+                      const val = Math.max(1, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            factoryParams: {
+                              ...shared.factoryParams,
+                              logisticsLeadDays: val,
+                            },
+                          },
+                        },
+                        'procurement',
+                        'Изменён срок доставки партии',
+                        `${shared.factoryParams.logisticsLeadDays} дн.`,
+                        `${val} дн.`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Страховой запас (дней)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={shared.factoryParams.safetyStockDays}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            factoryParams: {
+                              ...shared.factoryParams,
+                              safetyStockDays: val,
+                            },
+                          },
+                        },
+                        'procurement',
+                        'Изменён страховой запас',
+                        `${shared.factoryParams.safetyStockDays} дн.`,
+                        `${val} дн.`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Покрытие партии (мес.)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={6}
+                    value={shared.factoryParams.coverageWindowMonths}
+                    onChange={(e) => {
+                      const val = Math.min(
+                        6,
+                        Math.max(1, Math.round(Number(e.target.value)))
+                      );
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            factoryParams: {
+                              ...shared.factoryParams,
+                              coverageWindowMonths: val,
+                            },
+                          },
+                        },
+                        'procurement',
+                        'Изменена глубина покрытия партии',
+                        `${shared.factoryParams.coverageWindowMonths} мес.`,
+                        `${val} мес.`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] px-2.5 font-semibold"
                   />
                 </label>
               </div>
             </div>
 
-            {attachedPdfs.length > 0 ? (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  {attachedPdfs.map((pdf) => {
-                    const url = pdfUrlsById[pdf.id];
-                    const isPreviewing = previewPdfId === pdf.id;
+            {/* УТВЕРЖДЁННЫЕ ЗАКАЗЫ PO (НЕ ПЕРЕПИСЫВАЮТСЯ АВТОМАТИЧЕСКИ, ПОКАЗЫВАЮТ РАСХОЖДЕНИЕ!) */}
+            {procurement.approvedOrders.length > 0 && (
+              <div className="rounded-[16px] bg-[#F4F8FC] border border-[#C9DCF0] p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[14px] font-bold text-[#1E3A5F]">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>
+                      Утверждённые заказы фабрикам ({procurement.approvedOrders.length}) — защищены от авто-перезаписи
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {procurement.approvedOrders.map((po) => {
+                    const disc = procurement.orderDiscrepancies.find(
+                      (d) => d.orderId === po.id
+                    );
                     return (
                       <div
-                        key={pdf.id}
-                        className={`rounded-[12px] border px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 flex-1 min-w-[260px] ${
-                          isPreviewing
-                            ? 'bg-[#FAF6EE] border-[#C8A97E]'
-                            : 'bg-[#FAF8F4] border-[#E6E0D4]'
-                        }`}
+                        key={po.id}
+                        className="rounded-[12px] bg-white border border-[#D4E3F3] p-3.5 space-y-2 text-[12.5px]"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <FileText className="h-4 w-4 text-[#8B6F47] shrink-0" />
-                          <div className="min-w-0">
-                            <div className="text-[12.5px] font-bold text-[#1D1D1F] truncate">
-                              {pdf.name}
-                            </div>
-                            <div className="text-[10.5px] text-[#6E6E73]">
-                              {(pdf.sizeBytes / 1024 / 1024).toFixed(2)} МБ · Загружен {pdf.uploadedAt}
-                            </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-[#1E3A5F] text-white font-mono text-[11px] font-semibold">
+                              {po.orderNumber} · v{po.version}
+                            </span>
+                            <StatusPill status="approved" />
+                            <strong className="text-[#1D1D1F]">
+                              {po.packsQty.toLocaleString('ru-RU')} компл. (
+                              {po.physicalUnitsQty.toLocaleString('ru-RU')} изд.)
+                            </strong>
+                            <span className="text-[#6E6E73]">· {po.factoryName}</span>
+                          </div>
+
+                          <div className="font-bold text-[#1D1D1F]">
+                            {formatRub(po.totalOrderRub)}{' '}
+                            <span className="text-[11px] font-normal text-[#6E6E73]">
+                              (по {po.lockedUnitCostRub} ₽/компл.)
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPreviewPdfId(isPreviewing ? null : pdf.id)
-                            }
-                            className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3ECE0] border border-[#D4CDC2] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1 cursor-pointer"
-                          >
-                            <Eye className="h-3 w-3 text-[#8B6F47]" />
-                            <span>{isPreviewing ? 'Скрыть превью' : 'Смотреть в карточке'}</span>
-                          </button>
-
-                          {url && (
-                            <>
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="Открыть PDF в новой вкладке"
-                                className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3F0E8] border border-[#D4CDC2] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                <span>Открыть</span>
-                              </a>
-                              <a
-                                href={url}
-                                download={pdf.name}
-                                title="Скачать PDF"
-                                className="h-7 px-2.5 rounded-[8px] bg-white hover:bg-[#F3F0E8] border border-[#D4CDC2] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1"
-                              >
-                                <Download className="h-3 w-3" />
-                              </a>
-                            </>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteAttachedPdf(pdf.id)}
-                            title="Удалить PDF из карточки"
-                            className="h-7 w-7 rounded-[8px] bg-white hover:bg-[#FFF0EE] border border-[#D4CDC2] hover:border-[#F0C7C2] text-[#C93B2B] flex items-center justify-center cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#5A564F]">
+                          <span>
+                            Зафиксированная дата заказа:{' '}
+                            <strong>{po.orderPlacementDateIso}</strong> → Поступление на склад:{' '}
+                            <strong>{po.requiredArrivalDateIso}</strong> (цикл при утверждении:{' '}
+                            {po.leadTimeDaysAtApproval} дн.)
+                          </span>
+                          <span>
+                            Предоплата: {formatRub(po.prepaymentRub)} · Доплата:{' '}
+                            {formatRub(po.balancePaymentRub)}
+                          </span>
                         </div>
+
+                        {disc && (
+                          <div className="rounded-[9px] bg-[#FFF6E6] border border-[#F2D29B] px-3 py-2 text-[11.5px] text-[#8A4F00] flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                            <div>
+                              <strong>Расхождение с текущими параметрами (сам заказ {po.orderNumber} сохранён без изменений):</strong>{' '}
+                              {disc.message}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
-
-                {previewPdfId && pdfUrlsById[previewPdfId] && (
-                  <div className="rounded-[14px] overflow-hidden border border-[#DED8CC] bg-[#323639]">
-                    <iframe
-                      src={pdfUrlsById[previewPdfId]}
-                      title="PDF Preview"
-                      className="w-full h-[680px]"
-                    />
-                  </div>
-                )}
               </div>
-            ) : (
-              <label className="rounded-[14px] border border-dashed border-[#C8A97E] bg-[#FAF8F4] hover:bg-[#FAF4EC] p-5 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition text-center">
-                <Upload className="h-5 w-5 text-[#8B6F47]" />
-                <span className="text-[13px] font-bold text-[#1D1D1F]">
-                  Нажмите, чтобы загрузить PDF-файл в карточку модели
-                </span>
-                <span className="text-[11.5px] text-[#6E6E73]">
-                  Поддерживаются многостраничные PDF со схемами, фотографиями и китайско-русской спецификацией
-                </span>
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  multiple
-                  onChange={handlePdfUpload}
-                  className="hidden"
-                />
-              </label>
             )}
-          </div>
-        </div>
-      )}
 
-      {activeTab === 'production' && (
-        <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-5 shadow-2xs">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-[16px] font-bold text-[#1D1D1F]">
-                Производственный статус и график партии
-              </h3>
-              <p className="text-[12px] text-[#6E6E73]">
-                Ответственный: <span className="font-semibold text-[#1D1D1F]">{model.responsiblePerson}</span> · Объём 1-го заказа:{' '}
-                <span className="font-semibold text-[#1D1D1F]">
-                  {metrics.plan.firstOrderPacks.toLocaleString('ru-RU')} комплектов ={' '}
-                  {(metrics.plan.firstOrderPacks * model.unitsInPack).toLocaleString('ru-RU')} отдельных штук
-                </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 text-[11px]">
-              <span className="px-2.5 py-1 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] font-bold">
-                ● Подтверждено фабрикой
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-[#D97706]/15 text-[#B45309] font-bold">
-                ● Плановое / Требует подтверждения
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
-            {model.productionSteps.map((step) => (
-              <div
-                key={step.id}
-                className={`rounded-[14px] border p-3.5 flex flex-col justify-between space-y-3 ${
-                  step.status === 'done'
-                    ? 'bg-[#F4FAF6] border-[#CBE5D6]'
-                    : step.status === 'in_progress'
-                    ? 'bg-[#FDF8EE] border-[#EAD4B0]'
-                    : 'bg-[#FAF8F4] border-[#E6E0D4]'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[#6E6E73]">
-                    Этап 0{step.stepNum}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[9.5px] font-bold ${
-                      step.confirmation === 'factory_confirmed'
-                        ? 'bg-[#2E6B4E]/15 text-[#2E6B4E]'
-                        : step.confirmation === 'needs_confirmation'
-                        ? 'bg-[#D97706]/15 text-[#B45309]'
-                        : 'bg-[#E5DEC9] text-[#5A564F]'
-                    }`}
-                  >
-                    {step.confirmation === 'factory_confirmed'
-                      ? 'Подтверждено'
-                      : step.confirmation === 'needs_confirmation'
-                      ? 'Ждёт ответа'
-                      : 'Плановое'}
-                  </span>
-                </div>
-                <div>
-                  <div className="text-[13px] font-bold text-[#1D1D1F] leading-snug">
-                    {step.title}
-                  </div>
-                  <div className="text-[11.5px] text-[#6E6E73] mt-1">
-                    {step.datesLabel}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'economics' && (
-        /* ВКЛАДКА «ЭКОНОМИКА» (Тест 05: изменение себестоимости пересчитывает маржинальный доход) */
-        <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-5 shadow-2xs">
-          <div>
-            <h3 className="text-[16px] font-bold text-[#1D1D1F]">
-              Юнит-экономика 1 комплекта ({model.unitsInPack} шт.)
-            </h3>
-            <p className="text-[12px] text-[#6E6E73]">
-              Измените закупочную себестоимость или розничную цену — маржинальный доход в ₽ и % пересчитается автоматически
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
-            <div className="rounded-[14px] bg-[#FAF8F4] border border-[#E6E0D4] p-3.5 space-y-1.5">
-              <label className="text-[11px] text-[#6E6E73] font-semibold">
-                Розничная цена (₽)
-              </label>
-              <input
-                type="number"
-                value={model.retailPriceRub}
-                onChange={(e) => {
-                  const val = Math.max(100, Number(e.target.value) || 0);
-                  const plan = model.plansByScenario[scenario.id];
-                  onUpdateModel({
-                    ...model,
-                    retailPriceRub: val,
-                    plansByScenario: plan
-                      ? {
-                          ...model.plansByScenario,
-                          [scenario.id]: {
-                            ...plan,
-                            monthlyPricesRub: Array(12).fill(val),
-                          },
-                        }
-                      : model.plansByScenario,
-                  });
-                }}
-                className="w-full h-9 px-2.5 rounded-[8px] border border-[#D4CDC2] bg-white text-[15px] font-bold text-[#1D1D1F]"
-              />
-            </div>
-
-            <div className="rounded-[14px] bg-[#FAF8F4] border border-[#E6E0D4] p-3.5 space-y-1.5">
-              <label className="text-[11px] text-[#6E6E73] font-semibold">
-                Себестоимость в РФ (₽)
-              </label>
-              <input
-                type="number"
-                value={model.unitCostRub}
-                onChange={(e) =>
-                  onUpdateModel({
-                    ...model,
-                    unitCostRub: Math.max(50, Number(e.target.value) || 0),
-                  })
-                }
-                className="w-full h-9 px-2.5 rounded-[8px] border border-[#D4CDC2] bg-white text-[15px] font-bold text-[#1D1D1F]"
-              />
-            </div>
-
-            <div className="rounded-[14px] bg-[#FAF8F4] border border-[#E6E0D4] p-3.5 space-y-1.5">
-              <label className="text-[11px] text-[#6E6E73] font-semibold">
-                Комиссия площадки (%)
-              </label>
-              <input
-                type="number"
-                value={model.marketplaceFeePct}
-                onChange={(e) =>
-                  onUpdateModel({
-                    ...model,
-                    marketplaceFeePct: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
-                className="w-full h-9 px-2.5 rounded-[8px] border border-[#D4CDC2] bg-white text-[15px] font-bold text-[#1D1D1F]"
-              />
-              <div className="text-[11px] text-[#6E6E73]">= {metrics.feeRub} ₽ / компл.</div>
-            </div>
-
-            <div className="rounded-[14px] bg-[#FAF8F4] border border-[#E6E0D4] p-3.5 space-y-1.5">
-              <label className="text-[11px] text-[#6E6E73] font-semibold">
-                Логистика и хранение (₽)
-              </label>
-              <input
-                type="number"
-                value={model.logisticsRub}
-                onChange={(e) =>
-                  onUpdateModel({
-                    ...model,
-                    logisticsRub: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
-                className="w-full h-9 px-2.5 rounded-[8px] border border-[#D4CDC2] bg-white text-[15px] font-bold text-[#1D1D1F]"
-              />
-            </div>
-
-            <div className="rounded-[14px] bg-[#FAF8F4] border border-[#E6E0D4] p-3.5 space-y-1.5">
-              <label className="text-[11px] text-[#6E6E73] font-semibold">
-                Реклама DRR (%)
-              </label>
-              <input
-                type="number"
-                value={model.adsPct}
-                onChange={(e) =>
-                  onUpdateModel({
-                    ...model,
-                    adsPct: Math.max(0, Number(e.target.value) || 0),
-                  })
-                }
-                className="w-full h-9 px-2.5 rounded-[8px] border border-[#D4CDC2] bg-white text-[15px] font-bold text-[#1D1D1F]"
-              />
-              <div className="text-[11px] text-[#6E6E73]">= {metrics.adsRub} ₽ / компл.</div>
-            </div>
-
-            <div className="rounded-[14px] bg-[#F3FAF6] border border-[#CBE5D6] p-3.5 flex flex-col justify-between">
-              <div className="text-[11px] font-bold text-[#2E6B4E]">
-                Маржинальный доход
-              </div>
-              <div>
-                <div className="text-[22px] font-bold text-[#2E6B4E]">
-                  {metrics.unitMarginRub} ₽
-                </div>
-                <div className="text-[12px] font-bold text-[#2E6B4E]">
-                  Маржинальность: {metrics.unitMarginPct}%
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'spec' && (
-        /* ВКЛАДКА «СПЕЦИФИКАЦИЯ» (Производственный паспорт из 6 секций A–F + кнопка PDF) */
-        <div className="rounded-[20px] bg-white border border-[#E6E0D4] p-5 space-y-5 shadow-2xs">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* A. Конструкция */}
-            <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[13.5px] font-bold text-[#1D1D1F]">
-                  A. Конструкция и технический чертёж
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[10px] font-bold">
-                  Заполнено
+            {/* РЕКОМЕНДОВАННЫЕ ПАРТИИ К СОГЛАСОВАНИЮ */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-[15px] font-bold text-[#1D1D1F]">
+                  Рекомендованные закупочные партии с учётом MOQ и цикла поставки (
+                  {procurement.recommendedBatches.length})
+                </h3>
+                <span className="text-[11.5px] text-[#6E6E73]">
+                  Стоимость считается строго от комплектов и не умножается повторно на число изделий в наборе
                 </span>
               </div>
-              <TechnicalFlatDrawingSvg />
-              <div className="grid grid-cols-2 gap-2 text-[11.5px] pt-1">
-                <div>
-                  <span className="text-[#6E6E73]">Длина бокового шва:</span>{' '}
-                  <span className="font-semibold text-[#1D1D1F]">
-                    {model.construction.sideSeam}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[#6E6E73]">Тип швов:</span>{' '}
-                  <span className="font-semibold text-[#1D1D1F]">
-                    {model.construction.seams}
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* B. Материалы + C. Резинка */}
-            <div className="space-y-4">
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold text-[#1D1D1F]">
-                    B. Материалы и полотно
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[10px] font-bold">
-                    Заполнено
-                  </span>
+              {procurement.recommendedBatches.length === 0 ? (
+                <div className="rounded-[14px] bg-[#E6F4EC] border border-[#BCE3CC] px-4 py-3 text-[13px] font-medium text-[#17643A]">
+                  Весь плановый спрос полностью покрыт текущими остатками и утверждёнными заказами PO.
                 </div>
-                <p className="text-[12px] text-[#4A4740]">
-                  {model.fabric.composition} · Плотность {model.fabric.density} ·{' '}
-                  {model.fabric.knitType} · Усадка после стирки ≤ 3%.
-                </p>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {procurement.recommendedBatches.map((batch) => (
+                    <div
+                      key={batch.batchIndex}
+                      className="rounded-[16px] border border-[#E6E0D4] bg-[#FAF8F4] p-4 space-y-3 flex flex-col justify-between"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[12px] font-bold text-[#8B6F47]">
+                            Партия #{batch.batchIndex} · покрытие {batch.coverageMonthsLabel}
+                          </span>
+                          <StatusPill status="plan" />
+                        </div>
 
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold text-[#1D1D1F]">
-                    C. Резинка и брендирование
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[10px] font-bold">
-                    Заполнено
-                  </span>
-                </div>
-                <p className="text-[12px] text-[#4A4740]">
-                  Ширина {model.waistband.width} · {model.waistband.type} ·{' '}
-                  {model.waistband.colorRule} · {model.waistband.logoRepeat}.
-                </p>
-              </div>
+                        <div className="flex flex-wrap items-baseline justify-between gap-2">
+                          <div>
+                            <div className="text-[20px] font-bold text-[#1D1D1F]">
+                              {batch.recommendedPacks.toLocaleString('ru-RU')} компл.
+                            </div>
+                            <div className="text-[12px] text-[#5A564F]">
+                              Физических изделий:{' '}
+                              <strong>
+                                {batch.physicalUnitsQty.toLocaleString('ru-RU')} шт.
+                              </strong>{' '}
+                              (чистая потребность {batch.rawNetNeedPacks} + MOQ{' '}
+                              {shared.factoryParams.moqPacks})
+                            </div>
+                          </div>
 
-              {/* E. Размеры S–4XL */}
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold text-[#1D1D1F]">
-                    E. Размерная сетка S–4XL и допуски (±0,5 см)
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#2E6B4E]/12 text-[#2E6B4E] text-[10px] font-bold">
-                    Заполнено
-                  </span>
-                </div>
-                <div className="grid grid-cols-6 gap-1.5 text-center text-[11px]">
-                  {['S (46)', 'M (48)', 'L (50)', 'XL (52)', '2XL (54)', '3XL (56)'].map(
-                    (sz) => (
-                      <div
-                        key={sz}
-                        className="rounded-[7px] bg-white border border-[#E5DEC9] py-1 font-semibold text-[#1D1D1F]"
-                      >
-                        {sz}
+                          <div className="text-right">
+                            <div className="text-[17px] font-bold text-[#1D1D1F]">
+                              {batch.unitCostRub > 0
+                                ? formatRub(batch.estimatedTotalRub)
+                                : 'Себест. не задана'}
+                            </div>
+                            {batch.unitCostRub > 0 && (
+                              <div className="text-[11px] text-[#6E6E73]">
+                                Аванс {shared.factoryParams.prepaymentPct}%:{' '}
+                                {formatRub(batch.prepaymentRub)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-[10px] bg-white border border-[#E6E0D4] px-3 py-2 text-[11.5px] space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#6E6E73] inline-flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              Рекомендуемая дата размещения заказа:
+                            </span>
+                            <strong className="text-[#1D1D1F]">
+                              {batch.recommendedOrderDateIso}
+                            </strong>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#6E6E73]">
+                              Необходимое поступление на склад:
+                            </span>
+                            <strong className="text-[#1D1D1F]">
+                              {batch.requiredArrivalDateIso}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1 text-[10.5px] text-[#5A564F]">
+                          {(['S', 'M', 'L', 'XL', 'XXL'] as const).map((sz) => (
+                            <span
+                              key={sz}
+                              className="px-2 py-0.5 rounded bg-white border border-[#E6E0D4]"
+                            >
+                              {sz}: {batch.sizeBreakdownPacks[sz]} к.
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    )
-                  )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = approveRecommendedBatch(model, batch, 'Владелец');
+                          onUpdateModel(updated);
+                          notify(
+                            'success',
+                            `Партия #${batch.batchIndex} (${batch.recommendedPacks.toLocaleString(
+                              'ru-RU'
+                            )} компл.) утверждена`,
+                            'Присвоен номер заказа PO и зафиксированы сроки и стоимость.'
+                          );
+                        }}
+                        className="h-9 w-full rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12px] font-semibold transition cursor-pointer"
+                      >
+                        Утвердить заказ партии (присвоить PO)
+                      </button>
+                    </div>
+                  ))}
                 </div>
+              )}
+            </div>
+
+            {/* Помесячный баланс реального наличия */}
+            <div className="overflow-x-auto rounded-[16px] border border-[#E6E0D4]">
+              <table className="w-full text-left border-collapse text-[12px]">
+                <thead>
+                  <tr className="bg-[#FAF8F4] border-b border-[#E6E0D4] text-[11px] uppercase text-[#6E6E73]">
+                    <th className="py-2 px-3">Месяц</th>
+                    <th className="py-2 px-3">Нач. остаток</th>
+                    <th className="py-2 px-3">Утверждённые PO</th>
+                    <th className="py-2 px-3">Спрос (компл. / изд.)</th>
+                    <th className="py-2 px-3">Кон. остаток</th>
+                    <th className="py-2 px-3">Дефицит без PO</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EFECE4]">
+                  {procurement.monthlyBalance.map((row) => (
+                    <tr key={row.monthLabel}>
+                      <td className="py-2 px-3 font-semibold text-[#1D1D1F]">
+                        {row.monthLabel}
+                      </td>
+                      <td className="py-2 px-3">
+                        {row.openingAvailablePacks.toLocaleString('ru-RU')} к.
+                      </td>
+                      <td className="py-2 px-3 font-medium text-[#1E4F8A]">
+                        {row.approvedReceiptsPacks > 0
+                          ? `+${row.approvedReceiptsPacks.toLocaleString('ru-RU')} к.`
+                          : '0'}
+                      </td>
+                      <td className="py-2 px-3">
+                        {row.demandPacks.toLocaleString('ru-RU')} к. (
+                        {row.demandUnits.toLocaleString('ru-RU')} изд.)
+                      </td>
+                      <td className="py-2 px-3 font-semibold">
+                        {Math.max(0, row.endingAvailablePacks).toLocaleString('ru-RU')} к.
+                      </td>
+                      <td className="py-2 px-3">
+                        {row.deficitPacks > 0 ? (
+                          <span className="font-semibold text-[#B42318]">
+                            −{row.deficitPacks.toLocaleString('ru-RU')} к. (
+                            {row.deficitUnits.toLocaleString('ru-RU')} изд.)
+                          </span>
+                        ) : (
+                          <span className="text-[#17643A] font-medium">Обеспечено</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== ВКЛАДКА 4: ФИНАНСЫ (КАСКАДНЫЙ P&L И КАПИТАЛ, РАЗДЕЛ 05 ТЗ v1.1) ==================== */}
+        {activeTab === 'finance' && (
+          <div className="p-5 md:p-6 space-y-6">
+            {/* Редактор операционных расходов и OPEX */}
+            <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[14px] font-bold text-[#1D1D1F]">
+                  Параметры себестоимости, комиссий MP, логистики, рекламы и постоянных OPEX
+                </div>
+                <span className="text-[11.5px] text-[#6E6E73]">
+                  Если расходы не заполнены — операционная прибыль отображается как «Не рассчитана»
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-[12px]">
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Себестоимость (₽/компл.)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={10}
+                    value={model.unitCostRub || ''}
+                    placeholder="Не заполнено"
+                    onChange={(e) => handleUnitCostChange(Number(e.target.value))}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] bg-white px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Комиссия MP (%)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={model.marketplaceFeePct}
+                    onChange={(e) => {
+                      const val = Math.max(0, Number(e.target.value));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          marketplaceFeePct: val,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            expensesFilled:
+                              val > 0 || model.logisticsRub > 0 || model.adsPct > 0,
+                          },
+                        },
+                        'finance',
+                        'Обновлена комиссия маркетплейса',
+                        `${model.marketplaceFeePct}%`,
+                        `${val}%`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] bg-white px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Логистика (₽/компл.)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={model.logisticsRub}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          logisticsRub: val,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            expensesFilled:
+                              val > 0 || model.marketplaceFeePct > 0 || model.adsPct > 0,
+                          },
+                        },
+                        'finance',
+                        'Обновлена стоимость логистики за комплект',
+                        `${model.logisticsRub} ₽`,
+                        `${val} ₽`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] bg-white px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Реклама ДРР (%)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={50}
+                    step={0.5}
+                    value={model.adsPct}
+                    onChange={(e) => {
+                      const val = Math.max(0, Number(e.target.value));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          adsPct: val,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            expensesFilled:
+                              val > 0 || model.marketplaceFeePct > 0 || model.logisticsRub > 0,
+                          },
+                        },
+                        'finance',
+                        'Обновлена доля рекламных расходов (ДРР)',
+                        `${model.adsPct}%`,
+                        `${val}%`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] bg-white px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Прочие перем. (₽/компл.)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={shared.otherVariableRubPerPack}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.round(Number(e.target.value)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            otherVariableRubPerPack: val,
+                          },
+                        },
+                        'finance',
+                        'Обновлены прочие переменные расходы',
+                        `${shared.otherVariableRubPerPack} ₽`,
+                        `${val} ₽`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] bg-white px-2.5 font-semibold"
+                  />
+                </label>
+
+                <label className="space-y-1">
+                  <span className="text-[#6E6E73] block">Постоянные OPEX (₽/компл.)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={5}
+                    value={
+                      shared.allocatedFixedOpexRubPerPack === null
+                        ? ''
+                        : shared.allocatedFixedOpexRubPerPack
+                    }
+                    placeholder="Не задано"
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const val =
+                        raw.trim() === ''
+                          ? null
+                          : Math.max(0, Math.round(Number(raw)));
+                      commitWithAudit(
+                        {
+                          ...model,
+                          sharedSupplyAndFact: {
+                            ...shared,
+                            allocatedFixedOpexRubPerPack: val,
+                          },
+                        },
+                        'finance',
+                        'Обновлены распределённые постоянные расходы OPEX',
+                        shared.allocatedFixedOpexRubPerPack === null
+                          ? 'Не задано'
+                          : `${shared.allocatedFixedOpexRubPerPack} ₽`,
+                        val === null ? 'Не задано' : `${val} ₽`
+                      );
+                    }}
+                    className="h-8 w-full rounded-[8px] border border-[#DED8CC] bg-white px-2.5 font-semibold"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Каскадная таблица P&L: 1 комплект vs Год 2027 */}
+            <div className="overflow-x-auto rounded-[16px] border border-[#E6E0D4]">
+              <table className="w-full text-left border-collapse text-[13px]">
+                <thead>
+                  <tr className="bg-[#FAF8F4] border-b border-[#E6E0D4] text-[11px] uppercase text-[#6E6E73]">
+                    <th className="py-2.5 px-4">Показатель P&L</th>
+                    <th className="py-2.5 px-4">Формула расчёта</th>
+                    <th className="py-2.5 px-4">На 1 комплект</th>
+                    <th className="py-2.5 px-4">За 2027 год</th>
+                    <th className="py-2.5 px-4">Доля от выручки</th>
+                    <th className="py-2.5 px-4">Статус</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#EFECE4]">
+                  <tr>
+                    <td className="py-2.5 px-4 font-bold text-[#1D1D1F]">1. Выручка</td>
+                    <td className="py-2.5 px-4 text-[12px] text-[#6E6E73]">
+                      Выкупленные комплекты × средняя реализованная цена
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold">
+                      {formatRub(pnl.avgRealizedPricePerPackRub)}
+                    </td>
+                    <td className="py-2.5 px-4 font-bold text-[#1D1D1F]">
+                      {formatRub(pnl.annualRevenueRub)}
+                    </td>
+                    <td className="py-2.5 px-4">100%</td>
+                    <td className="py-2.5 px-4">
+                      <StatusPill status={pnl.revenueStatus} />
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td className="py-2.5 px-4 font-medium text-[#5A564F]">
+                      − Себестоимость выкупленного товара
+                    </td>
+                    <td className="py-2.5 px-4 text-[12px] text-[#6E6E73]">
+                      Выкупленные комплекты × себестоимость под ключ
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {pnl.unitCostPerPackRub !== null
+                        ? formatRub(pnl.unitCostPerPackRub)
+                        : 'Не заполнено'}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {pnl.annualCogsRub !== null
+                        ? formatRub(pnl.annualCogsRub)
+                        : 'Не заполнено'}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {pnl.annualCogsRub !== null && pnl.annualRevenueRub > 0
+                        ? `${Math.round((pnl.annualCogsRub / pnl.annualRevenueRub) * 1000) / 10}%`
+                        : '—'}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <StatusPill status={pnl.costStatus} />
+                    </td>
+                  </tr>
+
+                  <tr className="bg-[#FAF8F4]/70">
+                    <td className="py-2.5 px-4 font-bold text-[#1D1D1F]">
+                      2. Валовая прибыль (не операционная)
+                    </td>
+                    <td className="py-2.5 px-4 text-[12px] text-[#6E6E73]">
+                      Выручка − себестоимость выкупленного товара
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold">
+                      {pnl.unitGrossProfitRub !== null
+                        ? formatRub(pnl.unitGrossProfitRub)
+                        : 'Не рассчитана'}
+                    </td>
+                    <td className="py-2.5 px-4 font-bold">
+                      {pnl.annualGrossProfitRub !== null
+                        ? formatRub(pnl.annualGrossProfitRub)
+                        : 'Не рассчитана'}
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold">
+                      {pnl.grossMarginPct !== null ? `${pnl.grossMarginPct}%` : '—'}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <StatusPill
+                        status={pnl.annualGrossProfitRub !== null ? 'plan' : 'not_filled'}
+                      />
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td className="py-2.5 px-4 font-medium text-[#5A564F]">
+                      − Комиссии MP, логистика, реклама и перем. расходы
+                    </td>
+                    <td className="py-2.5 px-4 text-[12px] text-[#6E6E73]">
+                      MP {model.marketplaceFeePct}% + лог. {model.logisticsRub} ₽ + рекл.{' '}
+                      {model.adsPct}% + проч. {shared.otherVariableRubPerPack} ₽
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {pnl.expensesFilled
+                        ? formatRub(
+                            (pnl.unitMpCommissionRub || 0) +
+                              (pnl.unitLogisticsRub || 0) +
+                              (pnl.unitAdsRub || 0) +
+                              (pnl.unitOtherVarRub || 0)
+                          )
+                        : 'Не заполнено'}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      {pnl.expensesFilled
+                        ? formatRub(
+                            (pnl.annualMpCommissionRub || 0) +
+                              (pnl.annualLogisticsRub || 0) +
+                              (pnl.annualAdsRub || 0) +
+                              (pnl.annualOtherVarRub || 0)
+                          )
+                        : 'Не заполнено'}
+                    </td>
+                    <td className="py-2.5 px-4">—</td>
+                    <td className="py-2.5 px-4">
+                      <StatusPill status={pnl.marginStatus} />
+                    </td>
+                  </tr>
+
+                  <tr className="bg-[#FAF8F4]/70">
+                    <td className="py-2.5 px-4 font-bold text-[#1D1D1F]">
+                      3. Маржинальная прибыль
+                    </td>
+                    <td className="py-2.5 px-4 text-[12px] text-[#6E6E73]">
+                      Валовая прибыль − комиссии MP − логистика − реклама
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold">
+                      {pnl.unitContributionMarginRub !== null
+                        ? formatRub(pnl.unitContributionMarginRub)
+                        : 'Не рассчитана'}
+                    </td>
+                    <td className="py-2.5 px-4 font-bold">
+                      {pnl.annualContributionMarginRub !== null
+                        ? formatRub(pnl.annualContributionMarginRub)
+                        : 'Не рассчитана'}
+                    </td>
+                    <td className="py-2.5 px-4 font-semibold">
+                      {pnl.contributionMarginPct !== null
+                        ? `${pnl.contributionMarginPct}%`
+                        : '—'}
+                    </td>
+                    <td className="py-2.5 px-4">
+                      <StatusPill status={pnl.marginStatus} />
+                    </td>
+                  </tr>
+
+                  <tr className="bg-[#F4F8F5]">
+                    <td className="py-3 px-4 font-bold text-[#1D1D1F]">
+                      4. Операционная прибыль
+                    </td>
+                    <td className="py-3 px-4 text-[12px] text-[#6E6E73]">
+                      Маржинальная прибыль − распределённые постоянные расходы OPEX
+                    </td>
+                    <td className="py-3 px-4 font-bold">
+                      {pnl.unitOperatingProfitRub !== null
+                        ? formatRub(pnl.unitOperatingProfitRub)
+                        : 'Не рассчитана'}
+                    </td>
+                    <td className="py-3 px-4 font-bold text-[#17643A]">
+                      {pnl.annualOperatingProfitRub !== null
+                        ? formatRub(pnl.annualOperatingProfitRub)
+                        : pnl.operatingProfitNotCalculatedReason}
+                    </td>
+                    <td className="py-3 px-4 font-bold">
+                      {pnl.operatingMarginPct !== null
+                        ? `${pnl.operatingMarginPct}%`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <StatusPill status={pnl.operatingProfitStatus} />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Потребность в капитале и график платежей */}
+            <div className="rounded-[16px] border border-[#E6E0D4] p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-[14px] font-bold text-[#1D1D1F]">
+                    5. Потребность в оборотном капитале и денежный поток закупок
+                  </div>
+                  <div className="text-[12px] text-[#6E6E73]">
+                    Учитывает график предоплаты ({shared.factoryParams.prepaymentPct}%) и доплаты (
+                    {shared.factoryParams.balancePaymentPct}%) за партии vs поступления от продаж
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[11px] text-[#6E6E73]">Пиковый кассовый дефицит</div>
+                  <div className="text-[18px] font-bold text-[#B42318]">
+                    {pnl.peakCapitalDeficitRub > 0
+                      ? formatRub(pnl.peakCapitalDeficitRub)
+                      : '0 ₽ (самоокупаемость)'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2 text-[11.5px]">
+                {pnl.monthlyCashFlow.map((cf) => (
+                  <div
+                    key={cf.monthLabel}
+                    className="rounded-[10px] bg-[#FAF8F4] border border-[#ECE8DF] p-2.5 space-y-0.5"
+                  >
+                    <div className="font-bold text-[#1D1D1F]">{cf.monthLabel}</div>
+                    <div className="text-[#17643A]">
+                      +{formatMln(cf.inflowSalesRub)}
+                    </div>
+                    <div className="text-[#B42318]">
+                      −{formatMln(cf.outflowProcurementRub + cf.outflowVariableAndOpexRub)}
+                    </div>
+                    <div className="text-[10.5px] font-semibold text-[#4E4A42] pt-0.5 border-t border-[#E6E0D4]">
+                      Баланс: {formatMln(cf.cumulativeCashBalanceRub)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
-
-          {/* F. Файлы + Кнопка Скачать ТЗ в PDF (Тест 10) */}
-          <div className="rounded-[16px] bg-[#FAF6EE] border border-[#E5DEC9] p-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-[10px] bg-white border border-[#DED8CC] flex items-center justify-center text-[#8B6F47]">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="text-[13.5px] font-bold text-[#1D1D1F]">
-                  F. Производственный пакет файлов и ТЗ для фабрики (PDF)
-                </div>
-                <div className="text-[11.5px] text-[#6E6E73]">
-                  Лекала DXF/PDF · Таблица градации S–4XL · Карта цветов Pantone TCX
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5">
-              <label className="h-10 px-4 rounded-[11px] bg-white hover:bg-[#F3ECE0] border border-[#C8A97E] text-[#7A5C38] text-[12.5px] font-bold inline-flex items-center gap-2 transition cursor-pointer">
-                <Upload className="h-4 w-4" />
-                <span>+ Загрузить PDF файл</span>
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  multiple
-                  onChange={handlePdfUpload}
-                  className="hidden"
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={onOpenPdfModal}
-                className="h-10 px-5 rounded-[11px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[13px] font-bold inline-flex items-center gap-2 transition cursor-pointer shadow-xs"
-              >
-                <Printer className="h-4 w-4" />
-                <span>Скачать техническое задание PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Нижняя панель действий карточки модели */}
-      <div className="pt-4 border-t border-[#E6E0D4] flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => onDeleteOrArchiveModel(model)}
-          className="h-10 px-4 rounded-[11px] bg-white hover:bg-[#FFF4F2] border border-[#DED8CC] hover:border-[#F0C7C2] text-[#C93B2B] text-[12.5px] font-semibold inline-flex items-center gap-2 transition cursor-pointer"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Удалить карточку модели</span>
-        </button>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={onBackToScenarios}
-            className="h-10 px-4 rounded-[11px] bg-white hover:bg-[#F3F0E8] border border-[#DED8CC] text-[#1D1D1F] text-[12.5px] font-semibold transition cursor-pointer"
-          >
-            К списку моделей
-          </button>
-          <button
-            type="button"
-            onClick={handleExplicitSave}
-            className="h-10 px-5 rounded-[11px] bg-[#2E6B4E] hover:bg-[#24563E] text-white text-[13px] font-bold inline-flex items-center gap-2 transition cursor-pointer shadow-xs"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Сохранить карточку</span>
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

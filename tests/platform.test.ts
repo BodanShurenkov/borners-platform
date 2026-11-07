@@ -43,6 +43,18 @@ import {
   isUnverifiedActingSku,
   verifyScenarioS1_100M,
 } from '../src/lib/scenarioS1_100M.ts';
+import {
+  approveRecommendedBatch,
+  computeFinancialPnL,
+  computeProcurementPlan,
+  detectModelBrandPortfolioLabel,
+  ensureModelUnifiedV11,
+  exportStructuredScenarioPlan,
+  groupRecommendedBatchesByFactory,
+  importStructuredScenarioPlan,
+  parseStructuredPlanCsvOrJson,
+  serializeStructuredPlanToCsv,
+} from '../src/lib/unifiedBusinessEngine.ts';
 
 test('1. Юнит-экономика (п. 11 ТЗ): расчёт чистой выручки, прибыли на единицу и маржи', () => {
   const result = calculateUnitEconomics({
@@ -531,6 +543,352 @@ test('14. Сохранённые продажи клиента в Сценари
   );
   assert.equal(annS2, 799_519_172);
   assert.equal(annS3, 992_670_642);
+});
+
+test('15. ТЗ v1.1 (Тест-кейс №1): оригиналы фото без кропа и категории кадров для пилотного SKU BRN-001-SC — Sorbet Club', () => {
+  const rawSorbet = S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!;
+  const sorbet = ensureModelUnifiedV11(rawSorbet);
+
+  assert.equal(sorbet.gallery.length >= 4, true);
+  const categories = new Set(sorbet.gallery.map((g) => g.category));
+  assert.equal(categories.has('pack'), true);
+  assert.equal(categories.has('single'), true);
+  assert.equal(categories.has('waistband'), true);
+  assert.equal(categories.has('construction'), true);
+
+  for (const frame of sorbet.gallery) {
+    assert.equal(Boolean(frame.originalUrl), true);
+    const fullPath = path.join(process.cwd(), 'public', frame.originalUrl!);
+    assert.equal(fs.existsSync(fullPath), true, `Отсутствует оригинал кадра: ${fullPath}`);
+  }
+
+  // Проверяем наличие компонента полноэкранного лайтбокса с поддержкой pinch-to-zoom, 100%, панорамирования и скачивания оригинала
+  const lightboxCode = fs.readFileSync(
+    path.join(process.cwd(), 'src', 'components', 'sections', 'FullscreenPhotoLightbox.tsx'),
+    'utf-8'
+  );
+  assert.equal(lightboxCode.includes('onTouchMove'), true);
+  assert.equal(lightboxCode.includes('object-contain'), true);
+  assert.equal(lightboxCode.includes('100%'), true);
+});
+
+test('16. ТЗ v1.1 (Тест-кейс №2): увеличение плана продаж Sorbet Club в августе пересчитывает выручку SKU, сценарий, дефицит и закупки', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const sorbetBase = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+
+  const basePnl = computeFinancialPnL(sorbetBase, scen1);
+  const baseProc = computeProcurementPlan(sorbetBase, scen1);
+
+  // Увеличиваем август (индекс 7) на +1 000 комплектов по цене 2 490 ₽
+  const sorbetAugBoost: typeof sorbetBase = {
+    ...sorbetBase,
+    plansByScenario: {
+      ...sorbetBase.plansByScenario,
+      1: {
+        ...sorbetBase.plansByScenario[1],
+        monthlyPacks: sorbetBase.plansByScenario[1].monthlyPacks.map((v, idx) =>
+          idx === 7 ? v + 1000 : v
+        ),
+      },
+    },
+  };
+
+  const nextPnl = computeFinancialPnL(sorbetAugBoost, scen1);
+  const nextProc = computeProcurementPlan(sorbetAugBoost, scen1);
+
+  assert.equal(nextPnl.annualBuyoutsPacks, basePnl.annualBuyoutsPacks + 1000);
+  assert.equal(nextPnl.annualRevenueRub, basePnl.annualRevenueRub + 1000 * 2490);
+  assert.equal(nextProc.totalDeficitPacks, baseProc.totalDeficitPacks + 1000);
+  assert.equal(nextProc.totalDeficitUnits, baseProc.totalDeficitUnits + 4000);
+  assert.equal(nextProc.totalRecommendedPacks > baseProc.totalRecommendedPacks, true);
+});
+
+test('17. ТЗ v1.1 (Тест-кейс №3): смена срока производства с 30 на 60 дней сдвигает дату новой партии раньше, НЕ меняя утверждённый заказ PO', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const sorbet30 = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+
+  const proc30 = computeProcurementPlan(sorbet30, scen1);
+  assert.equal(proc30.recommendedBatches.length >= 2, true);
+
+  // Утверждаем первую партию вручную -> создаётся PO-2027-BRN-001-SC-01
+  const firstBatch = proc30.recommendedBatches[0];
+  const secondBatchBefore = proc30.recommendedBatches[1];
+  const withApprovedPo = approveRecommendedBatch(sorbet30, firstBatch, 'Владелец');
+  const lockedPo = withApprovedPo.sharedSupplyAndFact!.approvedOrders[0];
+
+  assert.equal(lockedPo.orderNumber, 'PO-2027-BRN-001-SC-01');
+  const lockedPlacementDate = lockedPo.orderPlacementDateIso;
+  const lockedPacksQty = lockedPo.packsQty;
+  const lockedTotalRub = lockedPo.totalOrderRub;
+
+  // Меняем срок производства фабрики с 30 на 60 дней (+30 дней к циклу)
+  const sorbet60: typeof withApprovedPo = {
+    ...withApprovedPo,
+    sharedSupplyAndFact: {
+      ...withApprovedPo.sharedSupplyAndFact!,
+      factoryParams: {
+        ...withApprovedPo.sharedSupplyAndFact!.factoryParams,
+        productionLeadDays: 60,
+      },
+    },
+  };
+
+  const proc60 = computeProcurementPlan(sorbet60, scen1);
+
+  // 1. Существующий утверждённый заказ PO НЕ изменился!
+  assert.equal(proc60.approvedOrders.length, 1);
+  assert.equal(proc60.approvedOrders[0].orderPlacementDateIso, lockedPlacementDate);
+  assert.equal(proc60.approvedOrders[0].packsQty, lockedPacksQty);
+  assert.equal(proc60.approvedOrders[0].totalOrderRub, lockedTotalRub);
+
+  // 2. Система честно подсветила расхождение по сроку (+30 дней) на утверждённом PO
+  assert.equal(proc60.orderDiscrepancies.length, 1);
+  assert.equal(proc60.orderDiscrepancies[0].daysShifted, 30);
+
+  // 3. Дата размещения следующей новой рекомендуемой партии сдвинулась ровно на 30 дней раньше
+  const matchingNewBatch = proc60.recommendedBatches.find(
+    (b) => b.firstCoveredMonthIdx === secondBatchBefore.firstCoveredMonthIdx
+  )!;
+  const prevMs = Date.parse(`${secondBatchBefore.recommendedOrderDateIso}T00:00:00Z`);
+  const nextMs = Date.parse(`${matchingNewBatch.recommendedOrderDateIso}T00:00:00Z`);
+  const diffDays = Math.round((prevMs - nextMs) / (24 * 60 * 60 * 1000));
+  assert.equal(diffDays, 30);
+});
+
+test('18. ТЗ v1.1 (Тест-кейс №4): начальные остатки = 0, поступлений = 0, продажи > 0 -> честный дефицит (нельзя получать «обеспечено на 12 месяцев»)', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const sorbet = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+
+  const proc = computeProcurementPlan(sorbet, scen1);
+  assert.equal(proc.actualOpeningStockPacks, 0);
+  assert.equal(proc.totalApprovedReceiptsPacks, 0);
+  assert.equal(proc.annualDemandPacks > 0, true);
+  assert.equal(proc.hasDeficit, true);
+  assert.equal(proc.coveredMonthsCount, 0);
+  assert.equal(proc.totalDeficitPacks, proc.annualDemandPacks);
+  assert.equal(proc.supplyStatusTone, 'danger');
+  assert.equal(proc.supplyStatusLabel.includes('Дефицит'), true);
+});
+
+test('19. ТЗ v1.1 (Тест-кейс №5): комплект из 4 шт. при закупке 1 000 комплектов -> 1 000 комплектов и 4 000 изделий, сумма НЕ умножается повторно', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const sorbetBase = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+
+  // Задаём ровно 1 000 комплектов потребности без страхового запаса при себестоимости 600 ₽ за комплект
+  const exact1000Model: typeof sorbetBase = {
+    ...sorbetBase,
+    unitsInPack: 4,
+    unitCostRub: 600,
+    sharedSupplyAndFact: {
+      ...sorbetBase.sharedSupplyAndFact!,
+      actualOpeningStockPacks: 0,
+      approvedOrders: [],
+      factoryParams: {
+        ...sorbetBase.sharedSupplyAndFact!.factoryParams,
+        moqPacks: 1000,
+        packMultiple: 50,
+        safetyStockDays: 0,
+        coverageWindowMonths: 1,
+      },
+    },
+    plansByScenario: {
+      ...sorbetBase.plansByScenario,
+      1: {
+        ...sorbetBase.plansByScenario[1],
+        monthlyPacks: [1000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      },
+    },
+  };
+
+  const proc = computeProcurementPlan(exact1000Model, scen1);
+  assert.equal(proc.recommendedBatches.length, 1);
+  const batch = proc.recommendedBatches[0];
+  assert.equal(batch.recommendedPacks, 1000);
+  assert.equal(batch.physicalUnitsQty, 4000);
+  // Строго 1 000 компл. × 600 ₽ = 600 000 ₽ (НЕ 2 400 000 ₽!)
+  assert.equal(batch.estimatedTotalRub, 600_000);
+
+  const afterPo = approveRecommendedBatch(exact1000Model, batch, 'Владелец');
+  const po = afterPo.sharedSupplyAndFact!.approvedOrders[0];
+  assert.equal(po.packsQty, 1000);
+  assert.equal(po.physicalUnitsQty, 4000);
+  assert.equal(po.totalOrderRub, 600_000);
+});
+
+test('20. ТЗ v1.1 (Тест-кейс №6): изменение закупочной себестоимости с 600 до 650 ₽ пересчитывает затраты, маржу и бюджет закупок без изменения выкупов', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const sorbet600 = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+  const sorbet650 = { ...sorbet600, unitCostRub: 650 };
+
+  const pnl600 = computeFinancialPnL(sorbet600, scen1);
+  const proc600 = computeProcurementPlan(sorbet600, scen1);
+
+  const pnl650 = computeFinancialPnL(sorbet650, scen1);
+  const proc650 = computeProcurementPlan(sorbet650, scen1);
+
+  // Плановые выкупы не меняются!
+  assert.equal(pnl650.annualBuyoutsPacks, pnl600.annualBuyoutsPacks);
+  assert.equal(pnl650.annualRevenueRub, pnl600.annualRevenueRub);
+
+  // Товарные затраты (COGS) выросли на 50 ₽ × выкупы
+  assert.equal(
+    pnl650.annualCogsRub! - pnl600.annualCogsRub!,
+    pnl600.annualBuyoutsPacks * 50
+  );
+  // Маржинальная и операционная прибыль уменьшились ровно на ту же величину
+  assert.equal(
+    pnl600.annualContributionMarginRub! - pnl650.annualContributionMarginRub!,
+    pnl600.annualBuyoutsPacks * 50
+  );
+  assert.equal(
+    pnl600.annualOperatingProfitRub! - pnl650.annualOperatingProfitRub!,
+    pnl600.annualBuyoutsPacks * 50
+  );
+  // Бюджет рекомендованных закупок вырос на 50 ₽ × рекомендуемые комплекты
+  assert.equal(
+    proc650.totalRecommendedBudgetRub! - proc600.totalRecommendedBudgetRub!,
+    proc600.totalRecommendedPacks * 50
+  );
+});
+
+test('21. ТЗ v1.1 (Тест-кейс №7): один SKU в двух сценариях (100 млн и 150 млн) — одна галерея/спецификация, раздельные прогнозы и общие реальные остатки/PO', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const scen2 = INITIAL_SCENARIOS.find((s) => s.id === 2)!;
+  const baseSorbet = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+
+  // Задаём общий реальный начальный остаток 500 компл. и утверждаем 1 заказ PO
+  const withStock = {
+    ...baseSorbet,
+    sharedSupplyAndFact: {
+      ...baseSorbet.sharedSupplyAndFact!,
+      actualOpeningStockPacks: 500,
+    },
+  };
+  const firstBatchS1 = computeProcurementPlan(withStock, scen1).recommendedBatches[0];
+  const sharedModel = approveRecommendedBatch(withStock, firstBatchS1, 'Владелец');
+
+  const procS1 = computeProcurementPlan(sharedModel, scen1);
+  const procS2 = computeProcurementPlan(sharedModel, scen2);
+
+  // Одна и та же карточка и спецификация
+  assert.equal(sharedModel.gallery.length >= 4, true);
+  assert.equal(sharedModel.fabric.composition.length > 0, true);
+
+  // Раздельные сценарные прогнозы продаж (150 млн > 100 млн)
+  assert.equal(procS2.annualDemandPacks > procS1.annualDemandPacks, true);
+
+  // Общие реальные остатки и единый утверждённый заказ PO без дублирования!
+  assert.equal(procS1.actualOpeningStockPacks, 500);
+  assert.equal(procS2.actualOpeningStockPacks, 500);
+  assert.equal(procS1.approvedOrders.length, 1);
+  assert.equal(procS2.approvedOrders.length, 1);
+  assert.equal(procS1.approvedOrders[0].orderNumber, procS2.approvedOrders[0].orderNumber);
+});
+
+test('22. ТЗ v1.1 (Тест-кейс №8): если финансовые затраты не заполнены — операционная прибыль строго «Не рассчитана» без ложных 75% прибыли', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+
+  // Случай А: модель DAILY BRN-DLY-01 (себестоимость и расходы не заданы)
+  const dly01 = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-DLY-01')!
+  );
+  const pnlDly = computeFinancialPnL(dly01, scen1);
+  assert.equal(pnlDly.annualOperatingProfitRub, null);
+  assert.equal(pnlDly.operatingMarginPct, null);
+  assert.equal(pnlDly.operatingProfitStatus, 'not_filled');
+  assert.equal(Boolean(pnlDly.operatingProfitNotCalculatedReason), true);
+
+  // Случай Б: модель BRN-002 (себестоимость 525 ₽ есть, но комиссии MP, логистика, реклама и OPEX = 0 / не заполнены)
+  const brn002 = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-002')!
+  );
+  const pnl002 = computeFinancialPnL(brn002, scen1);
+  // Валовая прибыль считается честно (Выручка - COGS), но операционная прибыль = null («Не рассчитана»)!
+  assert.equal(pnl002.annualGrossProfitRub !== null, true);
+  assert.equal(pnl002.expensesFilled, false);
+  assert.equal(pnl002.annualContributionMarginRub, null);
+  assert.equal(pnl002.annualOperatingProfitRub, null);
+  assert.equal(pnl002.operatingMarginPct, null);
+  assert.equal(pnl002.operatingProfitStatus, 'not_filled');
+});
+
+test('23. ТЗ v1.1 (Тест-кейс №9 + Портфель FUKAI): экспорт/импорт плана сохраняет SKU, периоды, цены, выкупы и статусы без потери и двойного счёта', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const fullPortfolio = applyClientSavedS1SalesPlan([
+    ...ACTING_2027_SCENARIO_MODELS,
+    ...S1_100M_SCENARIO_MODELS,
+  ]);
+
+  // Проверяем, что позиция FUKAI (WB 72302360) сохраняется в портфеле группы и определяется фильтром бренда
+  const fukaiModel = fullPortfolio.find((m) => m.code.includes('72302360'))!;
+  assert.equal(Boolean(fukaiModel), true);
+  assert.equal(detectModelBrandPortfolioLabel(fukaiModel), 'FUKAI');
+
+  // Группировка рекомендованных партий по фабрикам работает на всём портфеле
+  const groupedBatches = groupRecommendedBatchesByFactory(fullPortfolio, scen1);
+  assert.equal(groupedBatches.length > 0, true);
+
+  // Экспортируем план Сценария №1 в CSV и парсим обратно
+  const exportedRows = exportStructuredScenarioPlan(fullPortfolio, scen1);
+  assert.equal(exportedRows.length, fullPortfolio.length * 12);
+
+  const csvText = serializeStructuredPlanToCsv(exportedRows);
+  const parsedFromCsv = parseStructuredPlanCsvOrJson(csvText, scen1.id);
+  assert.equal(parsedFromCsv.length, exportedRows.length);
+
+  // Искусственно дублируем строки при импорте — проверяем защиту от двойного счёта!
+  const duplicatedInput = [...parsedFromCsv, ...parsedFromCsv.slice(0, 24)];
+
+  // Сбрасываем план Sorbet Club в 0 и восстанавливаем импортом из CSV
+  const zeroedSorbetPortfolio = fullPortfolio.map((m) =>
+    m.code === 'BRN-001-SC'
+      ? {
+          ...m,
+          plansByScenario: {
+            ...m.plansByScenario,
+            1: {
+              ...m.plansByScenario[1],
+              monthlyPacks: Array(12).fill(0),
+            },
+          },
+        }
+      : m
+  );
+
+  const importRes = importStructuredScenarioPlan(
+    zeroedSorbetPortfolio,
+    duplicatedInput,
+    scen1.id
+  );
+  assert.equal(importRes.importedSkusCount, fullPortfolio.length);
+  assert.equal(importRes.duplicatesSkipped, 24);
+
+  // Проверяем совпадение годовой выручки рубль-в-рубль после цикла Экспорт -> CSV -> Импорт!
+  const eligibleAfterImport = importRes.updatedModels.filter(
+    (m) => !isUnverifiedActingSku(m.code)
+  );
+  const decAfterImport = eligibleAfterImport.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen1).targetMonthRevenueRub,
+    0
+  );
+  const annAfterImport = eligibleAfterImport.reduce(
+    (sum, m) => sum + computeModelScenarioMetrics(m, scen1).annualRevenueRub,
+    0
+  );
+  assert.equal(decAfterImport, CLIENT_SAVED_S1_TOTALS.decemberRevenueRub);
+  assert.equal(annAfterImport, CLIENT_SAVED_S1_TOTALS.annualRevenueRub);
 });
 
 

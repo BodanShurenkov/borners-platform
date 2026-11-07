@@ -10,6 +10,11 @@ import {
   Calendar,
   Trash2,
   X,
+  Download,
+  Upload,
+  AlertTriangle,
+  Package,
+  ChevronDown,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import {
@@ -48,6 +53,16 @@ import { ScenarioModelCardScreen } from '@/components/sections/ScenarioModelCard
 import { ScenarioSalesPlanScreen } from '@/components/sections/ScenarioSalesPlanScreen';
 import { PdfConstructorModal } from '@/components/sections/PdfConstructorModal';
 import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
+import {
+  computeFinancialPnL,
+  computeProcurementPlan,
+  detectModelBrandPortfolioLabel,
+  exportStructuredScenarioPlan,
+  groupRecommendedBatchesByFactory,
+  importStructuredScenarioPlan,
+  parseStructuredPlanCsvOrJson,
+  serializeStructuredPlanToCsv,
+} from '@/lib/unifiedBusinessEngine';
 
 export const STORAGE_KEY_SCENARIOS = 'borners_tz_scenarios_v1';
 export const STORAGE_KEY_MODELS = 'borners_tz_models_v1';
@@ -61,6 +76,7 @@ interface UserSavedModelPlanBackup {
   priority?: ModelPriorityLevel;
   launchStatus: ScenarioModelSpec['launchStatus'];
   plansByScenario: ScenarioModelSpec['plansByScenario'];
+  sharedSupplyAndFact?: ScenarioModelSpec['sharedSupplyAndFact'];
 }
 
 function saveUserPlansBackup(modelsList: ScenarioModelSpec[]) {
@@ -74,6 +90,7 @@ function saveUserPlansBackup(modelsList: ScenarioModelSpec[]) {
       priority: m.priority,
       launchStatus: m.launchStatus,
       plansByScenario: m.plansByScenario,
+      sharedSupplyAndFact: m.sharedSupplyAndFact,
     };
   }
   safeSetStorageJson(STORAGE_KEY_USER_PLANS_BACKUP, backup);
@@ -100,6 +117,7 @@ function overlayUserPlansBackup(
       priority: saved.priority ?? m.priority,
       launchStatus: saved.launchStatus ?? m.launchStatus,
       plansByScenario: saved.plansByScenario || m.plansByScenario,
+      sharedSupplyAndFact: saved.sharedSupplyAndFact || m.sharedSupplyAndFact,
     };
   });
 }
@@ -189,12 +207,16 @@ export function GrowthScenariosShowcase({
     }
   }, [initialModelId, pushScenarioStep]);
 
-  // Фильтры каталога на Экране №1
+  // Фильтры каталога на Экране №1 (включая фильтр бренда FUKAI и режим портфеля ИП Нерсесянц по Стр. 6 ТЗ v1.1)
   const [searchQuery, setSearchQuery] = useState('');
   const [brandFilterLocal, setBrandFilterLocal] = useState<
-    'ALL' | 'BORNERS' | 'NA_TELE'
+    'ALL' | 'BORNERS' | 'FUKAI' | 'NA_TELE'
   >('ALL');
   const [statusFilterLocal, setStatusFilterLocal] = useState<string>('ALL');
+  const [includeGroupPortfolioInS1, setIncludeGroupPortfolioInS1] =
+    useState<boolean>(false);
+  const [v11ContourExpanded, setV11ContourExpanded] = useState<boolean>(false);
+  const scenarioPlanImportRef = useRef<HTMLInputElement | null>(null);
 
   // Модальные окна создания модели (п. 7.1), создания сценария (п. 7.3) и PDF (Тест 10)
   const [newModelModalOpen, setNewModelModalOpen] = useState(false);
@@ -434,7 +456,7 @@ export function GrowthScenariosShowcase({
           ) {
             return false;
           }
-          if (isUnverifiedActingSku(m.code)) {
+          if (!includeGroupPortfolioInS1 && isUnverifiedActingSku(m.code)) {
             return false;
           }
         }
@@ -540,10 +562,116 @@ export function GrowthScenariosShowcase({
       };
     }
     return map;
-  }, [scenarios, models]);
+  }, [scenarios, models, includeGroupPortfolioInS1]);
 
   const currentAgg =
     scenarioAggregates[currentScenario.id] || scenarioAggregates[1];
+
+  // Сводка ТЗ v1.1 по выбранному сценарию: Партии закупок, Капитал, Честный P&L и Риски
+  const v11ScenarioSummary = useMemo(() => {
+    const isActingScenario = currentScenario.id === ACTING_2027_SCENARIO_ID;
+    const eligible = models.filter((m) => {
+      if (m.launchStatus === 'В архиве') return false;
+      if (isActingScenario) {
+        return (
+          Boolean(getActingSkuByWbOrVendor(m.code, m.title)) ||
+          (!['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+            m.id
+          ) &&
+            Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]))
+        );
+      }
+      if (currentScenario.id === 1) {
+        if (
+          ['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+            m.id
+          )
+        ) {
+          return false;
+        }
+        if (!includeGroupPortfolioInS1 && isUnverifiedActingSku(m.code)) {
+          return false;
+        }
+      }
+      return currentScenario.includedBrands.includes(m.brandId);
+    });
+
+    let approvedOrdersCount = 0;
+    let approvedOrdersRub = 0;
+    let recommendedBatchesCount = 0;
+    let recommendedPacks = 0;
+    let recommendedPhysicalUnits = 0;
+    let recommendedBudgetRub = 0;
+    let honestOperatingProfitRub = 0;
+    let filledOperatingProfitModelsCount = 0;
+    let unfilledExpensesModelsCount = 0;
+    let peakCapitalNeedRub = 0;
+    let deficitModelsCount = 0;
+    let urgentPastOrderBatchesCount = 0;
+    let hypothesisModelsCount = 0;
+    let orderDiscrepanciesCount = 0;
+
+    for (const m of eligible) {
+      const proc = computeProcurementPlan(m, currentScenario);
+      const pnl = computeFinancialPnL(m, currentScenario, proc);
+      const s1Var =
+        getS1NewVariantByCodeOrId(m.code) || getS1NewVariantByCodeOrId(m.id);
+
+      approvedOrdersCount += proc.approvedOrders.length;
+      approvedOrdersRub += proc.approvedOrders.reduce(
+        (s, po) => s + po.totalOrderRub,
+        0
+      );
+      recommendedBatchesCount += proc.recommendedBatches.length;
+      recommendedPacks += proc.totalRecommendedPacks;
+      recommendedPhysicalUnits += proc.totalRecommendedUnits;
+      recommendedBudgetRub += proc.totalRecommendedBudgetRub || 0;
+      urgentPastOrderBatchesCount += proc.recommendedBatches.filter(
+        (b) => b.isUrgentPastOrderDate
+      ).length;
+      orderDiscrepanciesCount += proc.orderDiscrepancies.length;
+
+      if (proc.hasDeficit) {
+        deficitModelsCount += 1;
+      }
+      if (s1Var?.isPriceHypothesis) {
+        hypothesisModelsCount += 1;
+      }
+
+      if (pnl.annualOperatingProfitRub !== null) {
+        honestOperatingProfitRub += pnl.annualOperatingProfitRub;
+        filledOperatingProfitModelsCount += 1;
+      } else {
+        unfilledExpensesModelsCount += 1;
+      }
+
+      peakCapitalNeedRub += pnl.peakCapitalDeficitRub;
+    }
+
+    const factoryGroups = groupRecommendedBatchesByFactory(
+      eligible,
+      currentScenario
+    );
+
+    return {
+      eligibleModels: eligible,
+      approvedOrdersCount,
+      approvedOrdersRub,
+      recommendedBatchesCount,
+      recommendedPacks,
+      recommendedPhysicalUnits,
+      recommendedBudgetRub,
+      honestOperatingProfitRub,
+      filledOperatingProfitModelsCount,
+      unfilledExpensesModelsCount,
+      peakCapitalNeedRub,
+      deficitModelsCount,
+      urgentPastOrderBatchesCount,
+      hypothesisModelsCount,
+      orderDiscrepanciesCount,
+      factoryGroups,
+    };
+  }, [models, currentScenario, includeGroupPortfolioInS1]);
 
   // Отфильтрованные модели для каталога на Экране №1
   const filteredModels = useMemo(() => {
@@ -574,8 +702,17 @@ export function GrowthScenariosShowcase({
       } else if (!currentScenario.includedBrands.includes(m.brandId)) {
         return false;
       }
-      if (brandFilterLocal !== 'ALL' && m.brandId !== brandFilterLocal) {
-        return false;
+      if (brandFilterLocal !== 'ALL') {
+        const portfolioBrand = detectModelBrandPortfolioLabel(m);
+        if (brandFilterLocal === 'FUKAI' && portfolioBrand !== 'FUKAI') {
+          return false;
+        }
+        if (brandFilterLocal === 'BORNERS' && portfolioBrand !== 'BORNERS') {
+          return false;
+        }
+        if (brandFilterLocal === 'NA_TELE' && m.brandId !== 'NA_TELE') {
+          return false;
+        }
       }
       if (statusFilterLocal !== 'ALL' && m.launchStatus !== statusFilterLocal) {
         return false;
@@ -995,6 +1132,64 @@ export function GrowthScenariosShowcase({
     );
   };
 
+  // Экспорт структурированного плана всего сценария (CSV / JSON, Тест-кейс №9 ТЗ v1.1)
+  const handleExportScenarioPlan = (format: 'csv' | 'json') => {
+    const rows = exportStructuredScenarioPlan(
+      v11ScenarioSummary.eligibleModels,
+      currentScenario
+    );
+    const content =
+      format === 'csv'
+        ? serializeStructuredPlanToCsv(rows)
+        : JSON.stringify(rows, null, 2);
+    const blob = new Blob([content], {
+      type: format === 'csv' ? 'text/csv;charset=utf-8' : 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `borners_plan_scenario_${currentScenario.id}_2027.${format}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify(
+      'success',
+      `План «${currentScenario.title}» выгружен (${rows.length} записей · ${format.toUpperCase()})`,
+      'Сохранены идентификаторы SKU, периоды, цены, выкупы и статусы значений.'
+    );
+  };
+
+  // Импорт структурированного плана сценария (CSV / JSON) с защитой от двойного счёта
+  const handleImportScenarioPlanFile = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsedRows = parseStructuredPlanCsvOrJson(text, currentScenario.id);
+      const res = importStructuredScenarioPlan(
+        models,
+        parsedRows,
+        currentScenario.id
+      );
+      if (res.importedRowsCount > 0) {
+        commitModels(res.updatedModels);
+        notify(
+          'success',
+          `Импортирован план для ${res.importedSkusCount} SKU (${res.importedRowsCount} записей)`,
+          res.duplicatesSkipped > 0
+            ? `Защита от двойного счёта: отсеяно ${res.duplicatesSkipped} дублирующихся строк.`
+            : 'Все цены, выкупы и статусы применены к сценарию без потерь.'
+        );
+      } else {
+        notify('warning', 'В файле не найдено подходящих строк SKU для импорта');
+      }
+    } catch {
+      notify('error', 'Не удалось прочитать файл плана (поддерживаются CSV и JSON)');
+    }
+    e.target.value = '';
+  };
+
   const conceptForPdf = concepts[0];
   const maxChartVal = Math.max(
     currentScenario.monthlyTargetMln * 0.45,
@@ -1044,15 +1239,17 @@ export function GrowthScenariosShowcase({
         </div>
 
         <span className="text-[11px] font-medium text-[#6E6E73]">
-          Архитектура ТЗ v1.0 · макс. 2 клика от сценария до помесячного плана
+          Архитектура ТЗ v1.1 · Продукт → Продажи → Закупки → Финансы (макс. 2 клика)
         </span>
       </div>
 
-      {/* ЭКРАН №2: КАРТОЧКА МОДЕЛИ (Стр. 5–6, макет Стр. 14) */}
+      {/* ЭКРАН №2: КАРТОЧКА МОДЕЛИ (ТЗ v1.1 Раздел 02–05: лайтбокс без кропа + 4 вкладки) */}
       {screen === 'model' && (
         <ScenarioModelCardScreen
           model={activeModel}
           scenario={currentScenario}
+          allScenarios={scenarios}
+          onSelectScenario={(id) => setSelectedScenarioId(id)}
           onBackToScenarios={() => navigateScreen('scenarios')}
           onOpenSalesPlan={() => navigateScreen('sales-plan')}
           onUpdateModel={handleUpdateModel}
@@ -1426,6 +1623,42 @@ export function GrowthScenariosShowcase({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    {currentScenario.id === 1 && (
+                      <div className="inline-flex items-center rounded-[8px] bg-white border border-[#D8CEBE] p-0.5 text-[11px] font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => setIncludeGroupPortfolioInS1(false)}
+                          className={`px-2.5 py-1 rounded-[6px] transition cursor-pointer ${
+                            !includeGroupPortfolioInS1
+                              ? 'bg-[#1D1D1F] text-white'
+                              : 'text-[#5A564F] hover:text-[#1D1D1F]'
+                          }`}
+                        >
+                          Моно-цель BORNERS (21 SKU)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIncludeGroupPortfolioInS1(true)}
+                          className={`px-2.5 py-1 rounded-[6px] transition cursor-pointer ${
+                            includeGroupPortfolioInS1
+                              ? 'bg-[#1D1D1F] text-white'
+                              : 'text-[#5A564F] hover:text-[#1D1D1F]'
+                          }`}
+                        >
+                          Портфель ИП с FUKAI (23 SKU)
+                        </button>
+                      </div>
+                    )}
+
+                    <a
+                      href="docs/tz-v1.1/BORNERS_TZ_v1_1.pdf"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="h-7 px-3 rounded-[8px] bg-white hover:bg-[#FAF8F4] text-[#1D1D1F] border border-[#D8CEBE] text-[11px] font-semibold inline-flex items-center gap-1.5 transition shrink-0"
+                    >
+                      <span>ТЗ v1.1 (PDF)</span>
+                    </a>
+
                     <a
                       href="docs/s1-100m/BORNERS_2027_S1_100M_Plan.pdf"
                       target="_blank"
@@ -1504,6 +1737,195 @@ export function GrowthScenariosShowcase({
             </div>
           )}
 
+          {/* КОНТУР ТЗ v1.1: ОБЕСПЕЧЕНИЕ ПАРТИЯМИ, ПОТРЕБНОСТЬ В КАПИТАЛЕ, ЧЕСТНЫЙ P&L И РИСКИ */}
+          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-3 shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1D1D1F] text-white text-[11px] font-bold">
+                  <Package className="h-3.5 w-3.5 text-[#F5E6CE]" />
+                  <span>Контур ТЗ v1.1 · Обеспечение, Капитал и Риски</span>
+                </span>
+                <span className="text-[12px] text-[#5A564F]">
+                  Утверждено заказов PO:{' '}
+                  <strong className="text-[#1D1D1F]">
+                    {v11ScenarioSummary.approvedOrdersCount} шт. (
+                    {(v11ScenarioSummary.approvedOrdersRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽)
+                  </strong>{' '}
+                  · К заказу фабрикам:{' '}
+                  <strong className="text-[#8B6F47]">
+                    {v11ScenarioSummary.recommendedPacks.toLocaleString('ru-RU')} компл. /{' '}
+                    {v11ScenarioSummary.recommendedPhysicalUnits.toLocaleString('ru-RU')} изд. (
+                    {(v11ScenarioSummary.recommendedBudgetRub / 1_000_000)
+                      .toFixed(2)
+                      .replace('.', ',')}{' '}
+                    млн ₽)
+                  </strong>
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={scenarioPlanImportRef}
+                  type="file"
+                  accept=".csv,.json"
+                  onChange={handleImportScenarioPlanFile}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleExportScenarioPlan('csv')}
+                  className="h-8 px-3 rounded-[9px] bg-[#FAF8F4] hover:bg-[#F2ECE1] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Экспорт CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportScenarioPlan('json')}
+                  className="h-8 px-3 rounded-[9px] bg-[#FAF8F4] hover:bg-[#F2ECE1] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>Экспорт JSON</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scenarioPlanImportRef.current?.click()}
+                  className="h-8 px-3 rounded-[9px] bg-[#FAF8F4] hover:bg-[#F2ECE1] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  <span>Импорт плана</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setV11ContourExpanded((v) => !v)}
+                  className="h-8 px-3 rounded-[9px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[11.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
+                >
+                  <span>
+                    {v11ContourExpanded
+                      ? 'Свернуть сводку партий и рисков'
+                      : `Сводные партии фабрик (${v11ScenarioSummary.factoryGroups.length}) и риски`}
+                  </span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${
+                      v11ContourExpanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Компактная строка честных метрик P&L, оборотного капитала и предупреждений о рисках */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 text-[12px]">
+              <div className="rounded-[12px] bg-[#FAF8F4] border border-[#ECE6DA] px-3.5 py-2.5">
+                <div className="text-[11px] font-semibold text-[#6E6E73]">
+                  Операционная прибыль (только заполненные расходы)
+                </div>
+                <div className="text-[15px] font-bold text-[#1D1D1F] mt-0.5">
+                  {v11ScenarioSummary.filledOperatingProfitModelsCount > 0
+                    ? `${(v11ScenarioSummary.honestOperatingProfitRub / 1_000_000)
+                        .toFixed(2)
+                        .replace('.', ',')} млн ₽ (${
+                        v11ScenarioSummary.filledOperatingProfitModelsCount
+                      } SKU)`
+                    : 'Не рассчитана'}
+                </div>
+                <div className="text-[11px] text-[#8B6F47] mt-0.5">
+                  {v11ScenarioSummary.unfilledExpensesModelsCount > 0
+                    ? `По ${v11ScenarioSummary.unfilledExpensesModelsCount} SKU расходы MP/OPEX не заполнены (без ложной маржи)`
+                    : 'По всем SKU сценария заполнены комиссии, логистика и OPEX'}
+                </div>
+              </div>
+
+              <div className="rounded-[12px] bg-[#FAF8F4] border border-[#ECE6DA] px-3.5 py-2.5">
+                <div className="text-[11px] font-semibold text-[#6E6E73]">
+                  Пиковая потребность в оборотном капитале
+                </div>
+                <div className="text-[15px] font-bold text-[#1D1D1F] mt-0.5">
+                  {(v11ScenarioSummary.peakCapitalNeedRub / 1_000_000)
+                    .toFixed(2)
+                    .replace('.', ',')}{' '}
+                  млн ₽
+                </div>
+                <div className="text-[11px] text-[#6E6E73] mt-0.5">
+                  С учётом предоплат фабрикам (30% / 70%) и цикла поставок
+                </div>
+              </div>
+
+              <div className="rounded-[12px] bg-[#FFF8EE] border border-[#F2DFBE] px-3.5 py-2.5">
+                <div className="text-[11px] font-semibold text-[#9A5B00] inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>Риски сценария (Раздел 06 ТЗ v1.1)</span>
+                </div>
+                <div className="text-[12px] font-semibold text-[#1D1D1F] mt-0.5">
+                  Дефицит без PO: {v11ScenarioSummary.deficitModelsCount} SKU · Гипотезы цены:{' '}
+                  {v11ScenarioSummary.hypothesisModelsCount} SKU
+                </div>
+                <div className="text-[11px] text-[#7A5214] mt-0.5">
+                  Срочные заказы (дата прошла): {v11ScenarioSummary.urgentPastOrderBatchesCount} парт.
+                  {v11ScenarioSummary.orderDiscrepanciesCount > 0
+                    ? ` · Расхождения в PO: ${v11ScenarioSummary.orderDiscrepanciesCount}`
+                    : ''}
+                </div>
+              </div>
+            </div>
+
+            {v11ContourExpanded && (
+              <div className="pt-2 border-t border-[#ECE6DA] space-y-2.5">
+                <div className="text-[12.5px] font-bold text-[#1D1D1F]">
+                  Группировка рекомендованных партий по фабрикам и месяцу размещения заказа
+                </div>
+                {v11ScenarioSummary.factoryGroups.length === 0 ? (
+                  <div className="text-[12px] text-[#2E6B4E] font-semibold">
+                    ✓ Все плановые продажи сценария полностью покрыты остатками и утверждёнными PO.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-[12px] border border-[#E6E0D4]">
+                    <table className="w-full text-left border-collapse text-[12px]">
+                      <thead>
+                        <tr className="bg-[#FAF8F4] text-[#5A564F] border-b border-[#E6E0D4]">
+                          <th className="py-2 px-3 font-semibold">Месяц размещения</th>
+                          <th className="py-2 px-3 font-semibold">Фабрика</th>
+                          <th className="py-2 px-3 font-semibold text-right">Позиций SKU</th>
+                          <th className="py-2 px-3 font-semibold text-right">Комплектов</th>
+                          <th className="py-2 px-3 font-semibold text-right">Физ. изделий</th>
+                          <th className="py-2 px-3 font-semibold text-right">Бюджет партии</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#EFECE4]">
+                        {v11ScenarioSummary.factoryGroups.slice(0, 10).map((grp) => (
+                          <tr
+                            key={`${grp.factoryName}-${grp.orderMonthLabel}`}
+                            className="hover:bg-[#FAF7F0]"
+                          >
+                            <td className="py-2 px-3 font-mono font-semibold text-[#1D1D1F]">
+                              {grp.orderMonthLabel}
+                            </td>
+                            <td className="py-2 px-3 font-medium text-[#1D1D1F]">
+                              {grp.factoryName}
+                            </td>
+                            <td className="py-2 px-3 text-right">{grp.itemsCount}</td>
+                            <td className="py-2 px-3 text-right font-semibold">
+                              {grp.totalPacks.toLocaleString('ru-RU')} компл.
+                            </td>
+                            <td className="py-2 px-3 text-right text-[#5A564F]">
+                              {grp.totalPhysicalUnits.toLocaleString('ru-RU')} изд.
+                            </td>
+                            <td className="py-2 px-3 text-right font-bold text-[#1D1D1F]">
+                              {grp.totalBudgetRub.toLocaleString('ru-RU')} ₽
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* D. Каталог моделей («Модели в сценарии №...» — макет Стр. 13) */}
           <div className="space-y-4 pt-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1532,13 +1954,14 @@ export function GrowthScenariosShowcase({
                   value={brandFilterLocal}
                   onChange={(e) =>
                     setBrandFilterLocal(
-                      e.target.value as 'ALL' | 'BORNERS' | 'NA_TELE'
+                      e.target.value as 'ALL' | 'BORNERS' | 'FUKAI' | 'NA_TELE'
                     )
                   }
                   className="h-9 px-3 rounded-[10px] bg-white border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] cursor-pointer"
                 >
-                  <option value="ALL">Все бренды</option>
+                  <option value="ALL">Все бренды портфеля</option>
                   <option value="BORNERS">BORNERS</option>
+                  <option value="FUKAI">FUKAI (ИП Нерсесянц)</option>
                   <option value="NA_TELE">НА ТЕЛЕ</option>
                 </select>
 
