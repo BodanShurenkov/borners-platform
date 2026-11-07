@@ -207,189 +207,65 @@ export function DashboardView() {
   );
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* =====================================================================
-          1. РЕДАКЦИОННАЯ ШАПКА + БЕСШОВНАЯ ЛЕНТА ЭТАПОВ PRODUCT LAB (ВЫРАЗИТЕЛЬНЫЕ ЛИНИИ)
-      ===================================================================== */}
-      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] border-t-[3px] border-t-[#181715] overflow-hidden">
-        <div className="p-7 md:p-8 flex flex-wrap items-end justify-between gap-6">
-          <div className="space-y-2 max-w-3xl">
-            <div className="text-[12.5px] font-medium text-[#8C867E]">
-              Операционная сводка портфеля · 2026–2027
-            </div>
-            <h1 className="font-serif-editorial text-[32px] md:text-[38px] font-medium tracking-[-0.01em] leading-[1.12] text-[#181715]">
-              Стратегия брендов, разработка продукта и экономика тиражей
-            </h1>
-            <p className="text-[14px] text-[#5C5852] leading-relaxed max-w-2xl pt-0.5">
-              Единое рабочее пространство портфеля <span className="font-medium text-[#181715]">BORNERS</span> и{' '}
-              <span className="font-medium text-[#181715]">НА ТЕЛЕ</span>: от фотореференса и расчёта
-              себестоимости за пару до протокола стирки, производственного заказа фабрике и годового плана.
-            </p>
-          </div>
-
-          <div className="inline-flex rounded-[10px] border border-[#D8D1C5] bg-[#FAF8F5] p-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setDashboardMode('all')}
-              className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
-                dashboardMode === 'all'
-                  ? 'bg-[#181715] text-white shadow-2xs'
-                  : 'text-[#5C5852] hover:text-[#181715]'
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>Сводка и сценарии</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setDashboardMode('miro')}
-              className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
-                dashboardMode === 'miro'
-                  ? 'bg-[#B85D35] text-white shadow-2xs'
-                  : 'text-[#5C5852] hover:text-[#181715]'
-              }`}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Только Студия идей</span>
-            </button>
-          </div>
+    <div className="space-y-6 pb-16">
+      {/* КОМПАКТНАЯ ВЕРХНЯЯ СТРОКА РЕЖИМА БЕЗ ДУБЛИРУЮЩИХ ШАПОК И УСТАРЕВШИХ СВОДОК */}
+      <div className="rounded-[14px] bg-white border border-[#E5E4DF] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-[10px] border border-[#E5E4DF] bg-[#F3F3F0] p-0.5">
+          <button
+            type="button"
+            onClick={() => setDashboardMode('all')}
+            className={`h-8 px-3.5 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+              dashboardMode === 'all'
+                ? 'bg-white text-[#141413] shadow-2xs border border-[#E2E1DC]'
+                : 'text-[#686762] hover:text-[#141413] border border-transparent'
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            <span>Сценарии и модели 2027</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDashboardMode('miro')}
+            className={`h-8 px-3.5 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+              dashboardMode === 'miro'
+                ? 'bg-white text-[#141413] shadow-2xs border border-[#E2E1DC]'
+                : 'text-[#686762] hover:text-[#141413] border border-transparent'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Студия идей (Холст)</span>
+          </button>
         </div>
 
-        {/* Единая бесшовная лента 7 этапов R&D с выразительными разделителями */}
-        <div className="border-t-2 border-[#181715] bg-[#FAF8F5]">
-          <div className="px-7 py-3 border-b-[1.5px] border-[#CFC8BC] flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[12px] font-semibold uppercase tracking-wider text-[#5C5852]">
-              Этапы отбора моделей в Product Lab (01–07)
-            </span>
-            <button
-              type="button"
-              onClick={() => navigateTo('product-lab')}
-              className="text-[12.5px] font-semibold text-[#181715] hover:underline cursor-pointer inline-flex items-center gap-1"
-            >
-              <span>Открыть фотодоску ({filteredConcepts.length} в работе)</span>
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-y-[1.5px] sm:divide-y-0 sm:divide-x-[1.5px] divide-[#D5CEC2]">
-            {SEVEN_KANBAN_STAGES.map((stageCode, idx) => {
-              const count = filteredConcepts.filter(
-                (c) => normalizeConceptStageToSeven(c.stage) === stageCode
-              ).length;
-              return (
-                <button
-                  key={stageCode}
-                  type="button"
-                  onClick={() => navigateTo('product-lab')}
-                  className="px-5 py-3.5 text-left hover:bg-[#EFECE6] transition cursor-pointer flex items-center justify-between"
-                >
-                  <div>
-                    <span className="font-mono text-[10.5px] text-[#8C867E] block">
-                      Этап 0{idx + 1}
-                    </span>
-                    <span className="text-[13.5px] font-semibold text-[#181715]">
-                      {CONCEPT_STAGE_LABELS_RU[stageCode]}
-                    </span>
-                  </div>
-                  <span className="font-serif-editorial text-[24px] font-semibold text-[#181715] tabular-nums">
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* =====================================================================
-          2. СИММЕТРИЧНАЯ АРХИТЕКТУРНАЯ ЛЕНТА КЛЮЧЕВЫХ ПОКАЗАТЕЛЕЙ (4 РАВНЫХ БЛОКА)
-      ===================================================================== */}
-      <div className="rounded-[12px] bg-white border-[1.5px] border-[#CFC8BC] overflow-hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y-[1.5px] sm:divide-y-0 sm:divide-x-[1.5px] divide-[#CFC8BC]">
-          <div
-            onClick={() => navigateTo('finance')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
-          >
-            <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
-              <span>План выручки на 2027 год</span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-[#9E988E]" />
-            </div>
-            <div className="mt-4 space-y-1.5">
-              <div className="font-serif-editorial text-[36px] font-medium tracking-tight text-[#181715] leading-none">
-                {hasFinanceAccess ? formatCompactRub(kpiTotals.totalPlanYear) : 'Скрыто'}
-              </div>
-              <div className="text-[12.5px] text-[#7A756D]">
-                Сценарий: <span className="text-[#181715] font-medium">{SCENARIO_LABELS_RU[financialScenario]}</span>
-              </div>
-            </div>
-          </div>
-
-          <div
-            onClick={() => navigateTo('finance')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
-          >
-            <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
-              <span>Операционная прибыль</span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-[#9E988E]" />
-            </div>
-            <div className="mt-4 space-y-1.5">
-              <div className="font-serif-editorial text-[36px] font-medium tracking-tight text-[#181715] leading-none">
-                {hasFinanceAccess
-                  ? formatCompactRub(kpiTotals.totalPlanProfitYear)
-                  : 'Скрыто'}
-              </div>
-              <div className="text-[12.5px] text-[#2A6F53] font-medium">
-                Средняя валовая маржа: {kpiTotals.avgMargin}%
-              </div>
-            </div>
-          </div>
-
-          <div
+        <div className="flex flex-wrap items-center gap-2 text-[12px]">
+          <button
+            type="button"
             onClick={() => navigateTo('product-lab')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
+            className="h-8 px-3 rounded-[8px] bg-[#F8F8F6] hover:bg-[#F1F1EE] border border-[#E5E4DF] text-[#262624] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
           >
-            <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
-              <span>Разработка в Product Lab</span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-[#9E988E]" />
-            </div>
-            <div className="mt-4 space-y-1.5">
-              <div className="font-serif-editorial text-[36px] font-medium tracking-tight text-[#181715] leading-none">
-                {filteredConcepts.length} моделей
-              </div>
-              <div className="text-[12.5px] text-[#7A756D]">
-                Проходят отбор и тестирование образцов
-              </div>
-            </div>
-          </div>
+            <span className="text-[#686762]">R&amp;D Lab (01–07):</span>
+            <strong className="text-[#141413]">{filteredConcepts.length} обр.</strong>
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#8A8983]" />
+          </button>
 
-          <div
+          <button
+            type="button"
             onClick={() => navigateTo('roadmap-tasks')}
-            className="p-6 hover:bg-[#FAF8F5] flex flex-col justify-between min-h-[144px] cursor-pointer transition"
+            className="h-8 px-3 rounded-[8px] bg-[#F8F8F6] hover:bg-[#F1F1EE] border border-[#E5E4DF] text-[#262624] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
           >
-            <div className="flex items-center justify-between text-[12.5px] font-medium text-[#7A756D]">
-              <span>CRM · Задачи и релизы</span>
-              <ArrowUpRight className="h-3.5 w-3.5 text-[#9E988E]" />
-            </div>
-            <div className="mt-4 space-y-1.5">
-              <div className="font-serif-editorial text-[36px] font-medium tracking-tight text-[#181715] leading-none">
-                {activeTasksCount} задач · {filteredLaunches.length} релиза
-              </div>
-              <div className="text-[12.5px] text-[#7A756D]">
-                Активные поручения на Канбан-доске CRM
-              </div>
-            </div>
-          </div>
+            <span className="text-[#686762]">Задачи и релизы:</span>
+            <strong className="text-[#141413]">
+              {activeTasksCount} зад. · {filteredLaunches.length} рел.
+            </strong>
+            <ArrowUpRight className="h-3.5 w-3.5 text-[#8A8983]" />
+          </button>
         </div>
       </div>
 
-      {/* =====================================================================
-          2A. СЦЕНАРИИ РАЗВИТИЯ (100 / 150 / 200 МЛН ₽/МЕС) И ПАСПОРТ МОДЕЛИ В СТИЛЕ APPLE
-      ===================================================================== */}
+      {/* 1. СЦЕНАРИИ РОСТА (100 / 150 / 200 МЛН ₽/МЕС) И КАТАЛОГ МОДЕЛЕЙ — СРАЗУ НА ПЕРВОМ ЭКРАНЕ */}
       {dashboardMode === 'all' && <GrowthScenariosShowcase />}
 
-      {/* =====================================================================
-          2B. СТУДИЯ ИДЕЙ · БЕСКОНЕЧНЫЙ ХОЛСТ СО СТРЕЛОЧКАМИ, ФОТО И ГОЛОСОМ
-      ===================================================================== */}
+      {/* 2. СТУДИЯ ИДЕЙ · БЕСКОНЕЧНЫЙ ХОЛСТ */}
       <MiroBoardView />
 
       {dashboardMode === 'all' &&

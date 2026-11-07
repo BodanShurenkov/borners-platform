@@ -4,28 +4,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  BarChart3,
-  Bell,
-  Box,
   ChevronDown,
-  Coins,
-  Eye,
-  EyeOff,
-  Factory,
-  FileText,
-  HelpCircle,
-  Home,
+  ChevronRight,
+  LayoutGrid,
   LogOut,
-  Megaphone,
-  Menu,
-  Plus,
   RotateCcw,
   Search,
   Settings,
-  ShoppingCart,
   Sparkles,
   Trash2,
-  TrendingUp,
   X,
 } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
@@ -52,6 +39,7 @@ import {
   TeamView,
 } from '@/components/sections/ManagementAndSystemViews';
 import { PeaklySpotlightTour } from '@/components/shell/PeaklySpotlightTour';
+import { BentoAtlasNav } from '@/components/shell/BentoAtlasNav';
 import { GrowthScenariosShowcase } from '@/components/sections/GrowthScenariosShowcase';
 import { DRAFT_MODULES_META, useDraftModules } from '@/lib/draftModules';
 
@@ -204,18 +192,14 @@ export function AppShell() {
     dismissToast,
   } = usePlatform();
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarBlurred, setSidebarBlurred] = useState(false);
+  const [atlasOpen, setAtlasOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [trashModalOpen, setTrashModalOpen] = useState(false);
   const [tourModalOpen, setTourModalOpen] = useState(false);
   const [tourStepIdx, setTourStepIdx] = useState(0);
-  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
   const [draftAdminModalOpen, setDraftAdminModalOpen] = useState(false);
   const [salesPlanSubTab, setSalesPlanSubTab] = useState<
     'sales-plan' | 'legacy-calendar'
@@ -307,7 +291,14 @@ export function AppShell() {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
+        setAtlasOpen(false);
         setSearchModalOpen((prev) => !prev);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setSearchModalOpen(false);
+        setAtlasOpen((prev) => !prev);
         return;
       }
       const tag = (e.target as HTMLElement | null)?.tagName;
@@ -697,406 +688,174 @@ export function AppShell() {
     );
   }
 
+  const recentSections = useMemo(() => {
+    const seen = new Set<NavSectionId>();
+    const list: NavSectionId[] = [];
+    for (let i = navHistory.length - 1; i >= 0; i--) {
+      const sec = navHistory[i];
+      if (!seen.has(sec) && canUserAccessSection(currentUser, sec)) {
+        seen.add(sec);
+        list.push(sec);
+      }
+      if (list.length >= 4) break;
+    }
+    return list;
+  }, [navHistory, currentUser]);
+
+  const activeProductsCount = useMemo(
+    () => products.filter((p) => !p.isArchived).length,
+    [products]
+  );
+  const activeConceptsCount = useMemo(
+    () =>
+      concepts.filter(
+        (c) =>
+          !c.isArchived &&
+          !['REJECTED', 'CANCELLED', 'POSTPONED'].includes(c.stage)
+      ).length,
+    [concepts]
+  );
+  const openTasksCount = useMemo(
+    () => tasks.filter((t) => !t.isArchived && t.status !== 'Done').length,
+    [tasks]
+  );
+  const activeDocumentsCount = useMemo(
+    () => documents.filter((d) => !d.isArchived).length,
+    [documents]
+  );
+
+  const pipelineSteps = useMemo(() => {
+    const finSection: NavSectionId = canUserAccessSection(currentUser, 'finance')
+      ? 'finance'
+      : 'documents';
+
+    return [
+      {
+        key: 'summary',
+        step: null as string | null,
+        label: 'Сводка',
+        target: 'dashboard' as NavSectionId,
+        isActive:
+          platformMode === 'management' &&
+          (activeSection === 'dashboard' ||
+            activeSection === 'brand-strategy' ||
+            activeSection === 'brand-portfolio'),
+        badge: null as string | null,
+      },
+      {
+        key: 'product',
+        step: '01',
+        label: 'Продукт',
+        target: 'product-catalog' as NavSectionId,
+        isActive:
+          platformMode === 'management' &&
+          (activeSection === 'product-catalog' || activeSection === 'product-lab'),
+        badge: String(activeProductsCount),
+      },
+      {
+        key: 'sales',
+        step: '02',
+        label: 'Продажи',
+        target: 'launch-calendar' as NavSectionId,
+        isActive:
+          platformMode === 'management' &&
+          (activeSection === 'launch-calendar' ||
+            activeSection === 'marketing-growth'),
+        badge: null as string | null,
+      },
+      {
+        key: 'procurement',
+        step: '03',
+        label: 'Закупки',
+        target: 'roadmap-tasks' as NavSectionId,
+        isActive:
+          platformMode === 'management' && activeSection === 'roadmap-tasks',
+        badge: openTasksCount > 0 ? String(openTasksCount) : null,
+      },
+      {
+        key: 'finance',
+        step: '04',
+        label: canUserAccessSection(currentUser, 'finance')
+          ? 'Финансы'
+          : 'Документы',
+        target: finSection,
+        isActive:
+          platformMode === 'management' &&
+          (activeSection === 'finance' || activeSection === 'documents'),
+        badge: null as string | null,
+      },
+    ].filter((s) => canUserAccessSection(currentUser, s.target));
+  }, [
+    activeProductsCount,
+    activeSection,
+    currentUser,
+    openTasksCount,
+    platformMode,
+  ]);
+
   return (
     <div>
-      <div className="min-h-screen bg-[#F8F6F2] text-[#161615] flex overflow-x-hidden">
-        {/* МОБИЛЬНЫЙ ОВЕРЛЕЙ */}
-        {mobileMenuOpen && (
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
-          />
-        )}
-
-        {/* ЛЕВЫЙ САЙДБАР С ПРИЯТНОЙ СРЕДНЕ-КОНТРАСТНОЙ ЗАЛИВКОЙ NORDIC SLATE (#3B5168) */}
-        <aside
-          aria-hidden={sidebarBlurred}
-          className={`fixed inset-y-0 left-0 z-40 w-[252px] bg-gradient-to-b from-[#3D546C] to-[#32465B] text-white border-r border-[#2B3D50] flex flex-col justify-between transition-all duration-300 ease-in-out lg:static shrink-0 shadow-[4px_0_24px_rgba(24,34,46,0.08)] ${
-            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          } ${
-            sidebarBlurred
-              ? 'lg:-ml-[252px] lg:-translate-x-full lg:opacity-0 lg:blur-[8px] lg:pointer-events-none'
-              : 'lg:ml-0 lg:translate-x-0 lg:opacity-100 lg:blur-none'
-          }`}
-        >
-          <div className="overflow-y-auto flex-1">
-            {/* Фирменный заголовок BORNERS® STRATEGY PLATFORM */}
-            <div className="px-5 pt-6 pb-4 flex items-center justify-between gap-2">
+      <div className="min-h-screen bg-[#F6F6F4] text-[#141413] flex flex-col overflow-x-hidden">
+        {/* ОСНОВНАЯ ПОЛНОШИРИННАЯ ОБОЛОЧКА БЕЗ ЛЕВОЙ КОЛОНКИ (КОНЦЕПТ А: ЦЕПОЧКА ПОТОКА + БЕНТО-АТЛАС) */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-50 h-[58px] bg-white/95 backdrop-blur-md border-b border-[#E5E4DF] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
+            {/* Левая группа: Медальон BORNERS + Назад/Вперёд + Переключатель бренда */}
+            <div className="flex items-center gap-2.5 min-w-0">
               <button
                 type="button"
                 onClick={() => {
                   setPlatformMode('management');
                   navigateTo('dashboard');
+                  setAtlasOpen(false);
                 }}
-                className={`text-left cursor-pointer flex items-center gap-3 group transition-all duration-300 outline-none ${
-                  sidebarBlurred ? 'blur-[5px] opacity-35 select-none pointer-events-none' : ''
-                }`}
+                className="inline-flex items-center gap-2.5 pr-1 rounded-[10px] text-left cursor-pointer group shrink-0"
               >
-                <span className="h-10 w-10 rounded-[12px] bg-[#F5E6CE] shadow-[0_3px_10px_rgba(0,0,0,0.18)] flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                <span className="h-8.5 w-8.5 rounded-[9px] bg-[#F4F4F1] border border-[#E5E4DF] group-hover:border-[#141413] flex items-center justify-center p-1 transition shrink-0 overflow-hidden">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="./images/products/borners-lion-emblem.png"
-                    alt="BORNERS Lion Logo"
+                    alt="BORNERS"
                     className="h-full w-full object-contain"
                   />
                 </span>
-                <span className="flex flex-col">
-                  <span className="text-[18px] font-bold tracking-[-0.02em] text-white leading-none">
-                    BORNERS<sup className="text-[10px] font-semibold ml-0.5 text-[#CBD7E6]">®</sup>
+                <span className="hidden sm:flex flex-col">
+                  <span className="text-[14.5px] font-bold tracking-[-0.02em] text-[#141413] leading-none">
+                    BORNERS<sup className="text-[9px] font-semibold ml-0.5 text-[#686762]">®</sup>
                   </span>
-                  <span className="text-[9.5px] font-semibold tracking-[0.13em] text-[#B8C7D9] mt-1 uppercase">
-                    STRATEGY PLATFORM
+                  <span className="text-[9.5px] font-medium text-[#7A7974] mt-0.5">
+                    Strategy · 2027
                   </span>
                 </span>
               </button>
 
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSidebarBlurred((prev) => !prev)}
-                  title={
-                    sidebarBlurred
-                      ? 'Показать левую панель'
-                      : 'Скрыть левую панель для фокуса на центральной части'
-                  }
-                  aria-label="Переключить левую панель"
-                  className="h-7 w-7 rounded-lg flex items-center justify-center text-[#C4D1E0] hover:text-white hover:bg-white/12 transition cursor-pointer outline-none"
-                >
-                  {sidebarBlurred ? (
-                    <EyeOff className="h-3.5 w-3.5" />
-                  ) : (
-                    <Eye className="h-3.5 w-3.5" />
-                  )}
-                </button>
+              <div className="h-4 w-[1px] bg-[#E5E4DF] hidden sm:block" />
 
-                <button
-                  type="button"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="lg:hidden p-1 text-[#C4D1E0] hover:text-white"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <nav
-              data-tour="sidebar-nav"
-              onClickCapture={(e) => {
-                if (sidebarBlurred) {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setSidebarBlurred(false);
-                }
-              }}
-              title={sidebarBlurred ? 'Нажмите, чтобы вернуть меню' : undefined}
-              className={`px-3.5 py-1.5 space-y-1 transition-all duration-300 ${
-                sidebarBlurred
-                  ? 'blur-[6px] opacity-30 select-none cursor-pointer'
-                  : ''
-              }`}
-            >
-              {[
-                {
-                  id: 'dashboard' as NavSectionId,
-                  label: 'Главная',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45">
-                      <rect x="2" y="2" width="5" height="5" rx="1.2" />
-                      <rect x="9" y="2" width="5" height="5" rx="1.2" />
-                      <rect x="2" y="9" width="5" height="5" rx="1.2" />
-                      <rect x="9" y="9" width="5" height="5" rx="1.2" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'brand-strategy' as NavSectionId,
-                  label: 'Сценарии роста',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M2.5 13.5H13.5" />
-                      <path d="M3.5 10.5L6.5 7.5L9.2 9.2L13 4.5" />
-                      <circle cx="13" cy="4.5" r="1.1" fill="currentColor" stroke="none" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'product-catalog' as NavSectionId,
-                  label: 'Модели (SKU)',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="2.5" y="3" width="11" height="10" rx="1.8" />
-                      <path d="M2.5 6.2H13.5" />
-                      <path d="M6 9.5H10" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'launch-calendar' as NavSectionId,
-                  label: 'План продаж',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
-                      <path d="M3.5 13V8.5" />
-                      <path d="M6.5 13V6" />
-                      <path d="M9.5 13V7.2" />
-                      <path d="M12.5 13V3.5" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'product-lab' as NavSectionId,
-                  label: 'Производство',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round">
-                      <path d="M2.5 4.5H13.5" />
-                      <circle cx="5.5" cy="4.5" r="1.35" fill="currentColor" />
-                      <path d="M2.5 8H13.5" />
-                      <circle cx="10.5" cy="8" r="1.35" fill="currentColor" />
-                      <path d="M2.5 11.5H13.5" />
-                      <circle cx="6.8" cy="11.5" r="1.35" fill="currentColor" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'roadmap-tasks' as NavSectionId,
-                  label: 'Закупки',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M8 2.2L13.2 5V11L8 13.8L2.8 11V5L8 2.2Z" />
-                      <path d="M2.8 5L8 7.8L13.2 5" />
-                      <path d="M8 7.8V13.8" />
-                    </svg>
-                  ),
-                },
-                {
-                  id: 'documents' as NavSectionId,
-                  label: 'Документы',
-                  renderGlyph: () => (
-                    <svg viewBox="0 0 16 16" className="h-[15px] w-[15px]" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="2.2" width="10" height="11.6" rx="1.6" />
-                      <path d="M5.5 5.5H10.5" />
-                      <path d="M5.5 8H10.5" />
-                      <path d="M5.5 10.5H8.5" />
-                    </svg>
-                  ),
-                },
-              ]
-                .filter((item) => canUserAccessSection(currentUser, item.id))
-                .map(({ id, label, renderGlyph }) => {
-                  const isActive = platformMode === 'management' && activeSection === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => {
-                        setPlatformMode('management');
-                        navigateTo(id);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`group w-full h-[39px] rounded-[11px] px-3 flex items-center justify-between text-left transition-all duration-150 cursor-pointer outline-none ${
-                        isActive
-                          ? 'bg-white/18 text-white font-semibold border border-white/22 shadow-[0_4px_14px_rgba(15,25,36,0.18)]'
-                          : 'text-[#DCE5F0] hover:text-white hover:bg-white/10 border border-transparent font-medium'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2.5 min-w-0">
-                        <span
-                          className={`shrink-0 transition-colors ${
-                            isActive
-                              ? 'text-[#F3DAB6]'
-                              : 'text-[#B8C7D9] group-hover:text-white'
-                          }`}
-                        >
-                          {renderGlyph()}
-                        </span>
-                        <span className="text-[13.5px] tracking-[-0.01em] truncate">
-                          {label}
-                        </span>
-                      </span>
-
-                      {isActive && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#F3DAB6] shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-
-              {/* РАЗДЕЛЫ ИЗ ЧЕРНОВИКА (появляются только если включены в Админке) */}
-              {(() => {
-                const draftNavItems = [
-                  draftModules.finance
-                    ? { id: 'finance' as NavSectionId, label: 'Финансы (P&L)' }
-                    : null,
-                  draftModules.marketing
-                    ? { id: 'marketing-growth' as NavSectionId, label: 'Маркетинг' }
-                    : null,
-                  draftModules.brandPortfolio
-                    ? { id: 'brand-portfolio' as NavSectionId, label: 'Портфель брендов' }
-                    : null,
-                  draftModules.marketIntelligence
-                    ? { id: 'market-intelligence' as NavSectionId, label: 'Рынок и конкуренты' }
-                    : null,
-                  draftModules.settingsSection
-                    ? { id: 'settings' as NavSectionId, label: 'Настройки · borners-group.ru' }
-                    : null,
-                ].filter(
-                  (item): item is { id: NavSectionId; label: string } =>
-                    item !== null && canUserAccessSection(currentUser, item.id)
-                );
-
-                if (draftNavItems.length === 0) return null;
-
-                return (
-                  <div className="pt-3.5 mt-3.5 border-t border-white/14 space-y-1">
-                    <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#F3DAB6]/80 flex items-center justify-between">
-                      <span>Черновик (Админка)</span>
-                      <span>{draftNavItems.length}</span>
-                    </div>
-                    {draftNavItems.map((item) => {
-                      const isActive =
-                        platformMode === 'management' && activeSection === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setPlatformMode('management');
-                            navigateTo(item.id);
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full h-8 rounded-[10px] px-3 flex items-center justify-between text-left text-[12.5px] transition-colors cursor-pointer outline-none ${
-                            isActive
-                              ? 'bg-white/18 text-white font-semibold border border-white/22'
-                              : 'text-[#C8D6E5] hover:text-white hover:bg-white/10'
-                          }`}
-                        >
-                          <span className="truncate">{item.label}</span>
-                          <span className="text-[9.5px] px-1.5 py-0.5 rounded bg-white/10 text-[#F3DAB6] shrink-0">
-                            черновик
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </nav>
-          </div>
-
-          {/* Нижняя зона сайдбара: Кнопка админки черновика (+ карточка презентации, если включена в черновике) */}
-          <div
-            onClick={() => {
-              if (sidebarBlurred) setSidebarBlurred(false);
-            }}
-            className={`p-3.5 border-t border-white/14 space-y-2 transition-all duration-300 ${
-              sidebarBlurred ? 'blur-[6px] opacity-30 select-none cursor-pointer' : ''
-            }`}
-          >
-            {draftModules.strategyPresentationCard && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  if (sidebarBlurred) {
-                    e.stopPropagation();
-                    setSidebarBlurred(false);
-                    return;
-                  }
-                  setPlatformMode(
-                    platformMode === 'strategy' ? 'management' : 'strategy'
-                  );
-                }}
-                className={`w-full rounded-[14px] p-3 text-left transition cursor-pointer border outline-none ${
-                  platformMode === 'strategy'
-                    ? 'bg-[#EAD3B3] text-[#243547] border-[#EAD3B3] shadow-sm'
-                    : 'bg-white/12 hover:bg-white/18 text-white border-white/18'
-                }`}
-              >
-                <div className="flex items-center justify-between text-[11px] opacity-80">
-                  <span>Презентация · 16 слайдов</span>
-                  <span>→</span>
-                </div>
-                <div className="text-[13px] font-semibold mt-0.5 leading-snug">
-                  {platformMode === 'strategy'
-                    ? 'Вернуться в систему'
-                    : 'Стратегия развития 2027'}
-                </div>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={(e) => {
-                if (sidebarBlurred) {
-                  e.stopPropagation();
-                  setSidebarBlurred(false);
-                  return;
-                }
-                setDraftAdminModalOpen(true);
-              }}
-              className="w-full h-9 rounded-[11px] px-3 bg-white/8 hover:bg-white/15 border border-white/14 text-[#DCE5F0] hover:text-white flex items-center justify-between text-[12px] font-medium transition cursor-pointer outline-none"
-            >
-              <span className="inline-flex items-center gap-2 truncate">
-                <Settings className="h-3.5 w-3.5 text-[#F3DAB6] shrink-0" />
-                <span className="truncate">Черновик в админке</span>
-              </span>
-              <span className="font-mono text-[10.5px] px-1.5 py-0.5 rounded-[5px] bg-white/12 text-[#F3DAB6] shrink-0">
-                {enabledDraftCount}/{totalDraftCount}
-              </span>
-            </button>
-          </div>
-        </aside>
-
-        {/* ОСНОВНАЯ РАБОЧАЯ ОБЛАСТЬ */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* ВЕРХНЯЯ ПАНЕЛЬ: единая высота h-14, строгая геометрия rounded-[6px], z-50 чтобы выпадающие списки всегда были поверх контента */}
-          <header className="sticky top-0 z-50 h-14 bg-[#FDFCFA]/95 backdrop-blur-xs border-b-[1.5px] border-[#D4CDC2] px-6 md:px-8 flex items-center justify-between gap-4">
-            {/* Левая группа: Кнопка возврата панели (Глазик, когда левая колонка скрыта) + Назад + Выпадающий список брендов */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden h-9 w-9 rounded-[6px] bg-white border-[1.5px] border-[#D4CDC2] flex items-center justify-center"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-
-              {sidebarBlurred && (
-                <button
-                  type="button"
-                  onClick={() => setSidebarBlurred(false)}
-                  title="Вернуть левую панель на место"
-                  aria-label="Вернуть левую панель на место"
-                  className="hidden lg:inline-flex items-center justify-center h-9 w-9 rounded-[8px] bg-[#181715] text-white hover:bg-[#2C2B29] shadow-2xs transition cursor-pointer shrink-0 mr-1"
-                >
-                  <EyeOff className="h-4 w-4" />
-                </button>
-              )}
-
-              {/* Кнопки Назад (←) и Вперёд (→) + поддержка свайпа 2 пальцами на тачпаде */}
-              <div className="inline-flex items-center rounded-[7px] bg-white border-[1.5px] border-[#D4CDC2] p-0.5 shrink-0">
+              {/* Кнопки Назад (←) и Вперёд (→) */}
+              <div className="inline-flex items-center rounded-[8px] bg-[#F6F6F4] border border-[#E5E4DF] p-0.5 shrink-0">
                 <button
                   type="button"
                   onClick={goBack}
                   disabled={!canGoBack}
                   title="Назад (свайп двумя пальцами влево или ⌘[)"
                   aria-label="Назад"
-                  className={`inline-flex items-center gap-1 h-7.5 px-2.5 rounded-[5px] text-[12px] font-medium transition ${
+                  className={`inline-flex items-center justify-center h-7 w-7 rounded-[6px] transition ${
                     canGoBack
-                      ? 'text-[#161615] hover:bg-[#F2EFE9] cursor-pointer'
-                      : 'text-[#B8B2A8] opacity-55 cursor-not-allowed'
+                      ? 'text-[#141413] hover:bg-white cursor-pointer'
+                      : 'text-[#B5B4AD] opacity-55 cursor-not-allowed'
                   }`}
                 >
                   <ArrowLeft className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Назад</span>
                 </button>
-                <div className="h-4 w-[1px] bg-[#E5E0D8]" />
                 <button
                   type="button"
                   onClick={goForward}
                   disabled={!canGoForward}
                   title="Вперёд (свайп двумя пальцами вправо или ⌘])"
                   aria-label="Вперёд"
-                  className={`inline-flex items-center gap-1 h-7.5 px-2 rounded-[5px] text-[12px] font-medium transition ${
+                  className={`inline-flex items-center justify-center h-7 w-7 rounded-[6px] transition ${
                     canGoForward
-                      ? 'text-[#161615] hover:bg-[#F2EFE9] cursor-pointer'
-                      : 'text-[#B8B2A8] opacity-55 cursor-not-allowed'
+                      ? 'text-[#141413] hover:bg-white cursor-pointer'
+                      : 'text-[#B5B4AD] opacity-55 cursor-not-allowed'
                   }`}
                 >
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -1104,52 +863,41 @@ export function AppShell() {
               </div>
 
               {swipeFeedback && (
-                <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-3.5 py-1.5 rounded-full bg-[#181715]/90 text-white text-[12px] font-semibold shadow-lg flex items-center gap-1.5">
+                <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none px-3.5 py-1.5 rounded-full bg-[#141413]/92 text-white text-[12px] font-semibold shadow-lg flex items-center gap-1.5">
                   {swipeFeedback === 'back' ? (
                     <>
-                      <ArrowLeft className="h-3.5 w-3.5 text-[#F3DAB6]" />
+                      <ArrowLeft className="h-3.5 w-3.5" />
                       <span>Назад</span>
                     </>
                   ) : (
                     <>
                       <span>Вперёд</span>
-                      <ArrowRight className="h-3.5 w-3.5 text-[#F3DAB6]" />
+                      <ArrowRight className="h-3.5 w-3.5" />
                     </>
                   )}
                 </div>
               )}
 
-              {/* ВЫПАДАЮЩИЙ СПИСОК БРЕНДОВ */}
+              {/* Переключатель бренда (спокойный монохромный стиль) */}
               <div className="relative" data-tour="brand-switcher">
                 <button
                   type="button"
                   onClick={() => setBrandDropdownOpen(!brandDropdownOpen)}
-                  className="h-9 px-3.5 rounded-[6px] bg-white hover:border-[#161615] border border-[#E5E0D8] text-[13px] text-[#161615] inline-flex items-center gap-3 cursor-pointer transition min-w-[180px] justify-between"
+                  className="h-8 px-3 rounded-[8px] bg-white hover:bg-[#F8F8F6] border border-[#E5E4DF] text-[12.5px] text-[#141413] inline-flex items-center gap-2 cursor-pointer transition"
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <span
-                      className="h-2 w-2 rounded-full shrink-0"
-                      style={{
-                        backgroundColor:
-                          brandFilter === 'BORNERS'
-                            ? '#B85D35'
-                            : brandFilter === 'NA_TELE'
-                            ? '#7D7268'
-                            : '#161615',
-                      }}
-                    />
-                    <span className="text-[#6E6A63]">
-                      Бренд:{' '}
-                      <span className="font-medium text-[#161615]">
-                        {brandFilter === 'ALL'
-                          ? 'Все бренды'
-                          : brandFilter === 'NA_TELE'
-                          ? 'НА ТЕЛЕ'
-                          : 'BORNERS'}
-                      </span>
-                    </span>
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      brandFilter === 'ALL' ? 'bg-[#141413]' : 'bg-[#157347]'
+                    }`}
+                  />
+                  <span className="font-medium truncate max-w-[120px] sm:max-w-none">
+                    {brandFilter === 'ALL'
+                      ? 'Все бренды'
+                      : brandFilter === 'NA_TELE'
+                      ? 'НА ТЕЛЕ'
+                      : 'BORNERS'}
                   </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-[#8C867E]" />
+                  <ChevronDown className="h-3.5 w-3.5 text-[#8A8983]" />
                 </button>
 
                 {brandDropdownOpen && (
@@ -1158,30 +906,27 @@ export function AppShell() {
                       className="fixed inset-0 z-40"
                       onClick={() => setBrandDropdownOpen(false)}
                     />
-                    <div className="absolute left-0 mt-1.5 w-64 rounded-[8px] bg-white border border-[#E5E0D8] shadow-lg p-1.5 z-50 text-[13px] space-y-0.5">
+                    <div className="absolute left-0 mt-1.5 w-60 rounded-[12px] bg-white border border-[#E5E4DF] shadow-[0_14px_34px_rgba(20,20,19,0.1)] p-1.5 z-50 text-[12.5px] space-y-0.5">
                       <button
                         type="button"
                         onClick={() => {
                           setBrandFilter('ALL');
                           setBrandDropdownOpen(false);
                         }}
-                        className={`w-full px-3 py-2 rounded-[5px] text-left flex items-center justify-between cursor-pointer ${
+                        className={`w-full px-3 py-2 rounded-[8px] text-left flex items-center justify-between cursor-pointer ${
                           brandFilter === 'ALL'
-                            ? 'bg-[#161615] text-white font-medium'
-                            : 'text-[#161615] hover:bg-[#F2EFE9]'
+                            ? 'bg-[#141413] text-white font-semibold'
+                            : 'text-[#141413] hover:bg-[#F6F6F4]'
                         }`}
                       >
-                        <span className="inline-flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-current" />
-                          <span>Все бренды группы</span>
-                        </span>
+                        <span>Все бренды портфеля</span>
                       </button>
 
                       {brands
                         .filter((b) => !b.isStrategyInDevelopment)
                         .map((b) => {
-                          const isSelected = brandFilter === b.code || brandFilter === b.id;
-                          const dotColor = b.code === 'BORNERS' ? '#B85D35' : '#7D7268';
+                          const isSelected =
+                            brandFilter === b.code || brandFilter === b.id;
                           return (
                             <button
                               key={b.id}
@@ -1190,22 +935,18 @@ export function AppShell() {
                                 setBrandFilter(b.code);
                                 setBrandDropdownOpen(false);
                               }}
-                              className={`w-full px-3 py-2 rounded-[5px] text-left flex items-center justify-between cursor-pointer ${
+                              className={`w-full px-3 py-2 rounded-[8px] text-left flex items-center justify-between cursor-pointer ${
                                 isSelected
-                                  ? 'bg-[#161615] text-white font-medium'
-                                  : 'text-[#161615] hover:bg-[#F2EFE9]'
+                                  ? 'bg-[#141413] text-white font-semibold'
+                                  : 'text-[#141413] hover:bg-[#F6F6F4]'
                               }`}
                             >
-                              <span className="inline-flex items-center gap-2">
-                                <span
-                                  className="h-2 w-2 rounded-full"
-                                  style={{ backgroundColor: dotColor }}
-                                />
-                                <span>{b.name}</span>
-                              </span>
+                              <span>{b.name}</span>
                               <span
                                 className={`font-mono text-[10px] uppercase ${
-                                  isSelected ? 'text-neutral-300' : 'text-[#8C867E]'
+                                  isSelected
+                                    ? 'text-white/75'
+                                    : 'text-[#8A8983]'
                                 }`}
                               >
                                 Активен
@@ -1214,7 +955,7 @@ export function AppShell() {
                           );
                         })}
 
-                      <div className="pt-2 mt-1 border-t border-[#E5E0D8] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[#8C867E]">
+                      <div className="pt-2 mt-1 border-t border-[#ECEBE6] px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8983]">
                         В проработке стратегии
                       </div>
 
@@ -1232,13 +973,10 @@ export function AppShell() {
                                 'Сейчас формируется стратегия и позиционирование бренда'
                               );
                             }}
-                            className="w-full px-3 py-2 rounded-[5px] text-left flex items-center justify-between text-[#8C867E] hover:bg-[#F2EFE9] cursor-not-allowed"
+                            className="w-full px-3 py-2 rounded-[8px] text-left flex items-center justify-between text-[#8A8983] hover:bg-[#F6F6F4] cursor-not-allowed"
                           >
-                            <span className="inline-flex items-center gap-2">
-                              <span className="h-1.5 w-1.5 rounded-full bg-[#B8B2A8]" />
-                              <span>{b.name}</span>
-                            </span>
-                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-[#F2EFE9] border border-[#E5E0D8]">
+                            <span>{b.name}</span>
+                            <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-[#F6F6F4] border border-[#E5E4DF]">
                               2027
                             </span>
                           </button>
@@ -1249,172 +987,103 @@ export function AppShell() {
               </div>
             </div>
 
-            {/* Правая группа: разгруженная панель (Поиск + единый выпадающий список «Инструменты» + Профиль) */}
+            {/* ЦЕНТР: ЦЕПОЧКА БИЗНЕС-ПОТОКА (КОНЦЕПТ А: Сводка · 01 Продукт → 02 Продажи → 03 Закупки → 04 Финансы) */}
+            <nav
+              aria-label="Цепочка контуров BORNERS"
+              data-tour="sidebar-nav"
+              className="hidden xl:flex items-center rounded-[11px] bg-[#F3F3F0] border border-[#E5E4DF] p-1 gap-0.5"
+            >
+              {pipelineSteps.map((item, idx) => (
+                <React.Fragment key={item.key}>
+                  {idx > 1 && (
+                    <ChevronRight className="h-3 w-3 text-[#B5B4AD] mx-0.5 shrink-0" />
+                  )}
+                  {idx === 1 && (
+                    <div className="h-3.5 w-[1px] bg-[#DFDED8] mx-1 shrink-0" />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlatformMode('management');
+                      navigateTo(item.target);
+                      setAtlasOpen(false);
+                    }}
+                    className={`h-7.5 px-3 rounded-[8px] text-[12px] inline-flex items-center gap-1.5 transition cursor-pointer ${
+                      item.isActive
+                        ? 'bg-white text-[#141413] font-semibold shadow-2xs border border-[#E2E1DC]'
+                        : 'text-[#5C5B57] hover:text-[#141413] hover:bg-white/60 font-medium border border-transparent'
+                    }`}
+                  >
+                    {item.step && (
+                      <span className="font-mono text-[10.5px] text-[#8A8983]">
+                        {item.step}
+                      </span>
+                    )}
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span
+                        className={`font-mono text-[10px] px-1.5 py-0.2 rounded-full ${
+                          item.isActive
+                            ? 'bg-[#F1F1EE] text-[#141413]'
+                            : 'bg-white/80 text-[#686762]'
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </button>
+                </React.Fragment>
+              ))}
+            </nav>
+
+            {/* Правая группа: Кнопка вызова Бенто-Атласа («Все разделы») + Поиск + Профиль */}
             <div className="flex items-center gap-2 shrink-0">
-              {/* Поиск */}
               <button
                 type="button"
-                onClick={() => setSearchModalOpen(true)}
-                className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-white border border-[#E5E0D8] hover:border-[#161615] px-3 text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
+                onClick={() => setAtlasOpen((v) => !v)}
+                aria-expanded={atlasOpen}
+                className={`inline-flex items-center gap-2 h-8.5 px-3 rounded-[9px] border text-[12.5px] font-semibold transition cursor-pointer ${
+                  atlasOpen
+                    ? 'bg-[#141413] text-white border-[#141413]'
+                    : 'bg-white hover:bg-[#F8F8F6] text-[#141413] border-[#E5E4DF]'
+                }`}
               >
-                <Search className="h-3.5 w-3.5 text-[#6E6A63]" />
-                <span className="hidden sm:inline">Поиск</span>
-                <span className="hidden md:inline font-mono text-[10px] text-[#8C867E] border border-[#E5E0D8] rounded-[4px] px-1">
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Все разделы</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${
+                    atlasOpen ? 'rotate-180 text-white/80' : 'text-[#8A8983]'
+                  }`}
+                />
+              </button>
+
+              {/* Поиск SKU и задач */}
+              <button
+                type="button"
+                onClick={() => {
+                  setAtlasOpen(false);
+                  setSearchModalOpen(true);
+                }}
+                aria-label="Глобальный поиск"
+                className="inline-flex items-center gap-1.5 h-8.5 rounded-[9px] bg-white hover:bg-[#F8F8F6] border border-[#E5E4DF] px-2.5 text-[12.5px] font-medium text-[#141413] transition cursor-pointer"
+              >
+                <Search className="h-3.5 w-3.5 text-[#686762]" />
+                <span className="hidden md:inline font-mono text-[10px] text-[#8A8983]">
                   ⌘K
                 </span>
               </button>
 
-              {/* ЕДИНЫЙ ВЫПАДАЮЩИЙ СПИСОК: Режим системы, CRM · Задачи, Обучение и Корзина */}
+              {/* Профиль и системное меню */}
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setToolsMenuOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 h-9 px-3.5 rounded-[8px] bg-white border border-[#E5E0D8] hover:border-[#161615] text-[12.5px] font-medium text-[#161615] transition cursor-pointer"
-                >
-                  <span className="h-2 w-2 rounded-full bg-[#B85D35] shrink-0" />
-                  <span>Инструменты</span>
-                  <span className="font-mono text-[10.5px] px-1.5 py-0.2 rounded-[4px] bg-[#F2EFE9] text-[#5C5852]">
-                    {tasks.filter((t) => !t.isArchived && t.status !== 'Done').length}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 text-[#8C867E]" />
-                </button>
-
-                {toolsMenuOpen && (
-                  <>
-                    <div
-                      onClick={() => setToolsMenuOpen(false)}
-                      className="fixed inset-0 z-40"
-                    />
-                    <div className="absolute right-0 mt-1.5 w-72 rounded-[14px] bg-white border border-[#E5E0D8] shadow-[0_14px_34px_rgba(24,23,21,0.12)] p-2 z-50 text-[13px] space-y-1">
-                      {/* Переключатель режима: Рабочая система vs Презентация */}
-                      <div className="p-1.5 rounded-[10px] bg-[#F6F3EC] border border-[#EAE4D8]">
-                        <div className="px-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[#7A756C]">
-                          Режим отображения
-                        </div>
-                        <div className="grid grid-cols-2 gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPlatformMode('management');
-                              setToolsMenuOpen(false);
-                            }}
-                            className={`h-7 px-2 rounded-[7px] text-[11.5px] font-semibold transition cursor-pointer ${
-                              platformMode === 'management'
-                                ? 'bg-white text-[#1D1D1F] shadow-2xs'
-                                : 'text-[#6E6A63] hover:text-[#1D1D1F]'
-                            }`}
-                          >
-                            Рабочая система
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPlatformMode('strategy');
-                              setToolsMenuOpen(false);
-                            }}
-                            className={`h-7 px-2 rounded-[7px] text-[11.5px] font-semibold transition cursor-pointer ${
-                              platformMode === 'strategy'
-                                ? 'bg-[#1D1D1F] text-white shadow-2xs'
-                                : 'text-[#6E6A63] hover:text-[#1D1D1F]'
-                            }`}
-                          >
-                            Презентация
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* CRM · Задачи */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPlatformMode('management');
-                          navigateTo('roadmap-tasks');
-                          setToolsMenuOpen(false);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
-                      >
-                        <span className="inline-flex items-center gap-2.5 font-medium">
-                          <span className="h-2 w-2 rounded-full bg-[#B85D35]" />
-                          <span>CRM · Задачи и поручения</span>
-                        </span>
-                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-[6px] bg-[#F2EFE9] text-[#1D1D1F] font-semibold">
-                          {tasks.filter((t) => !t.isArchived && t.status !== 'Done').length}
-                        </span>
-                      </button>
-
-                      {/* Интерактивное обучение */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolsMenuOpen(false);
-                          setTourStepIdx(0);
-                          setTourModalOpen(true);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
-                      >
-                        <span className="inline-flex items-center gap-2.5 font-medium">
-                          <Sparkles className="h-3.5 w-3.5 text-[#B85D35]" />
-                          <span>Обучение (Гид по системе)</span>
-                        </span>
-                        <span className="text-[11px] text-[#8C867E]">5 шагов</span>
-                      </button>
-
-                      {/* Админка: Черновик разделов и инструментов */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolsMenuOpen(false);
-                          setDraftAdminModalOpen(true);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
-                      >
-                        <span className="inline-flex items-center gap-2.5 font-medium">
-                          <Settings className="h-3.5 w-3.5 text-[#B85D35]" />
-                          <span>Черновик разделов (Админка)</span>
-                        </span>
-                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-[6px] bg-[#F2EFE9] text-[#1D1D1F] font-semibold">
-                          {enabledDraftCount}/{totalDraftCount}
-                        </span>
-                      </button>
-
-                      {/* Корзина удалений */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolsMenuOpen(false);
-                          setTrashModalOpen(true);
-                        }}
-                        className="w-full px-3 py-2.5 rounded-[9px] hover:bg-[#FAF8F4] flex items-center justify-between text-left text-[#1D1D1F] transition cursor-pointer"
-                      >
-                        <span className="inline-flex items-center gap-2.5 font-medium">
-                          <Trash2 className="h-3.5 w-3.5 text-[#6E6A63]" />
-                          <span>Корзина удалений</span>
-                        </span>
-                        <span
-                          className={`font-mono text-[11px] px-2 py-0.5 rounded-[6px] font-semibold ${
-                            trashItems.length > 0
-                              ? 'bg-[#FCE8E5] text-[#B83224]'
-                              : 'bg-[#F2EFE9] text-[#6E6A63]'
-                          }`}
-                        >
-                          {trashItems.length}
-                        </span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Профиль */}
-              <div className="relative">
-                <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                  className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-white border border-[#E5E0D8] hover:border-[#161615] pl-2 pr-3 text-[12.5px] font-medium cursor-pointer transition"
+                  className="inline-flex items-center gap-2 h-8.5 rounded-[9px] bg-white hover:bg-[#F8F8F6] border border-[#E5E4DF] pl-2 pr-2.5 text-[12.5px] font-medium cursor-pointer transition"
                 >
-                  <span className="h-5 w-5 rounded-[4px] bg-[#161615] text-white flex items-center justify-center font-mono text-[10px]">
+                  <span className="h-5 w-5 rounded-[5px] bg-[#141413] text-white flex items-center justify-center font-mono text-[10px]">
                     {currentUser.avatarInitials}
                   </span>
-                  <span className="hidden sm:inline text-[#161615]">
+                  <span className="hidden sm:inline text-[#141413]">
                     {ROLE_LABELS_RU[currentUser.role]}
                   </span>
                 </button>
@@ -1425,110 +1094,167 @@ export function AppShell() {
                       onClick={() => setProfileMenuOpen(false)}
                       className="fixed inset-0 z-40"
                     />
-                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] shadow-xl p-5 z-50 text-[14px] space-y-4">
-                    <div className="border-b border-[#E8E8E5] pb-3">
-                      <div className="font-semibold text-[16px] text-[#171717] dark:text-white">
-                        {currentUser.fullName}
-                      </div>
-                      <div className="text-[#737373] mt-0.5">
-                        {currentUser.jobTitle} · {ROLE_LABELS_RU[currentUser.role]}
-                      </div>
-                    </div>
-
-                    {/* Режим отображения */}
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-[#171717]">Режим презентации</span>
-                      <button
-                        onClick={() =>
-                          setPlatformMode(
-                            platformMode === 'strategy' ? 'management' : 'strategy'
-                          )
-                        }
-                        className={`rounded-lg border px-3 py-1.5 text-[13px] font-semibold cursor-pointer ${
-                          platformMode === 'strategy'
-                            ? 'bg-[#111111] text-white border-[#111111]'
-                            : 'bg-[#F7F7F5] text-[#171717] border-[#E8E8E5]'
-                        }`}
-                      >
-                        {platformMode === 'strategy' ? 'Включён' : 'Выключен'}
-                      </button>
-                    </div>
-
-                    {/* Админка: Черновик разделов и инструментов */}
-                    <div className="pt-3 border-t border-[#E8E8E5]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProfileMenuOpen(false);
-                          setDraftAdminModalOpen(true);
-                        }}
-                        className="w-full rounded-xl bg-[#FAF8F4] hover:bg-[#F2EFE9] border border-[#DFD8CA] px-3.5 py-2.5 flex items-center justify-between text-left transition cursor-pointer"
-                      >
-                        <div>
-                          <div className="text-[13px] font-bold text-[#181715]">
-                            Админка · Черновик разделов
-                          </div>
-                          <div className="text-[11.5px] text-[#6E6A63]">
-                            Вернуть или скрыть доп. инструменты
-                          </div>
+                    <div className="absolute right-0 mt-1.5 w-76 bg-white rounded-[16px] border border-[#E5E4DF] shadow-[0_18px_48px_rgba(20,20,19,0.12)] p-4 z-50 text-[13px] space-y-3">
+                      <div className="border-b border-[#ECEBE6] pb-3">
+                        <div className="font-semibold text-[15px] text-[#141413]">
+                          {currentUser.fullName}
                         </div>
-                        <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-white border border-[#DFD8CA] font-bold text-[#B85D35] shrink-0">
-                          {enabledDraftCount}/{totalDraftCount}
-                        </span>
-                      </button>
-                    </div>
-
-                    {/* Проверка прав доступа (смена роли) */}
-                    <div className="pt-3 border-t border-[#E8E8E5] space-y-1">
-                      <div className="text-[12px] font-semibold uppercase tracking-wider text-[#737373] mb-2">
-                        Проверка роли доступа:
+                        <div className="text-[12px] text-[#686762] mt-0.5">
+                          {currentUser.jobTitle} · {ROLE_LABELS_RU[currentUser.role]}
+                        </div>
                       </div>
-                      {users.map((u) => (
+
+                      {/* Быстрые сервисные действия */}
+                      <div className="space-y-1">
                         <button
-                          key={u.id}
+                          type="button"
                           onClick={() => {
-                            loginAs(u.id);
                             setProfileMenuOpen(false);
+                            setPlatformMode(
+                              platformMode === 'strategy' ? 'management' : 'strategy'
+                            );
                           }}
-                          className={`w-full text-left px-3 py-2 rounded-xl flex items-center justify-between cursor-pointer ${
-                            u.id === currentUser.id
-                              ? 'bg-[#111111] text-white font-semibold'
-                              : 'text-[#171717] hover:bg-[#F7F7F5]'
-                          }`}
+                          className="w-full px-3 py-2 rounded-[9px] hover:bg-[#F6F6F4] flex items-center justify-between text-left text-[#141413] cursor-pointer"
                         >
-                          <span className="truncate pr-2">{u.fullName}</span>
-                          <span
-                            className={`text-[13px] shrink-0 ${
-                              u.id === currentUser.id ? 'text-neutral-300' : 'text-[#737373]'
-                            }`}
-                          >
-                            {ROLE_LABELS_RU[u.role]}
+                          <span>Режим презентации слайдов</span>
+                          <span className="text-[11px] font-semibold text-[#686762]">
+                            {platformMode === 'strategy' ? 'Включён' : 'Выкл'}
                           </span>
                         </button>
-                      ))}
-                    </div>
 
-                    <div className="pt-3 border-t border-[#E8E8E5]">
-                      <button
-                        onClick={() => {
-                          setProfileMenuOpen(false);
-                          logout();
-                        }}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#E8E8E5] hover:bg-[#C94B4B] hover:border-[#C94B4B] hover:text-white text-[#171717] py-2.5 font-semibold transition cursor-pointer"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>Выйти из профиля</span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            setTourStepIdx(0);
+                            setTourModalOpen(true);
+                          }}
+                          className="w-full px-3 py-2 rounded-[9px] hover:bg-[#F6F6F4] flex items-center justify-between text-left text-[#141413] cursor-pointer"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Sparkles className="h-3.5 w-3.5 text-[#686762]" />
+                            <span>Гид по платформе</span>
+                          </span>
+                          <span className="text-[11px] text-[#8A8983]">5 шагов</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            setDraftAdminModalOpen(true);
+                          }}
+                          className="w-full px-3 py-2 rounded-[9px] hover:bg-[#F6F6F4] flex items-center justify-between text-left text-[#141413] cursor-pointer"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Settings className="h-3.5 w-3.5 text-[#686762]" />
+                            <span>Черновик разделов</span>
+                          </span>
+                          <span className="font-mono text-[11px] text-[#686762]">
+                            {enabledDraftCount}/{totalDraftCount}
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            setTrashModalOpen(true);
+                          }}
+                          className="w-full px-3 py-2 rounded-[9px] hover:bg-[#F6F6F4] flex items-center justify-between text-left text-[#141413] cursor-pointer"
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Trash2 className="h-3.5 w-3.5 text-[#686762]" />
+                            <span>Корзина удалений</span>
+                          </span>
+                          <span className="font-mono text-[11px] text-[#686762]">
+                            {trashItems.length}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Проверка роли доступа */}
+                      <div className="pt-2.5 border-t border-[#ECEBE6] space-y-1">
+                        <div className="text-[11px] font-semibold uppercase tracking-wider text-[#8A8983] px-1 mb-1">
+                          Роль доступа
+                        </div>
+                        {users.map((u) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => {
+                              loginAs(u.id);
+                              setProfileMenuOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 rounded-[8px] flex items-center justify-between cursor-pointer text-[12.5px] ${
+                              u.id === currentUser.id
+                                ? 'bg-[#141413] text-white font-semibold'
+                                : 'text-[#141413] hover:bg-[#F6F6F4]'
+                            }`}
+                          >
+                            <span className="truncate pr-2">{u.fullName}</span>
+                            <span
+                              className={`text-[11.5px] shrink-0 ${
+                                u.id === currentUser.id
+                                  ? 'text-white/75'
+                                  : 'text-[#8A8983]'
+                              }`}
+                            >
+                              {ROLE_LABELS_RU[u.role]}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="pt-2.5 border-t border-[#ECEBE6]">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfileMenuOpen(false);
+                            logout();
+                          }}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-[9px] border border-[#E5E4DF] hover:bg-[#FEF2F2] hover:border-[#FCA5A5] hover:text-[#B91C1C] text-[#141413] py-2 font-semibold transition cursor-pointer text-[12.5px]"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Выйти из профиля</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   </>
                 )}
               </div>
             </div>
           </header>
 
-          {/* РАБОЧАЯ ОБЛАСТЬ КОНТЕНТА (чистая симметрия, без лишних верхних полос) */}
-          <main className="flex-1 px-6 md:px-8 py-6 md:py-8 max-w-[1600px] w-full mx-auto space-y-6">
+          {/* ВЫПАДАЮЩИЙ 4-КОЛОНОЧНЫЙ БЕНТО-АТЛАС РАЗДЕЛОВ */}
+          <BentoAtlasNav
+            open={atlasOpen}
+            onClose={() => setAtlasOpen(false)}
+            activeSection={activeSection}
+            platformMode={platformMode}
+            onSelectSection={(sec) => navigateTo(sec)}
+            onSetPlatformMode={setPlatformMode}
+            currentUser={currentUser}
+            recentSections={recentSections}
+            productsCount={activeProductsCount}
+            activeConceptsCount={activeConceptsCount}
+            openTasksCount={openTasksCount}
+            documentsCount={activeDocumentsCount}
+            usersCount={users.length}
+            trashCount={trashItems.length}
+            draftModules={draftModules}
+            enabledDraftCount={enabledDraftCount}
+            totalDraftCount={totalDraftCount}
+            onOpenTour={() => {
+              setTourStepIdx(0);
+              setTourModalOpen(true);
+            }}
+            onOpenDraftAdmin={() => setDraftAdminModalOpen(true)}
+            onOpenTrash={() => setTrashModalOpen(true)}
+          />
+
+          {/* РАБОЧАЯ ОБЛАСТЬ КОНТЕНТА (полная ширина + спокойный воздух) */}
+          <main className="flex-1 px-4 sm:px-6 lg:px-8 py-5 md:py-7 max-w-[1600px] w-full mx-auto space-y-6">
             {/* Режим интерактивной презентации стратегии (8 слайдов + лонгрид + весь экран) */}
             {platformMode === 'strategy' ? (
               <StrategyPresentationDeck

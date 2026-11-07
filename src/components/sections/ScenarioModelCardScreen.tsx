@@ -77,11 +77,11 @@ interface ScenarioModelCardScreenProps {
 
 function StatusPill({ status }: { status: ValueStatusCode }) {
   const styles: Record<ValueStatusCode, string> = {
-    fact: 'bg-[#E6F4EC] text-[#17643A] border-[#BCE3CC]',
-    approved: 'bg-[#E7F0FA] text-[#1E4F8A] border-[#C3D9F3]',
-    plan: 'bg-[#F4F1EA] text-[#4E4A42] border-[#DED8CC]',
-    hypothesis: 'bg-[#FFF5E5] text-[#9A5B00] border-[#F4D9A6]',
-    not_filled: 'bg-[#FBEAEA] text-[#9F2D2D] border-[#F1C3C3]',
+    fact: 'bg-[#EAF6F0] text-[#157347] border-[#CBEAD9]',
+    approved: 'bg-[#F1F1EE] text-[#141413] border-[#E5E4DF]',
+    plan: 'bg-[#F6F6F4] text-[#52524E] border-[#E5E4DF]',
+    hypothesis: 'bg-[#F6F6F4] text-[#686762] border-[#E5E4DF]',
+    not_filled: 'bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]',
   };
   return (
     <span
@@ -579,20 +579,20 @@ export function ScenarioModelCardScreen({
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2 py-0.5 rounded-[6px] bg-[#1D1D1F] text-white font-mono text-[11px] font-semibold">
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#141413] text-white font-mono text-[11px] font-semibold">
                 {model.code}
               </span>
-              <span className="px-2 py-0.5 rounded-[6px] bg-[#F4EFE6] text-[#5C4928] text-[11px] font-semibold">
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#F3F3F0] text-[#3F3E3A] border border-[#E5E4DF] text-[11px] font-semibold">
                 {brandPortfolioLabel}
               </span>
-              <span className="px-2 py-0.5 rounded-[6px] bg-[#EEF2F6] text-[#334E68] text-[11px] font-semibold">
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#F3F3F0] text-[#3F3E3A] border border-[#E5E4DF] text-[11px] font-semibold">
                 {model.launchStatus}
               </span>
-              <span className="text-[11px] text-[#6E6E73]">
+              <span className="text-[11px] text-[#686762]">
                 Паспорт v{shared.passportVersion} · {model.unitsInPack} изд. в комплекте
               </span>
             </div>
-            <h1 className="text-[19px] md:text-[22px] font-bold tracking-[-0.02em] text-[#1D1D1F] truncate mt-0.5">
+            <h1 className="text-[19px] md:text-[22px] font-bold tracking-[-0.02em] text-[#141413] truncate mt-0.5">
               {model.title}
             </h1>
           </div>
@@ -1087,9 +1087,9 @@ export function ScenarioModelCardScreen({
       </div>
 
       {/* 3. ПЕРЕКЛЮЧАТЕЛЬ 4 ВКЛАДОК ПОД ГАЛЕРЕЕЙ (ОДНА ВКЛАДКА ВИДНА ОДНОВРЕМЕННО, Стр. 3–4 ТЗ v1.1) */}
-      <div className="rounded-[22px] bg-white border border-[#E6E0D4] shadow-2xs overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 bg-[#FAF8F4] border-b border-[#E6E0D4]">
-          <div className="flex flex-wrap items-center gap-1.5">
+      <div className="rounded-[18px] bg-white border border-[#E5E4DF] overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 bg-[#FAFAF8] border-b border-[#ECEBE6]">
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-[10px] bg-[#F1F1EE] border border-[#E5E4DF] p-0.5">
             {(
               [
                 { id: 'product', label: 'Продукт', icon: Layers },
@@ -1109,10 +1109,10 @@ export function ScenarioModelCardScreen({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`h-9 px-4 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-2 transition cursor-pointer ${
+                  className={`h-8.5 px-3.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-2 transition cursor-pointer ${
                     isAct
-                      ? 'bg-[#1D1D1F] text-white shadow-xs'
-                      : 'text-[#5A564F] hover:bg-[#EFECE4] hover:text-[#1D1D1F]'
+                      ? 'bg-white text-[#141413] shadow-2xs border border-[#E2E1DC]'
+                      : 'text-[#686762] hover:text-[#141413] border border-transparent'
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -1122,7 +1122,7 @@ export function ScenarioModelCardScreen({
             })}
           </div>
 
-          <span className="text-[11px] text-[#6E6E73]">
+          <span className="text-[11px] text-[#686762]">
             Единый SKU · изменения паспорта и общих остатков синхронны во всех сценариях
           </span>
         </div>
@@ -1133,7 +1133,7 @@ export function ScenarioModelCardScreen({
             {/* Спецификация ткани, конструкции, пояса и комплектности */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
-                <div className="text-[12px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#686762]">
                   Ткань и плотность
                 </div>
                 {isEditing ? (
@@ -1200,7 +1200,7 @@ export function ScenarioModelCardScreen({
               </div>
 
               <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
-                <div className="text-[12px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#686762]">
                   Конструкция и посадка
                 </div>
                 <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
@@ -1225,7 +1225,7 @@ export function ScenarioModelCardScreen({
               </div>
 
               <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
-                <div className="text-[12px] font-bold uppercase tracking-wider text-[#8B6F47]">
+                <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#686762]">
                   Резинка / пояс и размеры
                 </div>
                 <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">

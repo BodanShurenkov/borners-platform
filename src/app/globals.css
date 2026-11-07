@@ -2,21 +2,22 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Премиальная дизайн-система в стиле Apple Human Interface Guidelines */
+/* Monochrome-First дизайн-система в духе Peakly / Linear:
+   спокойный светлый холст + 100% чисто-белые карточки + цвет только как сигнал данных */
 :root {
-  --bg-page: #F7F5F0;
+  --bg-page: #F6F6F4;
   --bg-card: #FFFFFF;
-  --bg-subtle: #F2EFE9;
-  --bg-warm-tint: #FAF8F5;
-  --text-primary: #1D1D1F;
-  --text-secondary: #6E6E73;
-  --border-color: #E5E0D5;
-  --border-strong: #C8A97E;
-  --bg-dark-block: #161821;
-  --brand-borners: #1E3A5F;
-  --brand-natele: #C8A97E;
-  --status-success: #1D7A4C;
-  --status-warning: #B87D24;
+  --bg-subtle: #F1F1EE;
+  --bg-warm-tint: #F8F8F6;
+  --text-primary: #141413;
+  --text-secondary: #686762;
+  --border-color: #E5E4DF;
+  --border-strong: #141413;
+  --bg-dark-block: #141413;
+  --brand-borners: #141413;
+  --brand-natele: #52524E;
+  --status-success: #157347;
+  --status-warning: #B45309;
   --status-error: #C93B3B;
 }
 
@@ -36,7 +37,7 @@ body {
   line-height: 1.48;
 }
 
-/* Единый чистый и читаемый шрифт во всём сервисе (без разнобоя засечек и моноширинного кода) */
+/* Единая спокойная типографика с выравниванием цифр в финансовых колонках */
 .font-serif-editorial,
 .font-mono,
 .font-sans {
@@ -54,37 +55,46 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Адекватные, гармоничные размеры крупных заголовков в стиле Apple */
 h1.font-serif-editorial,
 h2.font-serif-editorial {
-  font-size: clamp(1.35rem, 1.8vw, 1.75rem) !important;
+  font-size: clamp(1.3rem, 1.75vw, 1.68rem) !important;
   line-height: 1.22 !important;
 }
 
-/* Мягкие деликатные линии таблиц и карточек вместо тяжёлых чёрных рамок */
+/* Тонкие нейтральные линии таблиц */
 table thead tr {
-  border-bottom: 1.5px solid #E5E0D5 !important;
+  border-bottom: 1px solid #E5E4DF !important;
 }
 
 table tbody tr + tr {
-  border-top: 1px solid #EFECE6;
+  border-top: 1px solid #F0EFEA;
 }
 
-/* Смягчение грубых 2px чёрных рамок в пользу премиальных карточек Apple */
+/* Мягкая замена любых старых 2px чёрных рамок на деликатную 1px границу */
 .border-2.border-\[\#181715\] {
   border-width: 1px !important;
-  border-color: #E4DFD3 !important;
-  box-shadow: 0 2px 14px rgba(20, 20, 24, 0.04) !important;
+  border-color: #E5E4DF !important;
+  box-shadow: 0 2px 12px rgba(20, 20, 24, 0.03) !important;
 }
 
-/* Убираем грубую стандартную синюю обводку браузера при клике */
-button:focus,
+/* Чистый фокус: без обводки при клике мышью, чёткое кольцо при навигации с клавиатуры */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
+
 button:focus-visible,
-a:focus,
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none !important;
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid #141413;
+  outline-offset: 2px;
 }
 
 /* Тонкие минималистичные скроллбары */
@@ -98,10 +108,10 @@ textarea:focus {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #D5CFC4;
+  background: #D4D3CD;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #B5AEA0;
+  background: #B5B4AD;
 }
