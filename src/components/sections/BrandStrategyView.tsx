@@ -64,27 +64,24 @@ export function BrandPortfolioView() {
   const upcomingBrands = brands.filter((b) => b.isStrategyInDevelopment);
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* Заголовок страницы в стиле швейцарского ателье */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b-2 border-[#181715] pb-5">
+    <div className="space-y-6 pb-20">
+      {/* Архитектурная шапка портфеля брендов */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
         <div>
-          <div className="flex items-center gap-2.5 text-[11px] font-mono uppercase tracking-[0.2em] text-[#7A756D] mb-2">
-            <span>PORTFOLIO ARCHITECTURE</span>
-            <span>·</span>
-            <span>{activeBrands.length} АКТИВНЫХ БРЕНДА + {upcomingBrands.length} В ПРОРАБОТКЕ</span>
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+            Сводка и стратегия · {activeBrands.length} активных бренда + {upcomingBrands.length} в проработке
           </div>
-          <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-medium tracking-[-0.02em] text-[#161615] leading-[1.08]">
-            Портфель брендов и ДНК
+          <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+            ДНК и стратегия брендов
           </h1>
         </div>
 
         {canCreateBrand && (
           <button
             onClick={() => setShowNewBrandModal(true)}
-            className="inline-flex items-center gap-2 h-9 rounded-[6px] bg-[#161615] text-[#F8F6F2] px-4 text-[12px] font-medium hover:bg-[#2C2B29] transition cursor-pointer"
+            className="h-9 rounded-[9px] bg-[#141413] text-white px-4 text-[12.5px] font-semibold hover:bg-[#2A2A28] transition cursor-pointer"
           >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Добавить бренд</span>
+            Добавить бренд
           </button>
         )}
       </div>
@@ -93,7 +90,7 @@ export function BrandPortfolioView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {activeBrands.map((brand) => {
           const isBorners = brand.code === 'BORNERS';
-          const accentColor = isBorners ? '#161615' : '#8B8078';
+          const accentColor = isBorners ? '#141413' : '#52514C';
           const bProducts = products.filter(
             (p) => !p.isArchived && (p.brandId === brand.code || p.brandId === brand.id)
           );
@@ -107,13 +104,13 @@ export function BrandPortfolioView() {
           return (
             <div
               key={brand.id}
-              className={`bg-[#FDFCFA] rounded-[10px] border-[1.5px] border-[#CFC8BC] border-t-[3px] ${
-                isBorners ? 'border-t-[#181715]' : 'border-t-[#7D7268]'
-              } overflow-hidden flex flex-col justify-between h-full`}
+              className={`bg-white rounded-[18px] border-[1.5px] border-[#C8C7BE] border-t-[3px] ${
+                isBorners ? 'border-t-[#141413]' : 'border-t-[#52514C]'
+              } overflow-hidden flex flex-col justify-between h-full shadow-[0_2px_10px_rgba(20,20,19,0.03)]`}
             >
               <div>
                 {/* Студийный кадр коллекции фиксированной высоты h-60 */}
-                <div className="relative h-60 w-full bg-[#F2EFE9] border-b-[1.5px] border-[#CFC8BC] overflow-hidden">
+                <div className="relative h-60 w-full bg-[#F5F5F1] border-b-[1.5px] border-[#C8C7BE] overflow-hidden">
                   <img
                     src={brand.heroImage}
                     alt={brand.name}

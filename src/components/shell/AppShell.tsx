@@ -40,7 +40,11 @@ import {
 } from '@/components/sections/ManagementAndSystemViews';
 import { PeaklySpotlightTour } from '@/components/shell/PeaklySpotlightTour';
 import { BentoAtlasNav } from '@/components/shell/BentoAtlasNav';
-import { GrowthScenariosShowcase } from '@/components/sections/GrowthScenariosShowcase';
+import {
+  FinanceContourView,
+  ProcurementContourView,
+  SalesMatrixContourView,
+} from '@/components/sections/UnifiedContourViews';
 import { DRAFT_MODULES_META, useDraftModules } from '@/lib/draftModules';
 
 interface NavGroup {
@@ -1299,12 +1303,12 @@ export function AppShell() {
                     draftModules.legacyReleaseCalendar ? (
                       <LaunchCalendarView />
                     ) : (
-                      <GrowthScenariosShowcase initialScreen="sales-plan" />
+                      <SalesMatrixContourView />
                     )}
                   </div>
                 )}
-                {activeSection === 'finance' && <FinanceView />}
-                {activeSection === 'roadmap-tasks' && <RoadmapTasksView />}
+                {activeSection === 'finance' && <FinanceContourView />}
+                {activeSection === 'roadmap-tasks' && <ProcurementContourView />}
                 {activeSection === 'documents' && <DocumentsView />}
                 {activeSection === 'team' && <TeamView />}
                 {activeSection === 'settings' && <SettingsView />}

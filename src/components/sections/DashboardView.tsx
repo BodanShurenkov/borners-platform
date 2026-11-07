@@ -224,6 +224,7 @@ export function DashboardView() {
           </button>
           <button
             type="button"
+            data-tour={dashboardMode === 'all' ? 'studio-canvas' : undefined}
             onClick={() => setDashboardMode('miro')}
             className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer ${
               dashboardMode === 'miro'
@@ -250,7 +251,7 @@ export function DashboardView() {
             onClick={() => navigateTo('roadmap-tasks')}
             className="h-8 px-3 rounded-[8px] bg-[#F6F6F2] hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[#141413] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
           >
-            <span className="text-[#5E5D58]">Задачи и релизы:</span>
+            <span className="text-[#5E5D58]">Закупки и задачи:</span>
             <strong className="font-bold text-[#141413]">
               {activeTasksCount} зад. · {filteredLaunches.length} рел.
             </strong>
@@ -258,11 +259,12 @@ export function DashboardView() {
         </div>
       </div>
 
-      {/* 1. СЦЕНАРИИ РОСТА (100 / 150 / 200 МЛН ₽/МЕС) И КАТАЛОГ МОДЕЛЕЙ — СРАЗУ НА ПЕРВОМ ЭКРАНЕ */}
-      {dashboardMode === 'all' && <GrowthScenariosShowcase />}
-
-      {/* 2. СТУДИЯ ИДЕЙ · БЕСКОНЕЧНЫЙ ХОЛСТ */}
-      <MiroBoardView />
+      {/* 1. РЕЖИМ СЦЕНАРИЕВ И МОДЕЛЕЙ (БЕЗ ДУБЛИРОВАНИЯ МИРО-ДОСКИ СНИЗУ) */}
+      {dashboardMode === 'all' ? (
+        <GrowthScenariosShowcase />
+      ) : (
+        <MiroBoardView />
+      )}
 
       {dashboardMode === 'all' &&
         (draftModules.brandPortfolio ||

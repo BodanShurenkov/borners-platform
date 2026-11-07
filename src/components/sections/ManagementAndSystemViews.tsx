@@ -92,58 +92,58 @@ export function MarketIntelligenceView() {
   );
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* Шапка раздела */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+    <div className="space-y-6 pb-20">
+      {/* Архитектурная шапка раздела конкурентов */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
         <div>
-          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Конкурентный анализ, рыночные ниши и исследования
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+            Сводка и стратегия · Конкурентный анализ и исследования
           </div>
-          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
+          <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
             Рынок и конкуренты
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[12px]">
             <button
               onClick={() => setTab('competitors')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 tab === 'competitors'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
               Досье ({competitors.length})
             </button>
             <button
               onClick={() => setTab('matrix')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 tab === 'matrix'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
               Сводная таблица
             </button>
             <button
               onClick={() => setTab('trends')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 tab === 'trends'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
-              Исследования и ниши ({filteredResearch.length + filteredOpportunities.length})
+              Исследования ({filteredResearch.length + filteredOpportunities.length})
             </button>
           </div>
 
           {!isStrategyMode && (
             <button
               onClick={() => setCompModalOpen(true)}
-              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+              className="h-9 px-4 rounded-[9px] bg-[#141413] text-white text-[12.5px] font-semibold hover:bg-[#2A2A28] transition cursor-pointer"
             >
-              + Добавить конкурента
+              Добавить конкурента
             </button>
           )}
         </div>
@@ -592,26 +592,26 @@ export function RoadmapTasksView() {
   };
 
   return (
-    <div className="space-y-8 pb-20">
-      {/* Крупная шапка раздела CRM */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b-2 border-[#181715] pb-5">
+    <div className="space-y-6 pb-20">
+      {/* Архитектурная шапка раздела CRM */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
         <div>
-          <div className="font-mono text-[11.5px] font-semibold uppercase tracking-[0.14em] text-[#B85D35] mb-1">
-            CRM · ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ, КАНБАН И ДОРОЖНАЯ КАРТА
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+            03 · Закупки и CRM · Операционные поручения и дорожная карта
           </div>
-          <h1 className="font-serif-editorial text-[36px] md:text-[44px] font-medium tracking-[-0.01em] text-[#181715] leading-none">
-            CRM · Задачи и проекты
+          <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+            Задачи и проекты CRM
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setOverdueOnly(!overdueOnly)}
-            className={`h-10 px-4 rounded-[8px] border-[1.5px] text-[13px] font-semibold transition cursor-pointer ${
+            className={`h-9 px-3.5 rounded-[9px] border-[1.5px] text-[12px] font-semibold transition cursor-pointer ${
               overdueOnly
-                ? 'bg-[#C94B4B] text-white border-[#C94B4B]'
-                : 'bg-white text-[#181715] border-[#CFC8BC] hover:border-[#C94B4B]'
+                ? 'bg-[#B91C1C] text-white border-[#B91C1C]'
+                : 'bg-white text-[#141413] border-[#CECDC4] hover:border-[#B91C1C]'
             }`}
           >
             Просроченные ({overdueCount})
@@ -620,7 +620,7 @@ export function RoadmapTasksView() {
           <select
             value={assigneeFilter}
             onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="h-10 rounded-[8px] bg-white border-[1.5px] border-[#CFC8BC] px-3.5 text-[13.5px] font-semibold text-[#181715] outline-none cursor-pointer"
+            className="h-9 rounded-[9px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] px-3 text-[12px] font-semibold text-[#141413] outline-none cursor-pointer"
           >
             <option value="ALL">Все исполнители</option>
             {users.map((u) => (
@@ -630,45 +630,45 @@ export function RoadmapTasksView() {
             ))}
           </select>
 
-          <div className="flex bg-[#EFECE6] p-1 rounded-[8px] border-[1.5px] border-[#CFC8BC]">
+          <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[12px]">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`px-3.5 py-1.5 rounded-[6px] text-[13px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-[#181715] text-white'
-                  : 'text-[#5C5852] hover:text-[#181715]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
               Доска CRM
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3.5 py-1.5 rounded-[6px] text-[13px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'list'
-                  ? 'bg-[#181715] text-white'
-                  : 'text-[#5C5852] hover:text-[#181715]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
               Таблица ({filteredTasks.length})
             </button>
             <button
               onClick={() => setViewMode('projects')}
-              className={`px-3.5 py-1.5 rounded-[6px] text-[13px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'projects'
-                  ? 'bg-[#181715] text-white'
-                  : 'text-[#5C5852] hover:text-[#181715]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
-              Дорожная карта ({projects.length})
+              Проекты ({projects.length})
             </button>
           </div>
 
           {!isStrategyMode && (
             <button
               onClick={() => setModalOpen(true)}
-              className="h-10 px-5 rounded-[8px] bg-[#181715] text-white text-[13.5px] font-semibold hover:bg-[#2C2B29] transition cursor-pointer"
+              className="h-9 px-4 rounded-[9px] bg-[#141413] text-white text-[12.5px] font-semibold hover:bg-[#2A2A28] transition cursor-pointer"
             >
-              + Новая задача
+              Новая задача
             </button>
           )}
         </div>
@@ -1548,22 +1548,21 @@ export function DocumentsView() {
   };
 
   return (
-    <div className="space-y-10 pb-20">
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+    <div className="space-y-6 pb-20">
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
         <div>
-          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Реестр документации, спецификаций, лекал и привязка ТЗ к карточкам
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+            04 · Финансы и документы · Реестр ТЗ, лекал, отчётов и спецификаций
           </div>
-          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-            Документы и файлы
+          <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+            Документы, ТЗ и PDF
           </h1>
         </div>
 
         {!isStrategyMode && (
-          <div className="flex flex-wrap items-center gap-2.5">
-            <label className="h-11 px-4 rounded-xl border-[1.5px] border-[#181715] bg-[#FAF8F5] hover:bg-[#EFECE6] text-[#181715] text-[14px] font-semibold transition cursor-pointer inline-flex items-center gap-2">
-              <Paperclip className="h-4 w-4 text-[#B85D35]" />
-              <span>+ Загрузить сразу много файлов</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="h-9 px-3.5 rounded-[9px] border-[1.5px] border-[#CECDC4] bg-white hover:border-[#141413] text-[#141413] text-[12px] font-semibold transition cursor-pointer inline-flex items-center">
+              <span>Загрузить пакет файлов</span>
               <input
                 type="file"
                 multiple
@@ -1576,9 +1575,9 @@ export function DocumentsView() {
             </label>
             <button
               onClick={() => setModalOpen(true)}
-              className="h-11 px-5 rounded-xl bg-[#111111] text-white text-[14px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+              className="h-9 px-4 rounded-[9px] bg-[#141413] text-white text-[12px] font-semibold hover:bg-[#2A2A28] transition cursor-pointer"
             >
-              + Добавить ТЗ / документ с привязкой
+              Добавить ТЗ / документ
             </button>
           </div>
         )}
@@ -1999,20 +1998,20 @@ export function TeamView() {
   };
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* Крупный заголовок */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+    <div className="space-y-6 pb-20">
+      {/* Архитектурная шапка команды */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
         <div>
-          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Матрица ролей и прав доступа · {users.length} участников
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+            04 · Финансы и документы · Матрица прав доступа ({users.length} участников)
           </div>
-          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-            Команда и роли
+          <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+            Команда и роли доступа
           </h1>
         </div>
 
-        <div className="text-[14px] font-semibold rounded-xl border border-[#E8E8E5] bg-white px-4 py-2.5">
-          Текущий профиль: {currentUser.fullName} ({ROLE_LABELS_RU[currentUser.role]})
+        <div className="text-[12.5px] font-semibold rounded-[10px] border-[1.5px] border-[#CECDC4] bg-[#F5F5F1] text-[#141413] px-3.5 py-2">
+          Профиль: {currentUser.fullName} ({ROLE_LABELS_RU[currentUser.role]})
         </div>
       </div>
 
@@ -2237,12 +2236,12 @@ export function SettingsView() {
   } = useDraftModules();
 
   return (
-    <div className="space-y-10 pb-20">
-      <div className="border-b border-[#EAE6DF] pb-6">
-        <div className="text-[12px] font-medium text-[#8C867E] mb-1.5">
-          Конфигурация системы, черновик скрытых инструментов и резервное копирование
+    <div className="space-y-6 pb-20">
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
+        <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+          Администрирование · Черновик разделов и резервное копирование
         </div>
-        <h1 className="font-serif-editorial text-[34px] md:text-[42px] font-normal tracking-[-0.015em] text-[#181715]">
+        <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
           Настройки системы · BORNERS GROUP
         </h1>
       </div>

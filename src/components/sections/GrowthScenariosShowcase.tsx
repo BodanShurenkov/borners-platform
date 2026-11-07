@@ -54,6 +54,10 @@ import { ScenarioSalesPlanScreen } from '@/components/sections/ScenarioSalesPlan
 import { PdfConstructorModal } from '@/components/sections/PdfConstructorModal';
 import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
 import {
+  STORAGE_KEY_ACTIVE_SCENARIO_ID,
+  STORAGE_KEY_S1_GROUP_PORTFOLIO,
+} from '@/lib/useLiveScenarioPortfolio';
+import {
   computeFinancialPnL,
   computeProcurementPlan,
   detectModelBrandPortfolioLabel,
@@ -143,6 +147,7 @@ export function GrowthScenariosShowcase({
     updateProduct,
     archiveEntity,
     pushScenarioStep,
+    navigateTo,
     notify,
   } = usePlatform();
 
@@ -154,10 +159,20 @@ export function GrowthScenariosShowcase({
 
   const [scenarios, setScenarios] = useState<GrowthScenarioDef[]>(INITIAL_SCENARIOS);
   const [models, setModels] = useState<ScenarioModelSpec[]>(DEFAULT_RESTORED_MODELS);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<number>(1);
+  const [selectedScenarioId, setSelectedScenarioIdState] = useState<number>(1);
   const [selectedModelId, setSelectedModelId] = useState<string>(
     initialModelId || 'scen-brn-001-sc'
   );
+
+  const setSelectedScenarioId = useCallback((nextId: number) => {
+    setSelectedScenarioIdState(nextId);
+    safeSetStorageJson(STORAGE_KEY_ACTIVE_SCENARIO_ID, nextId);
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('borners-active-scenario-changed'));
+      }, 0);
+    }
+  }, []);
 
   const navigateScreen = (
     nextScreen: 'scenarios' | 'model' | 'sales-plan',
@@ -213,9 +228,20 @@ export function GrowthScenariosShowcase({
     'ALL' | 'BORNERS' | 'FUKAI' | 'NA_TELE'
   >('ALL');
   const [statusFilterLocal, setStatusFilterLocal] = useState<string>('ALL');
-  const [includeGroupPortfolioInS1, setIncludeGroupPortfolioInS1] =
+  const [includeGroupPortfolioInS1, setIncludeGroupState] =
     useState<boolean>(false);
+  const setIncludeGroupPortfolioInS1 = useCallback((nextVal: boolean) => {
+    setIncludeGroupState(nextVal);
+    safeSetStorageJson(STORAGE_KEY_S1_GROUP_PORTFOLIO, nextVal);
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('borners-active-scenario-changed'));
+      }, 0);
+    }
+  }, []);
   const [v11ContourExpanded, setV11ContourExpanded] = useState<boolean>(false);
+  const [mathBreakdownOpen, setMathBreakdownOpen] = useState<boolean>(false);
+  const [catalogViewMode, setCatalogViewMode] = useState<'grid' | 'table'>('grid');
   const [exportMenuOpen, setExportMenuOpen] = useState<boolean>(false);
   const scenarioPlanImportRef = useRef<HTMLInputElement | null>(null);
 
@@ -387,16 +413,29 @@ export function GrowthScenariosShowcase({
         }
         setModels(seeded);
       }
+
+      const savedScenId = safeGetStorageJson<number>(STORAGE_KEY_ACTIVE_SCENARIO_ID);
+      if (typeof savedScenId === 'number') {
+        setSelectedScenarioIdState((prev) => (prev === savedScenId ? prev : savedScenId));
+      }
+
+      const savedGroupFlag = safeGetStorageJson<boolean>(STORAGE_KEY_S1_GROUP_PORTFOLIO);
+      if (typeof savedGroupFlag === 'boolean') {
+        setIncludeGroupState((prev) => (prev === savedGroupFlag ? prev : savedGroupFlag));
+      }
+
       hydratedRef.current = true;
     };
 
     syncFromStorage();
     window.addEventListener('borners-scenario-models-changed', syncFromStorage);
     window.addEventListener('borners-scenarios-changed', syncFromStorage);
+    window.addEventListener('borners-active-scenario-changed', syncFromStorage);
     window.addEventListener('storage', syncFromStorage);
     return () => {
       window.removeEventListener('borners-scenario-models-changed', syncFromStorage);
       window.removeEventListener('borners-scenarios-changed', syncFromStorage);
+      window.removeEventListener('borners-active-scenario-changed', syncFromStorage);
       window.removeEventListener('storage', syncFromStorage);
     };
   }, []);
@@ -1420,14 +1459,14 @@ export function GrowthScenariosShowcase({
           </section>
 
           {/* =====================================================================
-              РАЗДЕЛ 02 · ЭКОНОМИКА, ЦЕЛЬ И ОБЕСПЕЧЕНИЕ СЦЕНАРИЯ (ЕДИНАЯ СЕТКА С ЛИНИЯМИ 1.5px)
+              РАЗДЕЛ 02 · ГЛАВНЫЕ ПОКАЗАТЕЛИ СЦЕНАРИЯ (СНАЧАЛА ОТВЕТ — ДЕТАЛИ ПО КЛИКУ)
           ===================================================================== */}
           <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] overflow-hidden divide-y-[1.5px] divide-[#D8D7CF] shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
-            {/* Панель управления целью и контуром портфеля */}
+            {/* Компактная шапка управления целью без визуальной перегрузки */}
             <div className="bg-[#F5F5F1] px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#141413]">
-                  02 · Экономика и цель
+                  02 · Главные показатели сценария
                 </span>
 
                 {currentScenario.id === 1 && (
@@ -1455,32 +1494,6 @@ export function GrowthScenariosShowcase({
                       С FUKAI · 23 SKU
                     </button>
                   </div>
-                )}
-
-                {currentScenario.id !== ACTING_2027_SCENARIO_ID && (
-                  <span className="text-[12px] text-[#52514C]">
-                    Формула дек:{' '}
-                    <strong className="text-[#141413]">
-                      {(currentAgg.actingDecRevenueRub / 1_000_000)
-                        .toFixed(2)
-                        .replace('.', ',')}{' '}
-                      млн
-                    </strong>{' '}
-                    (WB) +{' '}
-                    <strong className="text-[#141413]">
-                      {(currentAgg.newDecRevenueRub / 1_000_000)
-                        .toFixed(2)
-                        .replace('.', ',')}{' '}
-                      млн
-                    </strong>{' '}
-                    ({currentAgg.newDecSets.toLocaleString('ru-RU')} компл.) ={' '}
-                    <strong className="text-[#141413]">
-                      {(currentAgg.targetMonthRevenueRub / 1_000_000)
-                        .toFixed(2)
-                        .replace('.', ',')}{' '}
-                      млн ₽
-                    </strong>
-                  </span>
                 )}
               </div>
 
@@ -1520,6 +1533,24 @@ export function GrowthScenariosShowcase({
                     </button>
                   </>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => setMathBreakdownOpen((v) => !v)}
+                  aria-expanded={mathBreakdownOpen}
+                  className={`h-8.5 px-3 rounded-[9px] border-[1.5px] text-[12px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${
+                    mathBreakdownOpen
+                      ? 'bg-[#141413] text-white border-[#141413]'
+                      : 'bg-white text-[#141413] border-[#C8C7BE] hover:border-[#141413]'
+                  }`}
+                >
+                  <span>Разбор расчёта</span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${
+                      mathBreakdownOpen ? 'rotate-180 text-white' : 'text-[#5E5D58]'
+                    }`}
+                  />
+                </button>
 
                 <div className="relative">
                   <button
@@ -1574,9 +1605,6 @@ export function GrowthScenariosShowcase({
                                 100,15 млн ₽
                               </span>
                             </button>
-                            <div className="px-2.5 py-1.5 rounded-[8px] bg-[#F5F5F1] border border-[#E4E3DC] text-[10.5px] text-[#5E5D58] leading-relaxed">
-                              Веса авто-расчёта: Высший ×1.40 ({currentAgg.priorityCounts['Высший']}) · Высокий ×1.15 ({currentAgg.priorityCounts['Высокий']}) · Средний ×0.90 ({currentAgg.priorityCounts['Средний']}) · База ×0.75 ({currentAgg.priorityCounts['Не указан']})
-                            </div>
                           </div>
                         )}
 
@@ -1651,91 +1679,107 @@ export function GrowthScenariosShowcase({
               </div>
             </div>
 
-            {/* Четыре ключевых показателя выбранного сценария — чёткая табличная сетка с разделителями 1.5px */}
+            {/* Четыре главных исполнительных ответа на одном уровне с прямыми переходами в контуры */}
             {currentScenario.id === ACTING_2027_SCENARIO_ID ? (
-              <div className="divide-y-[1.5px] divide-[#D8D7CF]">
-                <div className="grid grid-cols-2 lg:grid-cols-4 divide-x-[1.5px] divide-y-[1.5px] lg:divide-y-0 divide-[#D8D7CF] bg-white">
-                  <div className="p-5 space-y-1">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                      План выручки / год
-                    </div>
-                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                      {(currentAgg.annualRevenueRub / 1_000_000)
-                        .toFixed(2)
-                        .replace('.', ',')}{' '}
-                      млн ₽
-                    </div>
-                    <div className="text-[11.5px] text-[#5E5D58]">
-                      {currentAgg.annualRevenueRub.toLocaleString('ru-RU')} ₽ · 84 записи (7 SKU)
-                    </div>
-                  </div>
-
-                  <div className="p-5 space-y-1">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                      Выкупы / год
-                    </div>
-                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                      {ACTING_2027_CONTROL_TOTALS.annualBuyoutsSets.toLocaleString('ru-RU')} компл.
-                    </div>
-                    <div className="text-[11.5px] text-[#5E5D58]">
-                      ИП Нерсесянц · без подушек и носков
-                    </div>
-                  </div>
-
-                  <div className="p-5 space-y-1">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                      Выручка / декабрь
-                    </div>
-                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                      {(currentAgg.targetMonthRevenueRub / 1_000_000)
-                        .toFixed(2)
-                        .replace('.', ',')}{' '}
-                      млн ₽
-                    </div>
-                    <div className="text-[11.5px] text-[#5E5D58]">
-                      {currentAgg.targetMonthRevenueRub.toLocaleString('ru-RU')} ₽ в декабре 2027
-                    </div>
-                  </div>
-
-                  <div className="p-5 space-y-1">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                      Товарные затраты / год
-                    </div>
-                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                      {(currentAgg.totalPurchaseNeedRub / 1_000_000)
-                        .toFixed(2)
-                        .replace('.', ',')}{' '}
-                      млн ₽
-                    </div>
-                    <div className="text-[11.5px] text-[#5E5D58]">
-                      Товар + упаковка + приёмка (историческая база)
-                    </div>
-                  </div>
-                </div>
-
-                <div className="px-5 py-2.5 bg-[#FAFAF7] flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
-                  <div>
-                    <span className="font-bold text-[#141413]">
-                      Сверка с исходным отчётом пройдена:
-                    </span>{' '}
-                    84 записи · 223 713 выкупов · 267 731 943 ₽ за год · 22 729 352 ₽ в декабре.
-                  </div>
-                  <div>
-                    Комиссии MP, реклама и логистика не заполнены (прибыль не завышается)
-                  </div>
-                </div>
-              </div>
-            ) : (
               <div className="grid grid-cols-2 lg:grid-cols-4 divide-x-[1.5px] divide-y-[1.5px] lg:divide-y-0 divide-[#D8D7CF] bg-white">
                 <div className="p-5 space-y-1">
                   <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                    Сумма карточек в декабре 2027
+                    Выручка в декабре 2027
                   </div>
                   <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
                     {(currentAgg.targetMonthRevenueRub / 1_000_000)
                       .toFixed(2)
                       .replace('.', ',')}{' '}
                     млн ₽
+                  </div>
+                  <div className="text-[11.5px] text-[#5E5D58]">
+                    {currentAgg.targetMonthRevenueRub.toLocaleString('ru-RU')} ₽ · база ИП Нерсесянц
+                  </div>
+                </div>
+
+                <div className="p-5 flex flex-col justify-between gap-1">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                      Годовая выручка 2027
+                    </div>
+                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+                      {(currentAgg.annualRevenueRub / 1_000_000)
+                        .toFixed(2)
+                        .replace('.', ',')}{' '}
+                      млн ₽
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
+                    <span>223 713 выкупов · 7 SKU</span>
+                    <button
+                      type="button"
+                      onClick={() => navigateTo('launch-calendar')}
+                      className="font-bold text-[#141413] hover:underline cursor-pointer shrink-0"
+                    >
+                      Матрица 12 мес. →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 flex flex-col justify-between gap-1">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                      Товарные затраты / год
+                    </div>
+                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+                      {(currentAgg.totalPurchaseNeedRub / 1_000_000)
+                        .toFixed(2)
+                        .replace('.', ',')}{' '}
+                      млн ₽
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
+                    <span>Товар + упаковка + приёмка</span>
+                    <button
+                      type="button"
+                      onClick={() => navigateTo('roadmap-tasks')}
+                      className="font-bold text-[#141413] hover:underline cursor-pointer shrink-0"
+                    >
+                      Партии →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 flex flex-col justify-between gap-1">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                      Статус сверки и P&L
+                    </div>
+                    <div className="text-[19px] font-bold tracking-[-0.02em] text-[#157347] mt-1">
+                      84 записи сверены
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
+                    <span>Комиссии MP не завышают маржу</span>
+                    <button
+                      type="button"
+                      onClick={() => navigateTo('finance')}
+                      className="font-bold text-[#141413] hover:underline cursor-pointer shrink-0"
+                    >
+                      Открыть P&L →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 divide-x-[1.5px] divide-y-[1.5px] lg:divide-y-0 divide-[#D8D7CF] bg-white">
+                {/* 1. Выручка в декабре */}
+                <div className="p-5 flex flex-col justify-between gap-1.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                      Выручка в декабре 2027
+                    </div>
+                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+                      {(currentAgg.targetMonthRevenueRub / 1_000_000)
+                        .toFixed(2)
+                        .replace('.', ',')}{' '}
+                      млн ₽
+                    </div>
                   </div>
                   <div
                     className={`text-[11.5px] font-semibold ${
@@ -1757,114 +1801,75 @@ export function GrowthScenariosShowcase({
                     )
                       .toFixed(2)
                       .replace('.', ',')}{' '}
-                    млн ₽)
+                    млн)
                   </div>
                 </div>
 
-                <div className="p-5 space-y-1">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                    {currentAgg.actingConfirmedCount} действующих SKU WB (Дек)
-                  </div>
-                  <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                    {(currentAgg.actingDecRevenueRub / 1_000_000)
-                      .toFixed(2)
-                      .replace('.', ',')}{' '}
-                    млн ₽
-                  </div>
-                  <div className="text-[11.5px] text-[#5E5D58]">
-                    {currentAgg.actingDecRevenueRub.toLocaleString('ru-RU')} ₽ в дек ·{' '}
-                    {(currentAgg.actingAnnualRevenueRub / 1_000_000)
-                      .toFixed(2)
-                      .replace('.', ',')}{' '}
-                    млн ₽ за 2027 г.
-                  </div>
-                </div>
-
-                <div className="p-5 space-y-1">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                    {currentAgg.newVariantsCount} новых вариантов (Дек)
-                  </div>
-                  <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                    {(currentAgg.newDecRevenueRub / 1_000_000)
-                      .toFixed(2)
-                      .replace('.', ',')}{' '}
-                    млн ₽
-                  </div>
-                  <div className="text-[11.5px] text-[#5E5D58]">
-                    {currentAgg.newDecSets.toLocaleString('ru-RU')} компл. в дек ·{' '}
-                    {(currentAgg.newAnnualRevenueRub / 1_000_000)
-                      .toFixed(2)
-                      .replace('.', ',')}{' '}
-                    млн ₽ за 2027 г.
-                  </div>
-                </div>
-
-                <div className="p-5 space-y-1">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
-                    Годовой план 2027 (12 мес.)
-                  </div>
-                  <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413]">
-                    {(currentAgg.annualRevenueRub / 1_000_000)
-                      .toFixed(2)
-                      .replace('.', ',')}{' '}
-                    млн ₽
-                  </div>
-                  <div className="text-[11.5px] text-[#5E5D58]">
-                    {currentAgg.annualRevenueRub.toLocaleString('ru-RU')} ₽ ·{' '}
-                    {currentAgg.modelsCount} SKU в расчёте
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Три колонки обеспечения: Операционная прибыль | Оборотный капитал и PO | Риски и партии */}
-            <div className="grid grid-cols-1 md:grid-cols-3 divide-y-[1.5px] md:divide-y-0 md:divide-x-[1.5px] divide-[#D8D7CF] bg-[#FAFAF7] text-[12px]">
-              <div className="px-5 py-4">
-                <div className="text-[11px] font-semibold text-[#5E5D58]">
-                  Операционная прибыль (заполненные расходы)
-                </div>
-                <div className="text-[16px] font-bold text-[#141413] mt-0.5">
-                  {v11ScenarioSummary.filledOperatingProfitModelsCount > 0
-                    ? `${(v11ScenarioSummary.honestOperatingProfitRub / 1_000_000)
+                {/* 2. Годовая выручка + переход в 02 Продажи */}
+                <div className="p-5 flex flex-col justify-between gap-1.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                      Годовой план 2027 (12 мес.)
+                    </div>
+                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+                      {(currentAgg.annualRevenueRub / 1_000_000)
                         .toFixed(2)
-                        .replace('.', ',')} млн ₽ · ${
-                        v11ScenarioSummary.filledOperatingProfitModelsCount
-                      } SKU`
-                    : 'Не рассчитана'}
+                        .replace('.', ',')}{' '}
+                      млн ₽
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
+                    <span>
+                      {currentAgg.modelsCount} SKU ({currentAgg.actingConfirmedCount} WB +{' '}
+                      {currentAgg.newVariantsCount} новых)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigateTo('launch-calendar')}
+                      className="font-bold text-[#141413] hover:underline cursor-pointer shrink-0"
+                    >
+                      Матрица →
+                    </button>
+                  </div>
                 </div>
-                <div className="text-[11px] text-[#5E5D58] mt-0.5">
-                  {v11ScenarioSummary.unfilledExpensesModelsCount > 0
-                    ? `По ${v11ScenarioSummary.unfilledExpensesModelsCount} SKU комиссии MP и OPEX не заполнены`
-                    : 'По всем SKU сценария внесены комиссии, логистика и OPEX'}
-                </div>
-              </div>
 
-              <div className="px-5 py-4">
-                <div className="text-[11px] font-semibold text-[#5E5D58]">
-                  Пиковая потребность в капитале и PO
+                {/* 3. Закупки и оборотный капитал + переход в 03 Закупки */}
+                <div className="p-5 flex flex-col justify-between gap-1.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                      Бюджет партий и капитал
+                    </div>
+                    <div className="text-[25px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+                      {(v11ScenarioSummary.recommendedBudgetRub / 1_000_000)
+                        .toFixed(2)
+                        .replace('.', ',')}{' '}
+                      млн ₽
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
+                    <span>
+                      Пик капитала:{' '}
+                      <strong className="text-[#141413]">
+                        {(v11ScenarioSummary.peakCapitalNeedRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽
+                      </strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigateTo('roadmap-tasks')}
+                      className="font-bold text-[#141413] hover:underline cursor-pointer shrink-0"
+                    >
+                      Партии ({v11ScenarioSummary.factoryGroups.length}) →
+                    </button>
+                  </div>
                 </div>
-                <div className="text-[16px] font-bold text-[#141413] mt-0.5">
-                  {(v11ScenarioSummary.peakCapitalNeedRub / 1_000_000)
-                    .toFixed(2)
-                    .replace('.', ',')}{' '}
-                  млн ₽
-                </div>
-                <div className="text-[11px] text-[#5E5D58] mt-0.5">
-                  PO: <strong className="text-[#141413]">{v11ScenarioSummary.approvedOrdersCount} шт.</strong> · К заказу:{' '}
-                  <strong className="text-[#141413]">
-                    {v11ScenarioSummary.recommendedPacks.toLocaleString('ru-RU')} компл. (
-                    {(v11ScenarioSummary.recommendedBudgetRub / 1_000_000)
-                      .toFixed(2)
-                      .replace('.', ',')}{' '}
-                    млн ₽)
-                  </strong>
-                </div>
-              </div>
 
-              <div className="px-5 py-4 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-[#5E5D58] inline-flex items-center gap-1.5">
+                {/* 4. Операционная прибыль и риски + переход в 04 Финансы */}
+                <div className="p-5 flex flex-col justify-between gap-1.5">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58] flex items-center gap-1.5">
                       <span
                         className={`h-2 w-2 rounded-full shrink-0 ${
                           v11ScenarioSummary.deficitModelsCount > 0 ||
@@ -1873,90 +1878,150 @@ export function GrowthScenariosShowcase({
                             : 'bg-[#157347]'
                         }`}
                       />
-                      <span>Риски и партии фабрик</span>
+                      <span>Прибыль и контроль рисков</span>
+                    </div>
+                    <div className="text-[22px] font-bold tracking-[-0.02em] text-[#141413] mt-1">
+                      {v11ScenarioSummary.filledOperatingProfitModelsCount > 0
+                        ? `${(v11ScenarioSummary.honestOperatingProfitRub / 1_000_000)
+                            .toFixed(2)
+                            .replace('.', ',')} млн ₽ · ${
+                            v11ScenarioSummary.filledOperatingProfitModelsCount
+                          } SKU`
+                        : 'Не рассчитана'}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[11.5px] text-[#5E5D58]">
+                    <span>
+                      Без PO: {v11ScenarioSummary.deficitModelsCount} SKU · Срочных:{' '}
+                      {v11ScenarioSummary.urgentPastOrderBatchesCount}
                     </span>
-
                     <button
                       type="button"
-                      onClick={() => setV11ContourExpanded((v) => !v)}
-                      className="px-2.5 py-0.5 rounded-[6px] bg-white hover:border-[#141413] border border-[#CECDC4] text-[11px] font-bold text-[#141413] inline-flex items-center gap-1 cursor-pointer transition"
+                      onClick={() => navigateTo('finance')}
+                      className="font-bold text-[#141413] hover:underline cursor-pointer shrink-0"
                     >
-                      <span>
-                        {v11ContourExpanded
-                          ? 'Свернуть'
-                          : `Партии (${v11ScenarioSummary.factoryGroups.length})`}
-                      </span>
-                      <ChevronDown
-                        className={`h-3 w-3 transition-transform ${
-                          v11ContourExpanded ? 'rotate-180' : ''
-                        }`}
-                      />
+                      P&L 2027 →
                     </button>
                   </div>
-
-                  <div className="text-[13px] font-bold text-[#141413] mt-1">
-                    Дефицит без PO: {v11ScenarioSummary.deficitModelsCount} SKU · Гипотезы:{' '}
-                    {v11ScenarioSummary.hypothesisModelsCount} SKU
-                  </div>
-                </div>
-
-                <div className="text-[11px] text-[#5E5D58] mt-0.5">
-                  Срочные заказы: {v11ScenarioSummary.urgentPastOrderBatchesCount} парт.
-                  {v11ScenarioSummary.orderDiscrepanciesCount > 0
-                    ? ` · Расхождения PO: ${v11ScenarioSummary.orderDiscrepanciesCount}`
-                    : ''}
                 </div>
               </div>
-            </div>
+            )}
 
-            {v11ContourExpanded && (
-              <div className="p-5 bg-white space-y-3">
-                <div className="text-[13px] font-bold text-[#141413]">
-                  Рекомендованные партии по фабрикам и месяцу размещения заказа
-                </div>
-                {v11ScenarioSummary.factoryGroups.length === 0 ? (
-                  <div className="text-[12px] text-[#157347] font-semibold">
-                    Все плановые продажи сценария покрыты остатками и утверждёнными PO.
+            {/* Детальный разбор формулы декабря, весов приоритета и партий — открывается по клику */}
+            {(mathBreakdownOpen || v11ContourExpanded) && (
+              <div className="p-5 bg-[#FAFAF7] space-y-4">
+                {currentScenario.id !== ACTING_2027_SCENARIO_ID && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                    <div className="rounded-[12px] bg-white border-[1.5px] border-[#CECDC4] p-4">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                        Действующая база WB ({currentAgg.actingConfirmedCount} SKU)
+                      </div>
+                      <div className="text-[20px] font-bold text-[#141413] mt-1">
+                        {(currentAgg.actingDecRevenueRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽{' '}
+                        <span className="text-[11.5px] font-medium text-[#5E5D58]">в дек</span>
+                      </div>
+                      <div className="text-[11.5px] text-[#5E5D58] mt-1">
+                        Годовая база:{' '}
+                        {(currentAgg.actingAnnualRevenueRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽ ({currentAgg.actingAnnualSets.toLocaleString('ru-RU')} компл.)
+                      </div>
+                    </div>
+
+                    <div className="rounded-[12px] bg-white border-[1.5px] border-[#CECDC4] p-4">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                        Новые варианты 2027 ({currentAgg.newVariantsCount} SKU)
+                      </div>
+                      <div className="text-[20px] font-bold text-[#141413] mt-1">
+                        {(currentAgg.newDecRevenueRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽{' '}
+                        <span className="text-[11.5px] font-medium text-[#5E5D58]">в дек</span>
+                      </div>
+                      <div className="text-[11.5px] text-[#5E5D58] mt-1">
+                        {currentAgg.newDecSets.toLocaleString('ru-RU')} компл. в дек ·{' '}
+                        {(currentAgg.newAnnualRevenueRub / 1_000_000)
+                          .toFixed(2)
+                          .replace('.', ',')}{' '}
+                        млн ₽ за 2027 г.
+                      </div>
+                    </div>
+
+                    <div className="rounded-[12px] bg-white border-[1.5px] border-[#CECDC4] p-4 flex flex-col justify-between">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
+                          Веса авто-расчёта и честность маржи
+                        </div>
+                        <div className="text-[12px] text-[#141413] font-semibold mt-1.5 leading-relaxed">
+                          Высший ×1.40 ({currentAgg.priorityCounts['Высший']}) · Высокий ×1.15 (
+                          {currentAgg.priorityCounts['Высокий']}) · Средний ×0.90 (
+                          {currentAgg.priorityCounts['Средний']}) · База ×0.75 (
+                          {currentAgg.priorityCounts['Не указан']})
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-[#5E5D58] mt-1.5">
+                        {v11ScenarioSummary.unfilledExpensesModelsCount > 0
+                          ? `По ${v11ScenarioSummary.unfilledExpensesModelsCount} SKU комиссии MP и OPEX не заполнены — прибыль не завышается`
+                          : 'Все расходы MP и OPEX заполнены'}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <div className="overflow-x-auto rounded-[12px] border-[1.5px] border-[#CECDC4]">
-                    <table className="w-full text-left border-collapse text-[12px]">
-                      <thead>
-                        <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
-                          <th className="py-2.5 px-3.5 font-bold">Месяц размещения</th>
-                          <th className="py-2.5 px-3.5 font-bold">Фабрика</th>
-                          <th className="py-2.5 px-3.5 font-bold text-right">Позиций SKU</th>
-                          <th className="py-2.5 px-3.5 font-bold text-right">Комплектов</th>
-                          <th className="py-2.5 px-3.5 font-bold text-right">Физ. изделий</th>
-                          <th className="py-2.5 px-3.5 font-bold text-right">Бюджет партии</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E4E3DC]">
-                        {v11ScenarioSummary.factoryGroups.slice(0, 10).map((grp) => (
-                          <tr
-                            key={`${grp.factoryName}-${grp.orderMonthLabel}`}
-                            className="hover:bg-[#FAFAF7]"
-                          >
-                            <td className="py-2 px-3.5 font-mono font-bold text-[#141413]">
-                              {grp.orderMonthLabel}
-                            </td>
-                            <td className="py-2 px-3.5 font-medium text-[#141413]">
-                              {grp.factoryName}
-                            </td>
-                            <td className="py-2 px-3.5 text-right">{grp.itemsCount}</td>
-                            <td className="py-2 px-3.5 text-right font-semibold">
-                              {grp.totalPacks.toLocaleString('ru-RU')} компл.
-                            </td>
-                            <td className="py-2 px-3.5 text-right text-[#5E5D58]">
-                              {grp.totalPhysicalUnits.toLocaleString('ru-RU')} изд.
-                            </td>
-                            <td className="py-2 px-3.5 text-right font-bold text-[#141413]">
-                              {grp.totalBudgetRub.toLocaleString('ru-RU')} ₽
-                            </td>
+                )}
+
+                {v11ScenarioSummary.factoryGroups.length > 0 && (
+                  <div className="space-y-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[13px] font-bold text-[#141413]">
+                        Ближайшие партии фабрик по месяцу размещения заказа
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigateTo('roadmap-tasks')}
+                        className="text-[12px] font-bold text-[#141413] hover:underline cursor-pointer"
+                      >
+                        Открыть все партии ({v11ScenarioSummary.factoryGroups.length}) в разделе 03 · Закупки →
+                      </button>
+                    </div>
+                    <div className="overflow-x-auto rounded-[12px] bg-white border-[1.5px] border-[#CECDC4]">
+                      <table className="w-full text-left border-collapse text-[12px]">
+                        <thead>
+                          <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
+                            <th className="py-2 px-3.5 font-bold">Месяц размещения</th>
+                            <th className="py-2 px-3.5 font-bold">Фабрика</th>
+                            <th className="py-2 px-3.5 font-bold text-right">Позиций SKU</th>
+                            <th className="py-2 px-3.5 font-bold text-right">Комплектов</th>
+                            <th className="py-2 px-3.5 font-bold text-right">Бюджет партии</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-[#E4E3DC]">
+                          {v11ScenarioSummary.factoryGroups.slice(0, 6).map((grp) => (
+                            <tr
+                              key={`${grp.factoryName}-${grp.orderMonthLabel}`}
+                              className="hover:bg-[#FAFAF7]"
+                            >
+                              <td className="py-2 px-3.5 font-mono font-bold text-[#141413]">
+                                {grp.orderMonthLabel}
+                              </td>
+                              <td className="py-2 px-3.5 font-medium text-[#141413]">
+                                {grp.factoryName}
+                              </td>
+                              <td className="py-2 px-3.5 text-right">{grp.itemsCount}</td>
+                              <td className="py-2 px-3.5 text-right font-semibold">
+                                {grp.totalPacks.toLocaleString('ru-RU')} компл.
+                              </td>
+                              <td className="py-2 px-3.5 text-right font-bold text-[#141413]">
+                                {grp.totalBudgetRub.toLocaleString('ru-RU')} ₽
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1964,7 +2029,7 @@ export function GrowthScenariosShowcase({
           </section>
 
           {/* =====================================================================
-              РАЗДЕЛ 03 · ТОВАРНАЯ МАТРИЦА СЦЕНАРИЯ (SKU КАРТОЧКИ С ЧЁТКИМИ РАМКАМИ БЕЗ ИКОНОК МУСОРОК)
+              РАЗДЕЛ 03 · ТОВАРНАЯ МАТРИЦА СЦЕНАРИЯ (ВИТРИНА | ТАБЛИЦА + ЛЁГКИЕ 3-УРОВНЕВЫЕ КАРТОЧКИ)
           ===================================================================== */}
           <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 space-y-5 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
             <div className="flex flex-wrap items-end justify-between gap-3 pb-4 border-b-[1.5px] border-[#DFDED6]">
@@ -1983,12 +2048,38 @@ export function GrowthScenariosShowcase({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {/* Переключатель Витрина | Таблица */}
+                <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[12px]">
+                  <button
+                    type="button"
+                    onClick={() => setCatalogViewMode('grid')}
+                    className={`h-8 px-3 rounded-[7px] transition cursor-pointer ${
+                      catalogViewMode === 'grid'
+                        ? 'bg-[#141413] text-white font-semibold shadow-2xs'
+                        : 'text-[#3F3E3A] hover:text-[#141413] font-semibold'
+                    }`}
+                  >
+                    Витрина
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCatalogViewMode('table')}
+                    className={`h-8 px-3 rounded-[7px] transition cursor-pointer ${
+                      catalogViewMode === 'table'
+                        ? 'bg-[#141413] text-white font-semibold shadow-2xs'
+                        : 'text-[#3F3E3A] hover:text-[#141413] font-semibold'
+                    }`}
+                  >
+                    Таблица ({filteredModels.length})
+                  </button>
+                </div>
+
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Поиск модели или WB..."
-                  className="h-9 px-3.5 rounded-[9px] bg-[#F7F7F4] focus:bg-white border-[1.5px] border-[#CECDC4] focus:border-[#141413] text-[12.5px] font-medium text-[#141413] placeholder:text-[#7E7D77] w-48"
+                  className="h-9 px-3.5 rounded-[9px] bg-[#F7F7F4] focus:bg-white border-[1.5px] border-[#CECDC4] focus:border-[#141413] text-[12.5px] font-medium text-[#141413] placeholder:text-[#7E7D77] w-44"
                 />
 
                 <select
@@ -2000,7 +2091,7 @@ export function GrowthScenariosShowcase({
                   }
                   className="h-9 px-3 rounded-[9px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[12px] font-semibold text-[#141413] cursor-pointer"
                 >
-                  <option value="ALL">Все бренды портфеля</option>
+                  <option value="ALL">Все бренды</option>
                   <option value="BORNERS">BORNERS</option>
                   <option value="FUKAI">FUKAI (ИП Нерсесянц)</option>
                   <option value="NA_TELE">НА ТЕЛЕ</option>
@@ -2028,144 +2119,135 @@ export function GrowthScenariosShowcase({
               </div>
             </div>
 
-            {/* Сетка карточек моделей */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filteredModels.map((mod, modIdx) => {
-                const met = computeModelScenarioMetrics(mod, currentScenario);
-                const mainGallery =
-                  mod.gallery.find((g) => g.isMain) || mod.gallery[0];
-                const colors = mod.palettes[0]?.colors || [];
-                const actingMeta = getActingSkuByWbOrVendor(mod.code, mod.title);
-                const priorityLabel = getModelPriority(mod);
+            {catalogViewMode === 'grid' ? (
+              /* Витрина с разгруженными 3-уровневыми карточками SKU */
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {filteredModels.map((mod, modIdx) => {
+                  const met = computeModelScenarioMetrics(mod, currentScenario);
+                  const mainGallery =
+                    mod.gallery.find((g) => g.isMain) || mod.gallery[0];
+                  const colors = mod.palettes[0]?.colors || [];
+                  const actingMeta = getActingSkuByWbOrVendor(mod.code, mod.title);
+                  const priorityLabel = getModelPriority(mod);
 
-                return (
-                  <div
-                    key={mod.id}
-                    role="button"
-                    tabIndex={0}
-                    data-tour={modIdx === 0 ? 'model-passport' : undefined}
-                    onClick={() => {
-                      navigateScreen('model', mod.id);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
+                  return (
+                    <div
+                      key={mod.id}
+                      role="button"
+                      tabIndex={0}
+                      data-tour={modIdx === 0 ? 'model-passport' : undefined}
+                      onClick={() => {
                         navigateScreen('model', mod.id);
-                      }
-                    }}
-                    className="group relative rounded-[14px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] p-4 text-left transition-all cursor-pointer flex flex-col justify-between hover:shadow-[0_8px_22px_rgba(20,20,19,0.06)]"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-2.5">
-                        <span className="font-mono text-[11px] font-bold text-[#52514C]">
-                          {actingMeta
-                            ? `WB ${actingMeta.wbSku}`
-                            : `${mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ${mod.code}`}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`px-2 py-0.5 rounded-[6px] text-[10px] font-bold border ${
-                              mod.launchStatus === 'Утверждено' ||
-                              (actingMeta &&
-                                actingMeta.wbSku !== '72302360' &&
-                                actingMeta.wbSku !== '86205435')
-                                ? 'bg-[#EAF6F0] text-[#157347] border-[#BBE5CE]'
-                                : 'bg-[#F3F3EE] text-[#3F3E3A] border-[#D8D7CF]'
-                            }`}
-                          >
-                            {actingMeta ? actingMeta.brandStatus : mod.launchStatus}
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          navigateScreen('model', mod.id);
+                        }
+                      }}
+                      className="group relative rounded-[14px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] p-4 text-left transition-all cursor-pointer flex flex-col justify-between hover:shadow-[0_8px_22px_rgba(20,20,19,0.06)]"
+                    >
+                      {/* Уровень 1 и 2: Код + Фото + Название с приоритетом */}
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2.5">
+                          <span className="font-mono text-[11px] font-bold text-[#52514C]">
+                            {actingMeta
+                              ? `WB ${actingMeta.wbSku}`
+                              : `${mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} ${mod.code}`}
                           </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteOrArchiveModel(mod);
-                            }}
-                            title={`Удалить карточку ${mod.code} ${mod.title}`}
-                            aria-label={`Удалить ${mod.title}`}
-                            className="h-5 w-5 rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-white hover:bg-[#FEF2F2] border border-[#CECDC4] hover:border-[#FCA5A5] flex items-center justify-center text-[#686762] hover:text-[#B91C1C] text-[13px] leading-none font-bold transition cursor-pointer"
-                          >
-                            ×
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`px-2 py-0.5 rounded-[6px] text-[10px] font-bold border ${
+                                mod.launchStatus === 'Утверждено' ||
+                                (actingMeta &&
+                                  actingMeta.wbSku !== '72302360' &&
+                                  actingMeta.wbSku !== '86205435')
+                                  ? 'bg-[#EAF6F0] text-[#157347] border-[#BBE5CE]'
+                                  : 'bg-[#F3F3EE] text-[#3F3E3A] border-[#D8D7CF]'
+                              }`}
+                            >
+                              {actingMeta ? actingMeta.brandStatus : mod.launchStatus}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteOrArchiveModel(mod);
+                              }}
+                              title={`Удалить карточку ${mod.code} ${mod.title}`}
+                              aria-label={`Удалить ${mod.title}`}
+                              className="h-5 w-5 rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-white hover:bg-[#FEF2F2] border border-[#CECDC4] hover:border-[#FCA5A5] flex items-center justify-center text-[#686762] hover:text-[#B91C1C] text-[13px] leading-none font-bold transition cursor-pointer"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[10px] bg-[#F5F5F1] border border-[#DFDED6] p-2 mb-3">
+                          <BoxerPackStackSvg
+                            colors={colors}
+                            brandLabel={
+                              mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'
+                            }
+                            customPhotoUrl={mainGallery?.url}
+                          />
+                        </div>
+
+                        <div className="text-[15px] font-bold text-[#141413] group-hover:underline">
+                          {mod.title}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-2">
+                          <span className="text-[11.5px] text-[#5E5D58] truncate">
+                            {mod.subtitle}
+                          </span>
+                          {!actingMeta ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCycleCardPriority(mod, e)}
+                              title="Нажмите, чтобы изменить приоритет модели для авто-расчёта"
+                              className={`shrink-0 px-2 py-0.5 rounded-[5px] text-[10px] font-bold transition cursor-pointer border ${
+                                priorityLabel === 'Высший'
+                                  ? 'bg-[#141413] text-white border-[#141413]'
+                                  : 'bg-[#F5F5F1] hover:border-[#141413] text-[#262624] border-[#CECDC4]'
+                              }`}
+                            >
+                              {priorityLabel}
+                            </button>
+                          ) : (
+                            <span className="shrink-0 text-[10px] font-semibold text-[#5E5D58]">
+                              {isUnverifiedActingSku(mod.code) ? 'Вне цели' : 'WB база'}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div className="rounded-[10px] bg-[#F5F5F1] border border-[#DFDED6] p-2 mb-3">
-                        <BoxerPackStackSvg
-                          colors={colors}
-                          brandLabel={
-                            mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'
-                          }
-                          customPhotoUrl={mainGallery?.url}
-                        />
-                      </div>
-
-                      <div className="text-[15px] font-bold text-[#141413] group-hover:underline">
-                        {mod.title}
-                      </div>
-                      <div className="text-[11.5px] text-[#5E5D58]">
-                        {mod.subtitle}
-                      </div>
-                    </div>
-
-                    <div className="mt-3.5 pt-3 border-t-[1.5px] border-[#E4E3DC] space-y-2.5">
-                      <div className="flex items-end justify-between gap-2">
+                      {/* Уровень 3: Единая нижняя плашка (Выручка декабря и года слева · Степпер комплектов справа) */}
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-3.5 pt-3 border-t-[1.5px] border-[#E4E3DC] flex items-center justify-between gap-2"
+                      >
                         <div>
-                          <div className="text-[16.5px] font-bold text-[#141413]">
-                            {(met.annualRevenueRub / 1_000_000)
+                          <div className="text-[15.5px] font-bold text-[#141413] leading-tight">
+                            {(met.targetMonthRevenueRub / 1_000_000)
                               .toFixed(2)
                               .replace('.', ',')}{' '}
                             млн ₽{' '}
-                            <span className="text-[11px] font-medium text-[#5E5D58]">
-                              / год
+                            <span className="text-[10.5px] font-medium text-[#5E5D58]">
+                              / дек
                             </span>
                           </div>
                           <div className="text-[11px] text-[#5E5D58] mt-0.5">
-                            Дек:{' '}
-                            <span className="font-bold text-[#141413]">
-                              {(met.targetMonthRevenueRub / 1_000_000)
+                            Год:{' '}
+                            <strong className="text-[#262624]">
+                              {(met.annualRevenueRub / 1_000_000)
                                 .toFixed(2)
                                 .replace('.', ',')}{' '}
                               млн ₽
-                            </span>{' '}
-                            <span>
-                              · {met.targetMonthPacks.toLocaleString('ru-RU')} компл.
-                            </span>
+                            </strong>
                           </div>
                         </div>
 
-                        <span className="px-2 py-0.5 rounded-[6px] bg-[#F4F4F0] border border-[#D4D3CA] text-[10.5px] font-bold text-[#262624] shrink-0">
-                          {met.goalSharePct.toFixed(1).replace('.', ',')}% цели
-                        </span>
-                      </div>
-
-                      {/* Живое управление приоритетом и объёмом декабря прямо на карточке */}
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="pt-2 border-t border-[#ECEBE4] flex items-center justify-between gap-1.5"
-                      >
-                        {!actingMeta ? (
-                          <button
-                            type="button"
-                            onClick={(e) => handleCycleCardPriority(mod, e)}
-                            title="Нажмите, чтобы изменить приоритет модели для авто-расчёта"
-                            className={`h-6.5 px-2 rounded-[6px] text-[10px] font-bold transition cursor-pointer inline-flex items-center border ${
-                              priorityLabel === 'Высший'
-                                ? 'bg-[#141413] text-white border-[#141413]'
-                                : 'bg-[#F5F5F1] hover:border-[#141413] text-[#262624] border-[#CECDC4]'
-                            }`}
-                          >
-                            Приоритет: {priorityLabel}
-                          </button>
-                        ) : (
-                          <span className="text-[10.5px] font-semibold text-[#5E5D58]">
-                            {isUnverifiedActingSku(mod.code)
-                              ? 'Вне моно-цели'
-                              : 'База WB (действ.)'}
-                          </span>
-                        )}
-
-                        <div className="inline-flex items-center gap-1 bg-[#F5F5F1] border border-[#CECDC4] rounded-[7px] px-1 py-0.5">
+                        <div className="inline-flex items-center gap-0.5 bg-[#F5F5F1] border-[1.5px] border-[#CECDC4] rounded-[8px] px-1 py-0.5 shrink-0">
                           <button
                             type="button"
                             onClick={(e) =>
@@ -2176,7 +2258,7 @@ export function GrowthScenariosShowcase({
                               )
                             }
                             title="Уменьшить выкупы декабря на 200 компл."
-                            className="h-5 w-5 rounded text-[12px] font-bold text-[#3F3E3A] hover:bg-white hover:text-[#141413] transition cursor-pointer"
+                            className="h-6 w-5 rounded text-[13px] font-bold text-[#3F3E3A] hover:bg-white hover:text-[#141413] transition cursor-pointer"
                           >
                             −
                           </button>
@@ -2193,7 +2275,7 @@ export function GrowthScenariosShowcase({
                               )
                             }
                             title="Выкупы в декабре 2027 (комплектов)"
-                            className="w-14 text-center text-[11px] font-bold text-[#141413] bg-transparent"
+                            className="w-13 text-center font-mono text-[11px] font-bold text-[#141413] bg-transparent"
                           />
                           <button
                             type="button"
@@ -2205,32 +2287,207 @@ export function GrowthScenariosShowcase({
                               )
                             }
                             title="Увеличить выкупы декабря на 200 компл."
-                            className="h-5 w-5 rounded text-[12px] font-bold text-[#3F3E3A] hover:bg-white hover:text-[#141413] transition cursor-pointer"
+                            className="h-6 w-5 rounded text-[13px] font-bold text-[#3F3E3A] hover:bg-white hover:text-[#141413] transition cursor-pointer"
                           >
                             +
                           </button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {/* Карточка «Добавить модель» без лишних кружков-иконок */}
-              <button
-                type="button"
-                onClick={() => setNewModelModalOpen(true)}
-                className="rounded-[14px] border-[1.5px] border-dashed border-[#B8B7AE] hover:border-[#141413] bg-[#FAFAF7] hover:bg-white p-6 flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer min-h-[290px]"
-              >
-                <div className="text-[26px] font-light leading-none text-[#141413]">+</div>
-                <div className="text-[14.5px] font-bold text-[#141413]">
-                  Добавить модель
-                </div>
-                <p className="text-[12px] text-[#5E5D58] max-w-[200px]">
-                  Новая товарная позиция в сценарий ({currentScenario.scopeLabel})
-                </p>
-              </button>
-            </div>
+                {/* Карточка «Добавить модель» */}
+                <button
+                  type="button"
+                  onClick={() => setNewModelModalOpen(true)}
+                  className="rounded-[14px] border-[1.5px] border-dashed border-[#B8B7AE] hover:border-[#141413] bg-[#FAFAF7] hover:bg-white p-6 flex flex-col items-center justify-center text-center gap-2 transition cursor-pointer min-h-[280px]"
+                >
+                  <div className="text-[26px] font-light leading-none text-[#141413]">+</div>
+                  <div className="text-[14.5px] font-bold text-[#141413]">
+                    Добавить модель
+                  </div>
+                  <p className="text-[12px] text-[#5E5D58] max-w-[200px]">
+                    Новая товарная позиция в сценарий ({currentScenario.scopeLabel})
+                  </p>
+                </button>
+              </div>
+            ) : (
+              /* Компактная табличная матрица всех SKU на одном экране */
+              <div className="overflow-x-auto rounded-[14px] border-[1.5px] border-[#CECDC4]">
+                <table className="w-full text-left border-collapse text-[12.5px]">
+                  <thead>
+                    <tr className="bg-[#F5F5F1] text-[#3F3E3A] text-[11px] uppercase tracking-[0.04em] border-b-[1.5px] border-[#141413]">
+                      <th className="py-3 px-4 font-bold">Код / WB</th>
+                      <th className="py-3 px-4 font-bold">Модель и линейка</th>
+                      <th className="py-3 px-3 font-bold">Статус</th>
+                      <th className="py-3 px-3 font-bold">Приоритет</th>
+                      <th className="py-3 px-3 font-bold text-right">Цена компл.</th>
+                      <th className="py-3 px-3 font-bold text-center">Выкупы дек. (компл.)</th>
+                      <th className="py-3 px-4 font-bold text-right">Выручка дек.</th>
+                      <th className="py-3 px-4 font-bold text-right">Выручка 2027</th>
+                      <th className="py-3 px-4 font-bold text-right">Доля цели</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E4E3DC] bg-white">
+                    {filteredModels.map((mod, modIdx) => {
+                      const met = computeModelScenarioMetrics(mod, currentScenario);
+                      const actingMeta = getActingSkuByWbOrVendor(mod.code, mod.title);
+                      const priorityLabel = getModelPriority(mod);
+                      return (
+                        <tr
+                          key={mod.id}
+                          data-tour={modIdx === 0 ? 'model-passport' : undefined}
+                          onClick={() => navigateScreen('model', mod.id)}
+                          className="hover:bg-[#F7F7F3] transition cursor-pointer"
+                        >
+                          <td className="py-2.5 px-4 font-mono text-[11.5px] font-bold text-[#141413] whitespace-nowrap">
+                            {actingMeta ? `WB ${actingMeta.wbSku}` : mod.code}
+                          </td>
+                          <td className="py-2.5 px-4">
+                            <div className="font-bold text-[#141413] hover:underline">
+                              {mod.title}
+                            </div>
+                            <div className="text-[11px] text-[#5E5D58]">
+                              {mod.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · {mod.subtitle}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <span
+                              className={`px-2 py-0.5 rounded-[6px] text-[10.5px] font-bold border whitespace-nowrap ${
+                                mod.launchStatus === 'Утверждено' ||
+                                (actingMeta &&
+                                  actingMeta.wbSku !== '72302360' &&
+                                  actingMeta.wbSku !== '86205435')
+                                  ? 'bg-[#EAF6F0] text-[#157347] border-[#BBE5CE]'
+                                  : 'bg-[#F3F3EE] text-[#3F3E3A] border-[#D8D7CF]'
+                              }`}
+                            >
+                              {actingMeta ? actingMeta.brandStatus : mod.launchStatus}
+                            </span>
+                          </td>
+                          <td
+                            className="py-2.5 px-3"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {!actingMeta ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleCycleCardPriority(mod, e)}
+                                className={`px-2.5 py-0.5 rounded-[6px] text-[10.5px] font-bold border transition cursor-pointer whitespace-nowrap ${
+                                  priorityLabel === 'Высший'
+                                    ? 'bg-[#141413] text-white border-[#141413]'
+                                    : 'bg-[#F5F5F1] hover:border-[#141413] text-[#262624] border-[#CECDC4]'
+                                }`}
+                              >
+                                {priorityLabel}
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-[#5E5D58]">WB база</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-[#262624] whitespace-nowrap">
+                            {mod.retailPriceRub.toLocaleString('ru-RU')} ₽
+                          </td>
+                          <td
+                            className="py-2.5 px-3 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="inline-flex items-center gap-0.5 bg-[#F5F5F1] border border-[#CECDC4] rounded-[7px] px-1 py-0.5">
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleQuickAdjustDecPacks(
+                                    mod,
+                                    Math.max(0, met.targetMonthPacks - 200),
+                                    e
+                                  )
+                                }
+                                className="h-5 w-5 rounded text-[12px] font-bold text-[#3F3E3A] hover:bg-white hover:text-[#141413] cursor-pointer"
+                              >
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                min={0}
+                                step={100}
+                                value={met.targetMonthPacks}
+                                onChange={(e) =>
+                                  handleQuickAdjustDecPacks(
+                                    mod,
+                                    Number(e.target.value) || 0,
+                                    e
+                                  )
+                                }
+                                className="w-14 text-center font-mono text-[11px] font-bold text-[#141413] bg-transparent"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) =>
+                                  handleQuickAdjustDecPacks(
+                                    mod,
+                                    met.targetMonthPacks + 200,
+                                    e
+                                  )
+                                }
+                                className="h-5 w-5 rounded text-[12px] font-bold text-[#3F3E3A] hover:bg-white hover:text-[#141413] cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-bold text-[#141413] whitespace-nowrap">
+                            {(met.targetMonthRevenueRub / 1_000_000)
+                              .toFixed(2)
+                              .replace('.', ',')}{' '}
+                            млн ₽
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono font-semibold text-[#262624] whitespace-nowrap">
+                            {(met.annualRevenueRub / 1_000_000)
+                              .toFixed(2)
+                              .replace('.', ',')}{' '}
+                            млн ₽
+                          </td>
+                          <td className="py-2.5 px-4 text-right font-mono text-[11.5px] text-[#5E5D58] whitespace-nowrap">
+                            {met.goalSharePct.toFixed(1).replace('.', ',')}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    {(() => {
+                      let sumDecPacks = 0;
+                      let sumDecRub = 0;
+                      let sumYearRub = 0;
+                      for (const m of filteredModels) {
+                        const met = computeModelScenarioMetrics(m, currentScenario);
+                        sumDecPacks += met.targetMonthPacks;
+                        sumDecRub += met.targetMonthRevenueRub;
+                        sumYearRub += met.annualRevenueRub;
+                      }
+                      return (
+                        <tr className="bg-[#F5F5F1] border-t-[2px] border-[#141413] font-bold text-[#141413]">
+                          <td className="py-3 px-4" colSpan={5}>
+                            ИТОГО ПО ВЫБОРКЕ ({filteredModels.length} SKU)
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono">
+                            {sumDecPacks.toLocaleString('ru-RU')} компл.
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono text-[#157347]">
+                            {(sumDecRub / 1_000_000).toFixed(2).replace('.', ',')} млн ₽
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono">
+                            {(sumYearRub / 1_000_000).toFixed(2).replace('.', ',')} млн ₽
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono">100%</td>
+                        </tr>
+                      );
+                    })()}
+                  </tfoot>
+                </table>
+              </div>
+            )}
 
             {/* Сводка плана по 7 SKU · без подушек и носков */}
             {currentScenario.id === ACTING_2027_SCENARIO_ID && (

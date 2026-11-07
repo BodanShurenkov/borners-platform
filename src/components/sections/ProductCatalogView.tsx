@@ -456,36 +456,36 @@ export function ProductCatalogView() {
   };
 
   return (
-    <div className="space-y-10 pb-20">
-      {/* Заголовок страницы (32–40px по ТЗ) */}
-      <div className="flex flex-wrap items-end justify-between gap-6 border-b border-[#E8E8E5] pb-6">
+    <div className="space-y-6 pb-20">
+      {/* Архитектурная шапка раздела 01 · Продукт */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 flex flex-wrap items-center justify-between gap-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
         <div>
-          <div className="text-[13px] font-medium uppercase tracking-widest text-[#737373] mb-1.5">
-            Ассортиментная матрица · {filteredProducts.length} моделей
+          <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+            01 · Продукт · Ассортиментная матрица ({filteredProducts.length} SKU)
           </div>
-          <h1 className="text-[34px] md:text-[40px] font-bold tracking-[-0.03em] text-[#171717] dark:text-white">
-            Каталог моделей
+          <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413] mt-0.5">
+            Каталог моделей (SKU)
           </h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex bg-[#F7F7F5] p-1 rounded-xl border border-[#E8E8E5]">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[12px]">
             <button
               onClick={() => setViewMode('grid')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
-              Галерея
+              Витрина
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-white text-[#171717] shadow-2xs'
-                  : 'text-[#737373] hover:text-[#171717]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
               Таблица
@@ -495,36 +495,34 @@ export function ProductCatalogView() {
           {!isStrategyMode && (
             <button
               onClick={() => setCreateModalOpen(true)}
-              className="inline-flex items-center gap-2 h-11 rounded-xl bg-[#111111] text-white px-5 text-[15px] font-semibold hover:bg-neutral-800 transition cursor-pointer"
+              className="h-9 px-4 rounded-[9px] bg-[#141413] text-white text-[12.5px] font-semibold hover:bg-[#2A2A28] transition cursor-pointer"
             >
-              <Plus className="h-4 w-4" />
-              <span>Добавить модель</span>
+              Добавить модель
             </button>
           )}
         </div>
       </div>
 
-      {/* СИНХРОНИЗИРОВАННЫЕ МОДЕЛИ ИЗ СЦЕНАРИЕВ РОСТА (автоматическая связка Сценарии роста ↔ Модели SKU) */}
-      <div className="rounded-[20px] bg-white border border-[#E5DEC9] p-5 md:p-6 shadow-xs space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* СИНХРОНИЗИРОВАННЫЕ МОДЕЛИ ИЗ СЦЕНАРИЕВ РОСТА */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 shadow-[0_2px_10px_rgba(20,20,19,0.03)] space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b-[1.5px] border-[#DFDED6]">
           <div>
-            <div className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-[#B85D35]">
-              <span className="h-2 w-2 rounded-full bg-[#B85D35]" />
-              <span>Синхронизировано со «Сценариями роста»</span>
+            <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+              Сквозная синхронизация со сценариями 2027
             </div>
-            <h2 className="text-[20px] font-bold text-[#1D1D1F] mt-0.5">
+            <h2 className="text-[19px] font-bold text-[#141413] mt-0.5">
               Модели в сценариях развития ({scenarioModels.filter((m) => m.launchStatus !== 'В архиве' && (brandFilter === 'ALL' || m.brandId === brandFilter)).length} SKU)
             </h2>
-            <p className="text-[12.5px] text-[#6E6E73]">
-              Любая модель, добавленная в «Сценариях роста», автоматически появляется здесь. Нажмите на модель, чтобы провалиться в её подробную карточку (5 вкладок: Обзор, План продаж, Производство, Экономика, Спецификация).
+            <p className="text-[12px] text-[#5E5D58]">
+              Нажмите на любую позицию, чтобы открыть паспорт изделия, матрицу 12 мес., закупки и экономику.
             </p>
           </div>
           <button
             type="button"
             onClick={() => navigateTo('brand-strategy')}
-            className="h-9 px-4 rounded-[10px] bg-[#FAF8F4] hover:bg-[#EFECE6] border border-[#DFD8CA] text-[12.5px] font-semibold text-[#1D1D1F] transition cursor-pointer"
+            className="h-8.5 px-3.5 rounded-[9px] bg-[#F5F5F1] hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[12px] font-semibold text-[#141413] transition cursor-pointer"
           >
-            Все сценарии роста →
+            Открыть Сводку и сценарии →
           </button>
         </div>
 
@@ -549,15 +547,15 @@ export function ProductCatalogView() {
                     }
                     navigateTo('brand-strategy');
                   }}
-                  className="group rounded-[16px] bg-[#FAF8F4] hover:bg-white border border-[#E6E0D4] hover:border-[#1D1D1F] p-4 transition-all cursor-pointer flex flex-col justify-between gap-3 shadow-2xs"
+                  className="group rounded-[14px] bg-white hover:bg-[#FAFAF7] border-[1.5px] border-[#CECDC4] hover:border-[#141413] p-4 transition-all cursor-pointer flex flex-col justify-between gap-3"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 text-[11px] font-bold">
-                      <span className="text-[#6E6E73]">
+                      <span className="font-mono text-[#52514C]">
                         {m.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} · {m.code}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-0.5 rounded-full bg-white border border-[#E2DBD0] text-[10.5px] text-[#1D1D1F]">
+                        <span className="px-2 py-0.5 rounded-[6px] bg-[#F4F4F0] border border-[#CECDC4] text-[10px] text-[#141413]">
                           {m.launchStatus}
                         </span>
                         <button
@@ -567,13 +565,13 @@ export function ProductCatalogView() {
                             handleDeleteScenarioModel(m);
                           }}
                           title="Удалить карточку"
-                          className="h-6 w-6 rounded-full bg-white border border-[#E2DBD0] hover:border-[#C94B4B] text-[#737373] hover:text-[#C94B4B] flex items-center justify-center transition cursor-pointer"
+                          className="h-5 w-5 rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-white border border-[#CECDC4] hover:border-[#FCA5A5] text-[#686762] hover:text-[#B91C1C] flex items-center justify-center text-[13px] leading-none font-bold transition cursor-pointer"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          ×
                         </button>
                       </div>
                     </div>
-                    <div className="h-24 my-2 rounded-[12px] bg-white border border-[#EFECE6] flex items-center justify-center p-2 overflow-hidden">
+                    <div className="h-24 my-2.5 rounded-[10px] bg-[#F5F5F1] border border-[#DFDED6] flex items-center justify-center p-2 overflow-hidden">
                       <BoxerPackStackSvg
                         colors={colors}
                         brandLabel={m.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'}
@@ -584,23 +582,23 @@ export function ProductCatalogView() {
                         }
                       />
                     </div>
-                    <div className="text-[14px] font-extrabold text-[#1D1D1F] leading-snug">
+                    <div className="text-[14px] font-bold text-[#141413] group-hover:underline leading-snug">
                       {m.title}
                     </div>
-                    <div className="text-[11.5px] text-[#6E6E73] mt-0.5 truncate">
+                    <div className="text-[11.5px] text-[#5E5D58] mt-0.5 truncate">
                       {m.subtitle}
                     </div>
                   </div>
 
-                  <div className="pt-2.5 border-t border-[#E6E0D4] flex items-center justify-between text-[12px]">
+                  <div className="pt-2.5 border-t-[1.5px] border-[#E4E3DC] flex items-center justify-between text-[12px]">
                     <div>
-                      <span className="text-[#7A756C]">Розница: </span>
-                      <span className="font-bold text-[#1D1D1F]">
+                      <span className="text-[#5E5D58]">Цена: </span>
+                      <span className="font-mono font-bold text-[#141413]">
                         {m.retailPriceRub.toLocaleString('ru-RU')} ₽
                       </span>
                     </div>
-                    <span className="font-semibold text-[#B85D35] group-hover:translate-x-0.5 transition-transform">
-                      В карточку →
+                    <span className="font-semibold text-[#141413]">
+                      Паспорт →
                     </span>
                   </div>
                 </div>
@@ -705,7 +703,7 @@ export function ProductCatalogView() {
                   setSelectedProductId(product.id);
                   setDrawerTab('passport');
                 }}
-                className="relative bg-white dark:bg-zinc-900 rounded-2xl border border-[#E8E8E5] hover:border-[#171717] p-6 flex flex-col justify-between transition cursor-pointer group space-y-5"
+                className="relative bg-white rounded-[16px] border-[1.5px] border-[#CECDC4] hover:border-[#141413] p-5 flex flex-col justify-between transition cursor-pointer group space-y-4"
               >
                 <button
                   type="button"
@@ -714,13 +712,13 @@ export function ProductCatalogView() {
                     handleDeleteCatalogProduct(product);
                   }}
                   title="Удалить карточку модели"
-                  className="absolute top-8 right-8 z-10 h-7 w-7 rounded-lg bg-white/95 border border-[#E8E8E5] hover:border-[#C94B4B] text-[#737373] hover:text-[#C94B4B] flex items-center justify-center shadow-2xs transition cursor-pointer"
+                  className="absolute top-7 right-7 z-10 h-6 w-6 rounded-[6px] opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-white border border-[#CECDC4] hover:border-[#FCA5A5] text-[#686762] hover:text-[#B91C1C] flex items-center justify-center text-[14px] leading-none font-bold transition cursor-pointer"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  ×
                 </button>
-                <div className="space-y-4">
-                  {/* Предметное фото модели в чистой рамке без наслоения бейджей */}
-                  <div className="h-52 w-full rounded-xl bg-[#F7F7F5] border border-[#E8E8E5] flex items-center justify-center p-5">
+                <div className="space-y-3.5">
+                  {/* Предметное фото модели в чистой рамке */}
+                  <div className="h-48 w-full rounded-[12px] bg-[#F5F5F1] border border-[#DFDED6] flex items-center justify-center p-4">
                     <img
                       src={product.imageUrl}
                       alt={product.name}

@@ -647,39 +647,37 @@ export function ProductLabView() {
   return (
     <div className="space-y-6 pb-20">
       {/* =====================================================================
-          02 / ГЛАВНЫЙ ЭКРАН — ФОТОДОСКА (ЧИСТАЯ РЕДАКЦИОННАЯ ВЕРСТКА)
+          02 / ГЛАВНЫЙ ЭКРАН — ЛАБОРАТОРИЯ R&D (АРХИТЕКТУРНАЯ РАМКА 1.5px БЕЗ ЛИШНИХ ИКОНОК)
       ===================================================================== */}
-      <div className="rounded-[12px] bg-white border border-[#EAE6DF] p-6 md:p-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#EAE6DF] pb-5">
-          <div className="space-y-1">
-            <div className="text-[12px] font-medium text-[#8C867E]">
-              Разработка продукта · 7 этапов отбора
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 space-y-5 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b-[1.5px] border-[#DFDED6] pb-4">
+          <div className="space-y-0.5">
+            <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
+              01 · Продукт · 7 этапов отбора образцов
             </div>
-            <h1 className="font-serif-editorial text-[32px] md:text-[38px] font-normal tracking-[-0.015em] text-[#181715] leading-none">
+            <h1 className="text-[23px] font-bold tracking-[-0.02em] text-[#141413]">
               Лаборатория R&amp;D
             </h1>
-            <p className="text-[13.5px] text-[#6E6A63] pt-1">
-              Визуальная доска разработки: от первой фотографии и анализа рынка до протокола стирки и заказа фабрике
+            <p className="text-[12.5px] text-[#5E5D58]">
+              От первой фотографии и анализа рынка до протокола стирки и передачи фабрике
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setAddFromCatalogOpen(true)}
-              className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-white hover:bg-[#FAF6EE] border border-[#C8A97E] text-[#7A5C38] px-3.5 text-[12.5px] font-semibold transition cursor-pointer shadow-2xs"
+              className="h-9 rounded-[9px] bg-white hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[#141413] px-3.5 text-[12px] font-semibold transition cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>+ Добавить из каталога / базы ({unifiedCatalogItems.length})</span>
+              Из каталога ({unifiedCatalogItems.length})
             </button>
 
             <button
               type="button"
               onClick={() => setQuickIdeaOpen(true)}
-              className="inline-flex items-center gap-2 h-9 rounded-[8px] bg-[#181715] hover:bg-[#2C2B29] text-white px-4 text-[13px] font-medium transition cursor-pointer"
+              className="h-9 rounded-[9px] bg-[#141413] hover:bg-[#2A2A28] text-white px-4 text-[12px] font-semibold transition cursor-pointer"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>Новая идея</span>
+              Новая идея
             </button>
           </div>
         </div>
@@ -690,7 +688,7 @@ export function ProductLabView() {
             <select
               value={brandFilter}
               onChange={(e) => setBrandFilter(e.target.value)}
-              className="h-9 rounded-[8px] bg-[#FAF8F5] hover:border-[#181715] border border-[#EAE6DF] px-3 text-[12.5px] font-medium text-[#181715] outline-none cursor-pointer transition"
+              className="h-9 rounded-[9px] bg-white hover:border-[#141413] border-[1.5px] border-[#CECDC4] px-3 text-[12px] font-semibold text-[#141413] outline-none cursor-pointer transition"
             >
               <option value="ALL">Все бренды</option>
               <option value="BORNERS">BORNERS</option>
@@ -700,7 +698,7 @@ export function ProductLabView() {
             <select
               value={stageFilter}
               onChange={(e) => setStageFilter(e.target.value)}
-              className="h-9 rounded-[8px] bg-[#FAF8F5] hover:border-[#181715] border border-[#EAE6DF] px-3 text-[12.5px] font-medium text-[#181715] outline-none cursor-pointer transition"
+              className="h-9 rounded-[9px] bg-white hover:border-[#141413] border-[1.5px] border-[#CECDC4] px-3 text-[12px] font-semibold text-[#141413] outline-none cursor-pointer transition"
             >
               <option value="ALL">Все этапы (01–07)</option>
               {SEVEN_KANBAN_STAGES.map((st) => (
@@ -710,41 +708,36 @@ export function ProductLabView() {
               ))}
             </select>
 
-            <div className="relative w-56 sm:w-64">
-              <Search className="h-3.5 w-3.5 text-[#8C867E] absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Поиск модели или ID..."
-                className="w-full h-9 rounded-[8px] bg-[#FAF8F5] border border-[#EAE6DF] pl-8 pr-3 text-[12.5px] outline-none focus:bg-white focus:border-[#181715]"
-              />
-            </div>
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск образца или ID..."
+              className="w-52 sm:w-60 h-9 rounded-[9px] bg-[#F7F7F4] border-[1.5px] border-[#CECDC4] px-3.5 text-[12.5px] font-medium text-[#141413] placeholder:text-[#7E7D77] outline-none focus:bg-white focus:border-[#141413]"
+            />
           </div>
 
-          <div className="flex items-center h-9 bg-[#F3EFE8] p-0.5 rounded-[8px] border border-[#EAE6DF]">
+          <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[12px]">
             <button
               type="button"
               onClick={() => setViewMode('kanban')}
-              className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-[6px] text-[12.5px] font-medium transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-white text-[#181715] shadow-2xs'
-                  : 'text-[#6E6A63] hover:text-[#181715]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
-              <Columns3 className="h-3.5 w-3.5" />
-              <span>Фотодоска</span>
+              Фотодоска
             </button>
             <button
               type="button"
               onClick={() => setViewMode('gallery')}
-              className={`inline-flex items-center gap-1.5 h-7 px-3 rounded-[6px] text-[12.5px] font-medium transition cursor-pointer ${
+              className={`h-8 px-3.5 rounded-[7px] font-semibold transition cursor-pointer ${
                 viewMode === 'gallery'
-                  ? 'bg-white text-[#181715] shadow-2xs'
-                  : 'text-[#6E6A63] hover:text-[#181715]'
+                  ? 'bg-[#141413] text-white shadow-2xs'
+                  : 'text-[#3F3E3A] hover:text-[#141413]'
               }`}
             >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>Галерея</span>
+              Галерея
             </button>
           </div>
         </div>
