@@ -891,6 +891,29 @@ test('23. ТЗ v1.1 (Тест-кейс №9 + Портфель FUKAI): эксп�
   assert.equal(annAfterImport, CLIENT_SAVED_S1_TOTALS.annualRevenueRub);
 });
 
+test('24. Пакетное утверждение всех рекомендованных партий SKU в PO полностью закрывает дефицит и обнуляет очередь к заказу', () => {
+  const scen1 = INITIAL_SCENARIOS.find((s) => s.id === 1)!;
+  const sorbet = ensureModelUnifiedV11(
+    S1_100M_SCENARIO_MODELS.find((m) => m.code === 'BRN-001-SC')!
+  );
+
+  const initialProc = computeProcurementPlan(sorbet, scen1);
+  assert.equal(initialProc.hasDeficit, true);
+  assert.equal(initialProc.recommendedBatches.length > 0, true);
+
+  let approvedModel = sorbet;
+  for (const batch of initialProc.recommendedBatches) {
+    approvedModel = approveRecommendedBatch(approvedModel, batch, 'Владелец');
+  }
+
+  const afterProc = computeProcurementPlan(approvedModel, scen1);
+  assert.equal(afterProc.approvedOrders.length, initialProc.recommendedBatches.length);
+  assert.equal(afterProc.hasDeficit, false);
+  assert.equal(afterProc.totalDeficitPacks, 0);
+  assert.equal(afterProc.recommendedBatches.length, 0);
+});
+
+
 
 
 

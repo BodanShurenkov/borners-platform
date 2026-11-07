@@ -46,6 +46,10 @@ import {
   SalesMatrixContourView,
 } from '@/components/sections/UnifiedContourViews';
 import { DRAFT_MODULES_META, useDraftModules } from '@/lib/draftModules';
+import { useLiveScenarioPortfolio } from '@/lib/useLiveScenarioPortfolio';
+import { computeModelScenarioMetrics } from '@/lib/scenarioData';
+import { getActingSkuByWbOrVendor } from '@/lib/actingAssortment2027';
+import { detectModelBrandPortfolioLabel } from '@/lib/unifiedBusinessEngine';
 
 interface NavGroup {
   groupTitle: string;
@@ -216,6 +220,47 @@ export function AppShell() {
     enabledCount: enabledDraftCount,
     totalCount: totalDraftCount,
   } = useDraftModules();
+
+  const livePortfolio = useLiveScenarioPortfolio();
+
+  const openScenarioSkuPassport = React.useCallback(
+    (modelId: string, modelLabel?: string) => {
+      try {
+        sessionStorage.setItem('borners_open_scenario_model_id', modelId);
+      } catch {
+        // ignore
+      }
+      setPlatformMode('management');
+      navigateTo('dashboard');
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          window.dispatchEvent(
+            new CustomEvent('borners-open-scenario-model', {
+              detail: { modelId },
+            })
+          );
+        }, 0);
+      }
+      setGlobalSearchQuery('');
+      setSearchModalOpen(false);
+      if (modelLabel) {
+        notify('success', `Открыт паспорт SKU 2027`, modelLabel);
+      }
+    },
+    [navigateTo, notify, setPlatformMode]
+  );
+
+  const topScenarioDrivers = useMemo(() => {
+    return [...livePortfolio.eligibleModels]
+      .sort(
+        (a, b) =>
+          computeModelScenarioMetrics(b, livePortfolio.currentScenario)
+            .targetMonthRevenueRub -
+          computeModelScenarioMetrics(a, livePortfolio.currentScenario)
+            .targetMonthRevenueRub
+      )
+      .slice(0, 5);
+  }, [livePortfolio.eligibleModels, livePortfolio.currentScenario]);
 
   const trashItems = useMemo(() => {
     const items: {
@@ -498,6 +543,36 @@ export function AppShell() {
       }
     }
 
+    // 1. Живые SKU портфеля 2027 (23 модели сценариев + WB артикулы)
+    for (const m of livePortfolio.models) {
+      if (m.launchStatus === 'В архиве') continue;
+      const acting = getActingSkuByWbOrVendor(m.code, m.title);
+      const portfolioBrand = detectModelBrandPortfolioLabel(m);
+      const wbStr = acting ? `wb ${acting.wbSku}` : '';
+      const brandRu = m.brandId === 'NA_TELE' ? 'на теле' : portfolioBrand.toLowerCase();
+      if (
+        m.code.toLowerCase().includes(q) ||
+        m.title.toLowerCase().includes(q) ||
+        m.subtitle.toLowerCase().includes(q) ||
+        wbStr.includes(q) ||
+        brandRu.includes(q)
+      ) {
+        const met = computeModelScenarioMetrics(m, livePortfolio.currentScenario);
+        const displayCode = acting ? `WB ${acting.wbSku}` : m.code;
+        results.push({
+          id: `scen-sku-${m.id}`,
+          category: 'SKU 2027',
+          title: `${displayCode} — ${m.title}`,
+          subtitle: `${portfolioBrand} · Дек: ${(met.targetMonthRevenueRub / 1_000_000)
+            .toFixed(2)
+            .replace('.', ',')} млн ₽ · 2027: ${(met.annualRevenueRub / 1_000_000)
+            .toFixed(2)
+            .replace('.', ',')} млн ₽`,
+          onSelect: () => openScenarioSkuPassport(m.id, `${displayCode} — ${m.title}`),
+        });
+      }
+    }
+
     for (const p of products) {
       if (p.isArchived) continue;
       const brandRu = p.brandId === 'NA_TELE' ? 'на теле' : 'borners';
@@ -641,6 +716,9 @@ export function AppShell() {
   }, [
     globalSearchQuery,
     currentUser,
+    livePortfolio.models,
+    livePortfolio.currentScenario,
+    openScenarioSkuPassport,
     products,
     concepts,
     launches,
@@ -732,6 +810,9 @@ export function AppShell() {
     const finSection: NavSectionId = canUserAccessSection(currentUser, 'finance')
       ? 'finance'
       : 'documents';
+    const annualMlnRounded = Math.round(
+      livePortfolio.totals.annualRevenueRub / 1_000_000
+    );
 
     return [
       {
@@ -754,7 +835,7 @@ export function AppShell() {
         isActive:
           platformMode === 'management' &&
           (activeSection === 'product-catalog' || activeSection === 'product-lab'),
-        badge: String(activeProductsCount),
+        badge: String(livePortfolio.eligibleModels.length),
       },
       {
         key: 'sales',
@@ -765,7 +846,7 @@ export function AppShell() {
           platformMode === 'management' &&
           (activeSection === 'launch-calendar' ||
             activeSection === 'marketing-growth'),
-        badge: null as string | null,
+        badge: annualMlnRounded > 0 ? `${annualMlnRounded} млн` : null,
       },
       {
         key: 'procurement',
@@ -774,7 +855,12 @@ export function AppShell() {
         target: 'roadmap-tasks' as NavSectionId,
         isActive:
           platformMode === 'management' && activeSection === 'roadmap-tasks',
-        badge: openTasksCount > 0 ? String(openTasksCount) : null,
+        badge:
+          livePortfolio.factoryGroupsCount > 0
+            ? String(livePortfolio.factoryGroupsCount)
+            : openTasksCount > 0
+            ? String(openTasksCount)
+            : null,
       },
       {
         key: 'finance',
@@ -790,9 +876,11 @@ export function AppShell() {
       },
     ].filter((s) => canUserAccessSection(currentUser, s.target));
   }, [
-    activeProductsCount,
     activeSection,
     currentUser,
+    livePortfolio.eligibleModels.length,
+    livePortfolio.factoryGroupsCount,
+    livePortfolio.totals.annualRevenueRub,
     openTasksCount,
     platformMode,
   ]);
@@ -1317,18 +1405,18 @@ export function AppShell() {
           </main>
         </div>
 
-        {/* МОДАЛЬНОЕ ОКНО ПОИСКА (⌘K) */}
+        {/* МОДАЛЬНОЕ ОКНО ПОИСКА И БЫСТРЫХ ДЕЙСТВИЙ (⌘K) */}
         {searchModalOpen && (
           <div
             onClick={() => setSearchModalOpen(false)}
-            className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24 p-4"
+            className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-20 p-4 backdrop-blur-xs"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl bg-white rounded-2xl border-[1.5px] border-[#181715] shadow-2xl overflow-hidden"
+              className="w-full max-w-2xl bg-white rounded-[18px] border-[1.5px] border-[#141413] shadow-[0_24px_60px_rgba(20,20,19,0.22)] overflow-hidden"
             >
-              <div className="flex items-center gap-3 border-b-2 border-[#181715] px-6 py-4 bg-[#FAF8F5]">
-                <Search className="h-5 w-5 text-[#181715]" />
+              <div className="flex items-center gap-3 border-b-[1.5px] border-[#141413] px-5 py-3.5 bg-[#F5F5F1]">
+                <Search className="h-4.5 w-4.5 text-[#141413] shrink-0" />
                 <input
                   autoFocus
                   value={globalSearchQuery}
@@ -1341,19 +1429,19 @@ export function AppShell() {
                       setSearchModalOpen(false);
                     }
                   }}
-                  placeholder="Артикул, модель, НА ТЕЛЕ / BORNERS, задача CRM или раздел..."
-                  className="flex-1 bg-transparent text-[16px] font-medium outline-none text-[#171717]"
+                  placeholder="Артикул WB (244995893), SORBET CLUB, FUKAI, НА ТЕЛЕ или раздел..."
+                  className="flex-1 bg-transparent text-[15px] font-medium outline-none text-[#141413] placeholder:text-[#7E7D77]"
                 />
                 <button
                   type="button"
                   onClick={() => setSearchModalOpen(false)}
-                  className="rounded-[6px] border-[1.5px] border-[#D4CDC2] bg-white px-2.5 py-1 text-[11.5px] font-semibold text-[#5C5852] hover:border-[#181715] hover:text-[#181715] cursor-pointer"
+                  className="rounded-[7px] border-[1.5px] border-[#CECDC4] bg-white px-2.5 py-1 text-[11px] font-bold text-[#3F3E3A] hover:border-[#141413] hover:text-[#141413] cursor-pointer"
                 >
                   ESC
                 </button>
               </div>
 
-              <div className="max-h-96 overflow-y-auto divide-y divide-[#E5E0D8] p-2">
+              <div className="max-h-[440px] overflow-y-auto divide-y divide-[#E4E3DC] p-2">
                 {searchResults.map((res) => (
                   <button
                     key={res.id}
@@ -1363,59 +1451,120 @@ export function AppShell() {
                       res.onSelect();
                     }}
                     onClick={res.onSelect}
-                    className="w-full text-left px-4 py-3.5 rounded-xl hover:bg-[#F3EFE8] cursor-pointer flex items-center justify-between gap-4 transition group"
+                    className="w-full text-left px-4 py-3 rounded-[11px] hover:bg-[#F5F5F1] cursor-pointer flex items-center justify-between gap-4 transition group"
                   >
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[11px] font-mono font-semibold uppercase text-[#181715] bg-[#EFECE6] px-2.5 py-0.5 rounded-[5px] border border-[#D4CDC2] shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`text-[10.5px] font-mono font-bold uppercase px-2 py-0.5 rounded-[5px] border shrink-0 ${
+                            res.category === 'SKU 2027'
+                              ? 'bg-[#141413] text-white border-[#141413]'
+                              : 'bg-[#F4F4F0] text-[#141413] border-[#CECDC4]'
+                          }`}
+                        >
                           {res.category}
                         </span>
-                        <span className="text-[15px] font-semibold text-[#181715] group-hover:underline truncate">
+                        <span className="text-[14px] font-bold text-[#141413] group-hover:underline truncate">
                           {res.title}
                         </span>
                       </div>
-                      <div className="text-[13px] text-[#6E6A63] mt-1 truncate">{res.subtitle}</div>
+                      <div className="text-[12px] text-[#5E5D58] mt-0.5 truncate">
+                        {res.subtitle}
+                      </div>
                     </div>
-                    <span className="text-[13px] font-semibold text-[#181715] shrink-0 px-3 py-1.5 rounded-[6px] bg-[#FAF8F5] group-hover:bg-[#181715] group-hover:text-white border border-[#D4CDC2] transition">
+                    <span className="text-[12px] font-semibold text-[#141413] shrink-0 px-3 py-1 rounded-[7px] bg-white group-hover:bg-[#141413] group-hover:text-white border-[1.5px] border-[#CECDC4] group-hover:border-[#141413] transition">
                       Открыть →
                     </span>
                   </button>
                 ))}
 
                 {globalSearchQuery && searchResults.length === 0 && (
-                  <div className="py-12 text-center text-[15px] text-[#737373]">
+                  <div className="py-12 text-center text-[14px] text-[#5E5D58]">
                     Ничего не найдено по запросу «{globalSearchQuery}»
                   </div>
                 )}
 
                 {!globalSearchQuery && (
-                  <div className="p-4 space-y-3">
-                    <div className="text-[12px] font-mono uppercase tracking-wider text-[#7A756D]">
-                      Быстрый переход по ключевым модулям:
+                  <div className="p-3.5 space-y-4">
+                    <div className="space-y-2">
+                      <div className="text-[11px] font-mono font-bold uppercase tracking-[0.06em] text-[#5E5D58]">
+                        Контуры 2027 · Быстрый переход
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {[
+                          { id: 'dashboard' as const, label: 'Сводка сценариев' },
+                          { id: 'launch-calendar' as const, label: '02 · Матрица 12 мес.' },
+                          { id: 'roadmap-tasks' as const, label: '03 · Партии и PO' },
+                          { id: 'finance' as const, label: '04 · P&L и капитал' },
+                          { id: 'product-lab' as const, label: 'Лаборатория R&D' },
+                          { id: 'documents' as const, label: 'Документы и ТЗ PDF' },
+                        ].map((sec) => (
+                          <button
+                            key={sec.id}
+                            type="button"
+                            onClick={() => {
+                              setPlatformMode('management');
+                              navigateTo(sec.id);
+                              setSearchModalOpen(false);
+                            }}
+                            className="px-3 py-2 rounded-[9px] border-[1.5px] border-[#CECDC4] hover:border-[#141413] bg-[#F7F7F4] hover:bg-white text-left text-[12.5px] font-semibold text-[#141413] transition cursor-pointer"
+                          >
+                            {sec.label} →
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'roadmap-tasks' as const, label: 'CRM · Задачи и проекты' },
-                        { id: 'product-lab' as const, label: 'Лаборатория R&D' },
-                        { id: 'product-catalog' as const, label: 'Каталог моделей SKU' },
-                        { id: 'launch-calendar' as const, label: 'Календарь запусков' },
-                        { id: 'finance' as const, label: 'Финансы 2027 (P&L)' },
-                        { id: 'documents' as const, label: 'Документы (PDF / Excel)' },
-                      ].map((sec) => (
-                        <button
-                          key={sec.id}
-                          type="button"
-                          onClick={() => {
-                            setPlatformMode('management');
-                            navigateTo(sec.id);
-                            setSearchModalOpen(false);
-                          }}
-                          className="px-3.5 py-2.5 rounded-[8px] border-[1.5px] border-[#D4CDC2] hover:border-[#181715] bg-[#FAF8F5] hover:bg-[#EFECE6] text-left text-[13px] font-medium text-[#181715] transition cursor-pointer"
-                        >
-                          {sec.label} →
-                        </button>
-                      ))}
-                    </div>
+
+                    {topScenarioDrivers.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-[#E4E3DC]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono font-bold uppercase tracking-[0.06em] text-[#5E5D58]">
+                            Топ-5 драйверов выручки · {livePortfolio.currentScenario.title}
+                          </span>
+                          <span className="text-[11px] text-[#5E5D58]">
+                            Паспорт SKU в 1 клик
+                          </span>
+                        </div>
+                        <div className="divide-y divide-[#ECEBE4] rounded-[11px] border-[1.5px] border-[#CECDC4] overflow-hidden bg-white">
+                          {topScenarioDrivers.map((m) => {
+                            const acting = getActingSkuByWbOrVendor(m.code, m.title);
+                            const met = computeModelScenarioMetrics(
+                              m,
+                              livePortfolio.currentScenario
+                            );
+                            const displayCode = acting ? `WB ${acting.wbSku}` : m.code;
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() =>
+                                  openScenarioSkuPassport(
+                                    m.id,
+                                    `${displayCode} — ${m.title}`
+                                  )
+                                }
+                                className="w-full px-3.5 py-2.5 hover:bg-[#F5F5F1] flex items-center justify-between gap-3 text-left transition cursor-pointer"
+                              >
+                                <div className="min-w-0 flex items-center gap-2">
+                                  <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-[5px] bg-[#F4F4F0] border border-[#CECDC4] text-[#141413] shrink-0">
+                                    {displayCode}
+                                  </span>
+                                  <span className="text-[13px] font-bold text-[#141413] truncate">
+                                    {m.title}
+                                  </span>
+                                </div>
+                                <span className="font-mono text-[12px] font-bold text-[#157347] shrink-0">
+                                  {(met.targetMonthRevenueRub / 1_000_000)
+                                    .toFixed(2)
+                                    .replace('.', ',')}{' '}
+                                  млн ₽/дек
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -717,10 +717,10 @@ export function ScenarioModelCardScreen({
                     key={cat}
                     type="button"
                     onClick={() => setGalleryCategoryFilter(cat)}
-                    className={`h-7 px-2.5 rounded-full text-[11px] font-semibold transition cursor-pointer ${
+                    className={`h-7 px-2.5 rounded-[7px] text-[11px] font-semibold border transition cursor-pointer ${
                       galleryCategoryFilter === cat
-                        ? 'bg-[#1D1D1F] text-white'
-                        : 'bg-[#F5F3EE] text-[#5A564F] hover:bg-[#EAE6DC]'
+                        ? 'bg-[#141413] text-white border-[#141413]'
+                        : 'bg-[#F5F5F1] text-[#52514C] border-[#CECDC4] hover:border-[#141413] hover:text-[#141413]'
                     }`}
                   >
                     {cat === 'ALL'
@@ -734,10 +734,9 @@ export function ScenarioModelCardScreen({
             <button
               type="button"
               onClick={() => setLightboxOpen(true)}
-              className="h-7 px-2.5 rounded-full bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1 transition cursor-pointer"
+              className="h-7 px-2.5 rounded-[7px] bg-[#F5F5F1] hover:bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[11px] font-semibold text-[#141413] inline-flex items-center gap-1 transition cursor-pointer"
             >
-              <ZoomIn className="h-3.5 w-3.5 text-[#8B6F47]" />
-              <span>Во весь экран · Zoom</span>
+              <span>Во весь экран · 100%</span>
             </button>
           </div>
 
@@ -745,7 +744,7 @@ export function ScenarioModelCardScreen({
           <div
             onClick={() => mainImageSrc && setLightboxOpen(true)}
             title="Нажмите для полноэкранного просмотра оригинала с увеличением"
-            className="relative rounded-[16px] bg-[#F5F4F1] border border-[#ECE8DF] h-[310px] md:h-[360px] flex items-center justify-center p-3 overflow-hidden group cursor-zoom-in"
+            className="relative rounded-[14px] bg-[#F5F5F1] border-[1.5px] border-[#DFDED6] h-[310px] md:h-[360px] flex items-center justify-center p-3 overflow-hidden group cursor-zoom-in"
           >
             {mainImageSrc ? (
               <>
@@ -755,13 +754,12 @@ export function ScenarioModelCardScreen({
                   alt={`${model.code} ${model.title}`}
                   className="max-h-full max-w-full w-auto h-auto object-contain transition-transform duration-200 group-hover:scale-[1.02]"
                 />
-                <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full bg-[#1D1D1F]/80 text-white text-[11px] font-medium inline-flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition">
-                  <ZoomIn className="h-3.5 w-3.5" />
-                  <span>Открыть оригинал (Zoom / 100%)</span>
+                <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-[7px] bg-[#141413]/88 text-white text-[11px] font-semibold opacity-85 group-hover:opacity-100 transition">
+                  Открыть оригинал (Zoom)
                 </div>
               </>
             ) : (
-              <div className="text-center text-[13px] text-[#8E8A82]">
+              <div className="text-center text-[13px] text-[#686762]">
                 Оригинальная фотография ещё не загружена
               </div>
             )}
@@ -778,17 +776,17 @@ export function ScenarioModelCardScreen({
                     key={g.id}
                     type="button"
                     onClick={() => setSelectedGalleryId(g.id)}
-                    className={`shrink-0 rounded-[10px] p-1 border transition cursor-pointer ${
+                    className={`shrink-0 rounded-[9px] p-1 border-[1.5px] transition cursor-pointer ${
                       isSel
-                        ? 'border-[#1D1D1F] bg-[#FAF8F4] ring-1 ring-[#1D1D1F]'
-                        : 'border-[#E6E0D4] bg-white hover:border-[#B8B0A0]'
+                        ? 'border-[#141413] bg-[#F5F5F1]'
+                        : 'border-[#DFDED6] bg-white hover:border-[#141413]'
                     }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={src}
                       alt={g.label}
-                      className="h-12 w-14 object-contain rounded-[6px] bg-[#F5F4F1]"
+                      className="h-12 w-14 object-contain rounded-[5px] bg-[#F5F5F1]"
                     />
                   </button>
                 );
@@ -802,7 +800,7 @@ export function ScenarioModelCardScreen({
                   onChange={(e) =>
                     setNewPhotoCategory(e.target.value as GalleryCategoryV11)
                   }
-                  className="h-8 px-2 rounded-[8px] border border-[#DED8CC] bg-[#FAF8F4] text-[11px] font-medium"
+                  className="h-8 px-2 rounded-[8px] border-[1.5px] border-[#CECDC4] bg-[#F5F5F1] text-[11px] font-semibold"
                 >
                   {(Object.keys(GALLERY_CATEGORY_LABELS_RU) as GalleryCategoryV11[]).map(
                     (cat) => (
@@ -813,9 +811,8 @@ export function ScenarioModelCardScreen({
                   )}
                 </select>
               )}
-              <label className="h-8 px-2.5 rounded-[9px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 cursor-pointer transition">
-                <Upload className="h-3.5 w-3.5 text-[#8B6F47]" />
-                <span>+ Фото</span>
+              <label className="h-8 px-3 rounded-[8px] bg-[#F5F5F1] hover:bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[11.5px] font-semibold text-[#141413] inline-flex items-center cursor-pointer transition">
+                <span>+ Загрузить фото</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -830,16 +827,16 @@ export function ScenarioModelCardScreen({
         {/* ПРАВАЯ КОЛОНКА: Строго 5 ключевых показателей с единицами, периодом, статусом и формулой (Раздел 02 и 06 ТЗ v1.1) */}
         <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5 content-start">
           {/* Метрика 1: Выручка выбранного месяца (на всю ширину правой колонки) */}
-          <div className="sm:col-span-2 rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+          <div className="sm:col-span-2 rounded-[16px] bg-white border-[1.5px] border-[#C8C7BE] p-4 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-[12px] font-semibold text-[#5A564F]">
-                  1. Выручка выбранного месяца
+                <span className="text-[12px] font-bold text-[#3F3E3A]">
+                  01 · Выручка месяца
                 </span>
                 <select
                   value={selectedMonthIdx}
                   onChange={(e) => setSelectedMonthIdx(Number(e.target.value))}
-                  className="h-6 px-2 rounded-[6px] bg-[#FAF8F4] border border-[#DED8CC] text-[11.5px] font-semibold text-[#1D1D1F] cursor-pointer"
+                  className="h-6.5 px-2 rounded-[6px] bg-[#F5F5F1] border border-[#CECDC4] text-[11.5px] font-bold text-[#141413] cursor-pointer"
                 >
                   {MONTHS_SHORT_RU.map((mName, idx) => (
                     <option key={mName} value={idx}>
@@ -856,22 +853,21 @@ export function ScenarioModelCardScreen({
                   onClick={() =>
                     setFormulaOpenKey(formulaOpenKey === 'rev' ? null : 'rev')
                   }
-                  title="Показать проверяемую формулу"
-                  className="h-6 w-6 rounded-full hover:bg-[#FAF8F4] flex items-center justify-center text-[#8E8A82] cursor-pointer"
+                  className="h-6 px-2 rounded-[6px] bg-[#F4F4F0] hover:border-[#141413] border border-[#CECDC4] text-[10.5px] font-bold text-[#3F3E3A] cursor-pointer"
                 >
-                  <Info className="h-3.5 w-3.5" />
+                  Формула
                 </button>
               </div>
             </div>
 
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <div>
-                <div className="text-[26px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+                <div className="text-[26px] font-bold tracking-[-0.02em] text-[#141413]">
                   {formatMln(selMonthRevRub)}
                 </div>
-                <div className="text-[12px] text-[#6E6E73]">
+                <div className="text-[12px] text-[#5E5D58]">
                   {formatRub(selMonthRevRub)} · Выкупы:{' '}
-                  <strong className="text-[#1D1D1F]">
+                  <strong className="text-[#141413]">
                     {selMonthPacks.toLocaleString('ru-RU')} компл.
                   </strong>{' '}
                   ({selMonthUnits.toLocaleString('ru-RU')} изд.)
@@ -879,11 +875,11 @@ export function ScenarioModelCardScreen({
               </div>
 
               <div className="text-right">
-                <div className="text-[11px] text-[#6E6E73]">Сумма 12 мес. {scenario.year}</div>
-                <div className="text-[15px] font-bold text-[#1D1D1F]">
+                <div className="text-[11px] text-[#5E5D58]">Сумма 12 мес. {scenario.year}</div>
+                <div className="text-[15px] font-bold text-[#141413]">
                   {formatMln(pnl.annualRevenueRub)}
                 </div>
-                <div className="text-[11px] text-[#6E6E73]">
+                <div className="text-[11px] text-[#5E5D58]">
                   {pnl.annualBuyoutsPacks.toLocaleString('ru-RU')} компл. ·{' '}
                   {pnl.annualBuyoutsUnits.toLocaleString('ru-RU')} изд.
                 </div>
@@ -891,7 +887,7 @@ export function ScenarioModelCardScreen({
             </div>
 
             {formulaOpenKey === 'rev' && (
-              <div className="rounded-[10px] bg-[#FAF8F4] border border-[#E6E0D4] px-3 py-2 text-[11.5px] text-[#4E4A42]">
+              <div className="rounded-[10px] bg-[#F5F5F1] border border-[#CECDC4] px-3 py-2 text-[11.5px] text-[#262624]">
                 <strong>Формула:</strong> Выкупленные комплекты ({selMonthPacks.toLocaleString('ru-RU')}{' '}
                 компл.) × Средняя цена реализации комплекта ({selMonthPrice.toLocaleString('ru-RU')} ₽) ={' '}
                 {formatRub(selMonthRevRub)}. Изделия в комплекте ({model.unitsInPack} шт.) учитываются справочно и не умножают выручку повторно.
@@ -900,10 +896,10 @@ export function ScenarioModelCardScreen({
           </div>
 
           {/* Метрика 2: Цена реализации */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+          <div className="rounded-[16px] bg-white border-[1.5px] border-[#C8C7BE] p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold text-[#5A564F]">
-                2. Цена комплекта
+              <span className="text-[12px] font-bold text-[#3F3E3A]">
+                02 · Цена комплекта
               </span>
               <StatusPill status={pnl.revenueStatus} />
             </div>
@@ -916,29 +912,29 @@ export function ScenarioModelCardScreen({
                   step={10}
                   value={plan.monthlyPricesRub[selectedMonthIdx] ?? model.retailPriceRub}
                   onChange={(e) => handleScenarioPriceChange(Number(e.target.value))}
-                  className="h-9 w-full rounded-[9px] border border-[#C8BFB0] px-2.5 text-[16px] font-bold text-[#1D1D1F]"
+                  className="h-9 w-full rounded-[8px] border-[1.5px] border-[#CECDC4] focus:border-[#141413] px-2.5 text-[16px] font-bold text-[#141413]"
                 />
-                <span className="text-[13px] font-semibold text-[#6E6E73]">₽</span>
+                <span className="text-[13px] font-semibold text-[#5E5D58]">₽</span>
               </div>
             ) : (
-              <div className="text-[22px] font-bold text-[#1D1D1F]">
+              <div className="text-[22px] font-bold text-[#141413]">
                 {formatRub(pnl.avgRealizedPricePerPackRub)}
               </div>
             )}
 
-            <div className="text-[11.5px] text-[#6E6E73]">
+            <div className="text-[11.5px] text-[#5E5D58]">
               За 1 компл. ({model.unitsInPack} шт.) ·{' '}
-              <span className="font-medium text-[#1D1D1F]">
+              <span className="font-semibold text-[#141413]">
                 {formatRub(pnl.avgRealizedPricePerUnitRub)} / изд.
               </span>
             </div>
           </div>
 
           {/* Метрика 3: Себестоимость под ключ */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+          <div className="rounded-[16px] bg-white border-[1.5px] border-[#C8C7BE] p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold text-[#5A564F]">
-                3. Себестоимость под ключ
+              <span className="text-[12px] font-bold text-[#3F3E3A]">
+                03 · Себестоимость под ключ
               </span>
               <StatusPill status={pnl.costStatus} />
             </div>
@@ -952,12 +948,12 @@ export function ScenarioModelCardScreen({
                   value={model.unitCostRub || ''}
                   placeholder="Не заполнено"
                   onChange={(e) => handleUnitCostChange(Number(e.target.value))}
-                  className="h-9 w-full rounded-[9px] border border-[#C8BFB0] px-2.5 text-[16px] font-bold text-[#1D1D1F]"
+                  className="h-9 w-full rounded-[8px] border-[1.5px] border-[#CECDC4] focus:border-[#141413] px-2.5 text-[16px] font-bold text-[#141413]"
                 />
-                <span className="text-[13px] font-semibold text-[#6E6E73]">₽</span>
+                <span className="text-[13px] font-semibold text-[#5E5D58]">₽</span>
               </div>
             ) : pnl.unitCostPerPackRub !== null ? (
-              <div className="text-[22px] font-bold text-[#1D1D1F]">
+              <div className="text-[22px] font-bold text-[#141413]">
                 {formatRub(pnl.unitCostPerPackRub)}
               </div>
             ) : (
@@ -966,7 +962,7 @@ export function ScenarioModelCardScreen({
               </div>
             )}
 
-            <div className="text-[11.5px] text-[#6E6E73]">
+            <div className="text-[11.5px] text-[#5E5D58]">
               {pnl.unitCostPerSingleItemRub !== null
                 ? `За 1 компл. · ${pnl.unitCostPerSingleItemRub.toLocaleString('ru-RU')} ₽ / изд.`
                 : 'Укажите себестоимость для расчёта маржи и бюджета партий'}
@@ -974,15 +970,15 @@ export function ScenarioModelCardScreen({
           </div>
 
           {/* Метрика 4: Обеспеченность товаром (единый реальный остаток + утверждённые PO!) */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+          <div className="rounded-[16px] bg-white border-[1.5px] border-[#C8C7BE] p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold text-[#5A564F]">
-                4. Обеспеченность товаром
+              <span className="text-[12px] font-bold text-[#3F3E3A]">
+                04 · Обеспеченность
               </span>
               <button
                 type="button"
                 onClick={() => setActiveTab('procurement')}
-                className="text-[11px] font-semibold text-[#4E6A85] hover:underline cursor-pointer"
+                className="text-[11px] font-bold text-[#141413] underline hover:opacity-75 cursor-pointer"
               >
                 К партиям →
               </button>
@@ -995,8 +991,8 @@ export function ScenarioModelCardScreen({
                   : procurement.supplyStatusTone === 'warning'
                   ? 'text-[#9A5B00]'
                   : procurement.supplyStatusTone === 'success'
-                  ? 'text-[#17643A]'
-                  : 'text-[#1D1D1F]'
+                  ? 'text-[#157347]'
+                  : 'text-[#141413]'
               }`}
             >
               {procurement.hasDeficit
@@ -1006,18 +1002,18 @@ export function ScenarioModelCardScreen({
                 : 'Спрос не задан'}
             </div>
 
-            <div className="text-[11.5px] text-[#6E6E73]">
-              Склад: <strong>{procurement.netOpeningAvailablePacks}</strong> компл. · PO в пути:{' '}
-              <strong>{procurement.totalApprovedReceiptsPacks}</strong> компл. · К заказу:{' '}
-              <strong>{procurement.recommendedBatches.length} парт.</strong>
+            <div className="text-[11.5px] text-[#5E5D58]">
+              Склад: <strong className="text-[#141413]">{procurement.netOpeningAvailablePacks}</strong> компл. · PO:{' '}
+              <strong className="text-[#141413]">{procurement.totalApprovedReceiptsPacks}</strong> компл. · К заказу:{' '}
+              <strong className="text-[#141413]">{procurement.recommendedBatches.length} парт.</strong>
             </div>
           </div>
 
           {/* Метрика 5: Операционная прибыль (Тест-кейс №8: честное «Не рассчитана» без ложных 75%!) */}
-          <div className="rounded-[18px] bg-white border border-[#E6E0D4] p-4 space-y-2">
+          <div className="rounded-[16px] bg-white border-[1.5px] border-[#C8C7BE] p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-[12px] font-semibold text-[#5A564F]">
-                5. Операционная прибыль
+              <span className="text-[12px] font-bold text-[#3F3E3A]">
+                05 · Операционная прибыль
               </span>
               <div className="flex items-center gap-1">
                 <StatusPill status={pnl.operatingProfitStatus} />
@@ -1026,9 +1022,9 @@ export function ScenarioModelCardScreen({
                   onClick={() =>
                     setFormulaOpenKey(formulaOpenKey === 'op' ? null : 'op')
                   }
-                  className="h-6 w-6 rounded-full hover:bg-[#FAF8F4] flex items-center justify-center text-[#8E8A82] cursor-pointer"
+                  className="h-6 px-2 rounded-[6px] bg-[#F4F4F0] hover:border-[#141413] border border-[#CECDC4] text-[10.5px] font-bold text-[#3F3E3A] cursor-pointer"
                 >
-                  <Info className="h-3.5 w-3.5" />
+                  Формула
                 </button>
               </div>
             </div>
@@ -1038,7 +1034,7 @@ export function ScenarioModelCardScreen({
                 <div
                   className={`text-[20px] font-bold ${
                     pnl.annualOperatingProfitRub >= 0
-                      ? 'text-[#17643A]'
+                      ? 'text-[#157347]'
                       : 'text-[#B42318]'
                   }`}
                 >
@@ -1047,7 +1043,7 @@ export function ScenarioModelCardScreen({
                     ({pnl.operatingMarginPct}%)
                   </span>
                 </div>
-                <div className="text-[11.5px] text-[#6E6E73]">
+                <div className="text-[11.5px] text-[#5E5D58]">
                   За 2027 г. · {formatRub(pnl.unitOperatingProfitRub || 0)} / компл. (после MP, рекламы и OPEX)
                 </div>
               </>
@@ -1056,14 +1052,14 @@ export function ScenarioModelCardScreen({
                 <div className="text-[15px] font-bold text-[#9F2D2D]">
                   Не рассчитана
                 </div>
-                <div className="text-[11px] text-[#6E6E73] leading-snug">
+                <div className="text-[11px] text-[#5E5D58] leading-snug">
                   {pnl.operatingProfitNotCalculatedReason}
                 </div>
               </>
             )}
 
             {formulaOpenKey === 'op' && (
-              <div className="rounded-[10px] bg-[#FAF8F4] border border-[#E6E0D4] px-2.5 py-1.5 text-[11px] text-[#4E4A42]">
+              <div className="rounded-[10px] bg-[#F5F5F1] border border-[#CECDC4] px-2.5 py-1.5 text-[11px] text-[#262624]">
                 Выручка − Себестоимость − Комиссии MP − Логистика − Реклама − Постоянные OPEX. При незаполненных расходах ложный % не выводится.
               </div>
             )}
@@ -1071,44 +1067,49 @@ export function ScenarioModelCardScreen({
         </div>
       </div>
 
-      {/* 3. ПЕРЕКЛЮЧАТЕЛЬ 4 ВКЛАДОК ПОД ГАЛЕРЕЕЙ (ОДНА ВКЛАДКА ВИДНА ОДНОВРЕМЕННО, Стр. 3–4 ТЗ v1.1) */}
-      <div className="rounded-[18px] bg-white border border-[#E5E4DF] overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 bg-[#FAFAF8] border-b border-[#ECEBE6]">
-          <div className="inline-flex flex-wrap items-center gap-1 rounded-[10px] bg-[#F1F1EE] border border-[#E5E4DF] p-0.5">
+      {/* 3. ПЕРЕКЛЮЧАТЕЛЬ 4 КОНТУРОВ ВНУТРИ ПАСПОРТА SKU (01 Продукт -> 02 Продажи -> 03 Закупки -> 04 Финансы) */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] overflow-hidden shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 md:px-6 py-3 bg-[#F7F7F4] border-b-[1.5px] border-[#DFDED6]">
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-[10px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5">
             {(
               [
-                { id: 'product', label: 'Продукт', icon: Layers },
-                { id: 'sales', label: 'Продажи (12 мес.)', icon: BarChart3 },
+                { id: 'product', step: '01', label: 'Продукт' },
+                { id: 'sales', step: '02', label: 'Продажи (12 мес.)' },
                 {
                   id: 'procurement',
+                  step: '03',
                   label: `Закупки (${procurement.recommendedBatches.length} рек. / ${procurement.approvedOrders.length} PO)`,
-                  icon: Package,
                 },
-                { id: 'finance', label: 'Финансы (P&L и Капитал)', icon: Wallet },
+                { id: 'finance', step: '04', label: 'Финансы (P&L и капитал)' },
               ] as const
             ).map((tab) => {
-              const Icon = tab.icon;
               const isAct = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`h-8.5 px-3.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-2 transition cursor-pointer ${
+                  className={`h-8.5 px-3.5 rounded-[8px] text-[12px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer ${
                     isAct
-                      ? 'bg-white text-[#141413] shadow-2xs border border-[#E2E1DC]'
-                      : 'text-[#686762] hover:text-[#141413] border border-transparent'
+                      ? 'bg-[#141413] text-white shadow-2xs'
+                      : 'text-[#3F3E3A] hover:text-[#141413] hover:bg-white'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <span
+                    className={`font-mono text-[10.5px] ${
+                      isAct ? 'text-white/75' : 'text-[#686762]'
+                    }`}
+                  >
+                    {tab.step}
+                  </span>
                   <span>{tab.label}</span>
                 </button>
               );
             })}
           </div>
 
-          <span className="text-[11px] text-[#686762]">
-            Единый SKU · изменения паспорта и общих остатков синхронны во всех сценариях
+          <span className="text-[11px] font-medium text-[#5E5D58]">
+            Единый SKU · паспорт, остатки и PO общие для всех сценариев
           </span>
         </div>
 
@@ -1117,14 +1118,14 @@ export function ScenarioModelCardScreen({
           <div className="p-5 md:p-6 space-y-6">
             {/* Спецификация ткани, конструкции, пояса и комплектности */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
-                <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#686762]">
+              <div className="rounded-[14px] bg-[#F7F7F4] border-[1.5px] border-[#CECDC4] p-4 space-y-2.5">
+                <div className="text-[11px] font-mono font-bold uppercase tracking-[0.06em] text-[#5E5D58]">
                   Ткань и плотность
                 </div>
                 {isEditing ? (
                   <div className="space-y-2 text-[12.5px]">
                     <label className="block">
-                      <span className="text-[#6E6E73] text-[11px]">Состав</span>
+                      <span className="text-[#5E5D58] text-[11px]">Состав</span>
                       <input
                         type="text"
                         value={model.fabric.composition}
@@ -1141,11 +1142,11 @@ export function ScenarioModelCardScreen({
                             true
                           )
                         }
-                        className="mt-0.5 w-full h-8 px-2.5 rounded-[8px] border border-[#DED8CC] bg-white"
+                        className="mt-0.5 w-full h-8 px-2.5 rounded-[8px] border-[1.5px] border-[#CECDC4] bg-white"
                       />
                     </label>
                     <label className="block">
-                      <span className="text-[#6E6E73] text-[11px]">Плотность</span>
+                      <span className="text-[#5E5D58] text-[11px]">Плотность</span>
                       <input
                         type="text"
                         value={model.fabric.density}
@@ -1162,77 +1163,77 @@ export function ScenarioModelCardScreen({
                             true
                           )
                         }
-                        className="mt-0.5 w-full h-8 px-2.5 rounded-[8px] border border-[#DED8CC] bg-white"
+                        className="mt-0.5 w-full h-8 px-2.5 rounded-[8px] border-[1.5px] border-[#CECDC4] bg-white"
                       />
                     </label>
                   </div>
                 ) : (
-                  <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
+                  <div className="space-y-1.5 text-[13px] text-[#141413]">
                     <div>
-                      <span className="text-[#6E6E73]">Состав:</span>{' '}
+                      <span className="text-[#5E5D58]">Состав:</span>{' '}
                       <strong>{model.fabric.composition}</strong>
                     </div>
                     <div>
-                      <span className="text-[#6E6E73]">Плотность:</span>{' '}
+                      <span className="text-[#5E5D58]">Плотность:</span>{' '}
                       <strong>{model.fabric.density}</strong>
                     </div>
                     <div>
-                      <span className="text-[#6E6E73]">Переплетение:</span>{' '}
+                      <span className="text-[#5E5D58]">Переплетение:</span>{' '}
                       {model.fabric.knitType}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
-                <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#686762]">
+              <div className="rounded-[14px] bg-[#F7F7F4] border-[1.5px] border-[#CECDC4] p-4 space-y-2.5">
+                <div className="text-[11px] font-mono font-bold uppercase tracking-[0.06em] text-[#5E5D58]">
                   Конструкция и посадка
                 </div>
-                <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
+                <div className="space-y-1.5 text-[13px] text-[#141413]">
                   <div>
-                    <span className="text-[#6E6E73]">Тип и комплект:</span>{' '}
+                    <span className="text-[#5E5D58]">Тип и комплект:</span>{' '}
                     <strong>
                       {model.construction.type} ({model.unitsInPack} изд. = 1 компл.)
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[#6E6E73]">Посадка:</span> {model.construction.fit}
+                    <span className="text-[#5E5D58]">Посадка:</span> {model.construction.fit}
                   </div>
                   <div>
-                    <span className="text-[#6E6E73]">Передняя панель:</span>{' '}
+                    <span className="text-[#5E5D58]">Передняя панель:</span>{' '}
                     {model.construction.frontPanel}
                   </div>
                   <div>
-                    <span className="text-[#6E6E73]">Швы и ластовица:</span>{' '}
+                    <span className="text-[#5E5D58]">Швы и ластовица:</span>{' '}
                     {model.construction.gusset} · {model.construction.seams}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-[16px] bg-[#FAF8F4] border border-[#E6E0D4] p-4 space-y-2.5">
-                <div className="text-[11.5px] font-bold uppercase tracking-wider text-[#686762]">
+              <div className="rounded-[14px] bg-[#F7F7F4] border-[1.5px] border-[#CECDC4] p-4 space-y-2.5">
+                <div className="text-[11px] font-mono font-bold uppercase tracking-[0.06em] text-[#5E5D58]">
                   Резинка / пояс и размеры
                 </div>
-                <div className="space-y-1.5 text-[13px] text-[#1D1D1F]">
+                <div className="space-y-1.5 text-[13px] text-[#141413]">
                   <div>
-                    <span className="text-[#6E6E73]">Ширина и тип:</span>{' '}
+                    <span className="text-[#5E5D58]">Ширина и тип:</span>{' '}
                     <strong>
                       {model.waistband.width} · {model.waistband.type}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[#6E6E73]">Шаг логотипа:</span>{' '}
+                    <span className="text-[#5E5D58]">Шаг логотипа:</span>{' '}
                     {model.waistband.logoRepeat}
                   </div>
                   <div className="pt-1">
-                    <span className="text-[#6E6E73] text-[12px]">
+                    <span className="text-[#5E5D58] text-[12px]">
                       Размерная матрица партии (%):
                     </span>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {(['S', 'M', 'L', 'XL', 'XXL'] as const).map((sz) => (
                         <span
                           key={sz}
-                          className="px-2 py-0.5 rounded-[6px] bg-white border border-[#DED8CC] text-[11px] font-semibold"
+                          className="px-2 py-0.5 rounded-[6px] bg-white border border-[#CECDC4] text-[11px] font-bold text-[#141413]"
                         >
                           {sz}: {shared.factoryParams.sizeSharesPct[sz]}%
                         </span>
@@ -1245,11 +1246,11 @@ export function ScenarioModelCardScreen({
 
             {/* Палитры и Pantone */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[15px] font-bold text-[#1D1D1F]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-[15px] font-bold text-[#141413]">
                   Комплектация цветов и Pantone ({model.unitsInPack} изд. в 1 комплекте)
                 </h3>
-                <span className="text-[11.5px] text-[#6E6E73]">
+                <span className="text-[11.5px] text-[#5E5D58]">
                   Изменение цвета создаёт новую версию паспорта PDF, не меняя старые утверждённые PO
                 </span>
               </div>
@@ -1258,16 +1259,16 @@ export function ScenarioModelCardScreen({
                 {model.palettes.map((pal) => (
                   <div
                     key={pal.id}
-                    className="rounded-[16px] border border-[#E6E0D4] p-4 space-y-3 bg-white"
+                    className="rounded-[14px] border-[1.5px] border-[#CECDC4] p-4 space-y-3 bg-white"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <div className="text-[13.5px] font-bold text-[#1D1D1F]">
+                        <div className="text-[13.5px] font-bold text-[#141413]">
                           {pal.title}
                         </div>
-                        <div className="text-[11.5px] text-[#6E6E73]">{pal.subtitle}</div>
+                        <div className="text-[11.5px] text-[#5E5D58]">{pal.subtitle}</div>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full bg-[#FAF8F4] border border-[#DED8CC] text-[11px] font-semibold text-[#5A564F]">
+                      <span className="px-2.5 py-0.5 rounded-[6px] bg-[#F4F4F0] border border-[#CECDC4] text-[11px] font-semibold text-[#3F3E3A]">
                         {pal.statusLabel}
                       </span>
                     </div>
@@ -1276,7 +1277,7 @@ export function ScenarioModelCardScreen({
                       {pal.colors.map((c, cIdx) => (
                         <div
                           key={`${pal.id}-${cIdx}`}
-                          className="rounded-[10px] border border-[#ECE8DF] p-2 bg-[#FAF8F4] space-y-1.5"
+                          className="rounded-[10px] border border-[#DFDED6] p-2 bg-[#F7F7F4] space-y-1.5"
                         >
                           <div
                             className="h-8 w-full rounded-[6px] border border-black/10"

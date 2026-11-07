@@ -1,16 +1,22 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { usePlatform } from '@/context/PlatformContext';
 import {
   MONTHS_SHORT_RU,
+  PRIORITY_WEIGHTS,
+  ScenarioModelSpec,
   computeModelScenarioMetrics,
+  getModelPriority,
 } from '@/lib/scenarioData';
 import { ACTING_2027_SCENARIO_ID, getActingSkuByWbOrVendor } from '@/lib/actingAssortment2027';
 import {
+  ApprovedPurchaseOrder,
+  approveRecommendedBatch,
   computeFinancialPnL,
   computeProcurementPlan,
   detectModelBrandPortfolioLabel,
+  ensureModelUnifiedV11,
   exportStructuredScenarioPlan,
   groupRecommendedBatchesByFactory,
   serializeStructuredPlanToCsv,
@@ -34,6 +40,7 @@ function ScenarioContourHeader({
   onSelectScenario,
   includeGroupPortfolioInS1,
   onToggleGroupPortfolio,
+  eligibleCount,
   rightSlot,
 }: {
   stepCode: string;
@@ -44,8 +51,11 @@ function ScenarioContourHeader({
   onSelectScenario: (id: number) => void;
   includeGroupPortfolioInS1: boolean;
   onToggleGroupPortfolio: (v: boolean) => void;
+  eligibleCount: number;
   rightSlot?: React.ReactNode;
 }) {
+  const { brandFilter, setBrandFilter } = usePlatform();
+
   return (
     <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 space-y-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
       <div className="flex flex-wrap items-end justify-between gap-4 pb-4 border-b-[1.5px] border-[#DFDED6]">
@@ -87,33 +97,74 @@ function ScenarioContourHeader({
           })}
         </div>
 
-        {selectedScenarioId === 1 && (
-          <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[11.5px]">
+        <div className="flex flex-wrap items-center gap-2">
+          {brandFilter !== 'ALL' && (
+            <div className="inline-flex items-center gap-2 h-8.5 px-3 rounded-[9px] bg-[#F4F4F0] border-[1.5px] border-[#141413] text-[11.5px] font-semibold text-[#141413]">
+              <span>
+                Бренд: {brandFilter === 'NA_TELE' ? 'НА ТЕЛЕ' : brandFilter} ({eligibleCount} SKU)
+              </span>
+              <button
+                type="button"
+                onClick={() => setBrandFilter('ALL')}
+                className="underline hover:opacity-75 cursor-pointer"
+              >
+                Все бренды
+              </button>
+            </div>
+          )}
+
+          {selectedScenarioId === 1 && (
+            <div className="inline-flex items-center rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[11.5px]">
+              <button
+                type="button"
+                onClick={() => onToggleGroupPortfolio(false)}
+                className={`px-2.5 py-1 rounded-[7px] transition cursor-pointer ${
+                  !includeGroupPortfolioInS1
+                    ? 'bg-[#141413] text-white font-semibold'
+                    : 'text-[#52514C] hover:text-[#141413] font-semibold'
+                }`}
+              >
+                Цель BORNERS · 21 SKU
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleGroupPortfolio(true)}
+                className={`px-2.5 py-1 rounded-[7px] transition cursor-pointer ${
+                  includeGroupPortfolioInS1
+                    ? 'bg-[#141413] text-white font-semibold'
+                    : 'text-[#52514C] hover:text-[#141413] font-semibold'
+                }`}
+              >
+                С FUKAI · 23 SKU
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {brandFilter === 'NA_TELE' && eligibleCount === 0 && (
+        <div className="rounded-[12px] bg-[#F7F7F3] border-[1.5px] border-[#CECDC4] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-[12.5px]">
+          <span className="text-[#262624] font-medium">
+            В выбранном сценарии модели <strong>НА ТЕЛЕ</strong> не задействованы (моно-цель BORNERS). Линейка НА ТЕЛЕ включена в Сценарии №2 и №3.
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => onToggleGroupPortfolio(false)}
-              className={`px-2.5 py-1 rounded-[7px] transition cursor-pointer ${
-                !includeGroupPortfolioInS1
-                  ? 'bg-[#141413] text-white font-semibold'
-                  : 'text-[#52514C] hover:text-[#141413] font-semibold'
-              }`}
+              onClick={() => onSelectScenario(2)}
+              className="h-8 px-3 rounded-[8px] bg-[#141413] text-white text-[11.5px] font-semibold cursor-pointer"
             >
-              Цель BORNERS · 21 SKU
+              Переключить на Сценарий №2 (150 млн)
             </button>
             <button
               type="button"
-              onClick={() => onToggleGroupPortfolio(true)}
-              className={`px-2.5 py-1 rounded-[7px] transition cursor-pointer ${
-                includeGroupPortfolioInS1
-                  ? 'bg-[#141413] text-white font-semibold'
-                  : 'text-[#52514C] hover:text-[#141413] font-semibold'
-              }`}
+              onClick={() => setBrandFilter('ALL')}
+              className="h-8 px-3 rounded-[8px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[11.5px] font-semibold text-[#141413] cursor-pointer"
             >
-              С FUKAI · 23 SKU
+              Показать все бренды
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -138,23 +189,82 @@ export function SalesMatrixContourView() {
 
   const [unitMode, setUnitMode] = useState<'rub' | 'packs'>('rub');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'dec_desc' | 'year_desc' | 'priority'>('dec_desc');
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
 
   const visibleModels = useMemo(() => {
-    if (!searchQuery.trim()) return eligibleModels;
-    const q = searchQuery.toLowerCase();
-    return eligibleModels.filter(
-      (m) =>
-        m.code.toLowerCase().includes(q) ||
-        m.title.toLowerCase().includes(q) ||
-        m.subtitle.toLowerCase().includes(q)
-    );
-  }, [eligibleModels, searchQuery]);
+    const q = searchQuery.trim().toLowerCase();
+    const filtered = !q
+      ? [...eligibleModels]
+      : eligibleModels.filter((m) => {
+          const acting = getActingSkuByWbOrVendor(m.code, m.title);
+          return (
+            m.code.toLowerCase().includes(q) ||
+            m.title.toLowerCase().includes(q) ||
+            m.subtitle.toLowerCase().includes(q) ||
+            Boolean(acting?.wbSku.includes(q))
+          );
+        });
+
+    if (sortBy === 'dec_desc') {
+      filtered.sort(
+        (a, b) =>
+          computeModelScenarioMetrics(b, currentScenario).targetMonthRevenueRub -
+          computeModelScenarioMetrics(a, currentScenario).targetMonthRevenueRub
+      );
+    } else if (sortBy === 'year_desc') {
+      filtered.sort(
+        (a, b) =>
+          computeModelScenarioMetrics(b, currentScenario).annualRevenueRub -
+          computeModelScenarioMetrics(a, currentScenario).annualRevenueRub
+      );
+    } else if (sortBy === 'priority') {
+      filtered.sort((a, b) => {
+        const wDiff =
+          PRIORITY_WEIGHTS[getModelPriority(b)] - PRIORITY_WEIGHTS[getModelPriority(a)];
+        if (wDiff !== 0) return wDiff;
+        return (
+          computeModelScenarioMetrics(b, currentScenario).targetMonthRevenueRub -
+          computeModelScenarioMetrics(a, currentScenario).targetMonthRevenueRub
+        );
+      });
+    }
+
+    return filtered;
+  }, [eligibleModels, searchQuery, sortBy, currentScenario]);
+
+  const switcherModels = visibleModels.length > 0 ? visibleModels : eligibleModels;
 
   const editingModel = useMemo(
     () => eligibleModels.find((m) => m.id === editingModelId) || null,
     [eligibleModels, editingModelId]
   );
+
+  const editingIdx = useMemo(
+    () => (editingModel ? switcherModels.findIndex((m) => m.id === editingModel.id) : -1),
+    [editingModel, switcherModels]
+  );
+
+  useEffect(() => {
+    if (!editingModel || switcherModels.length <= 1) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === '[') {
+        e.preventDefault();
+        const prevIdx =
+          (Math.max(0, editingIdx) - 1 + switcherModels.length) % switcherModels.length;
+        setEditingModelId(switcherModels[prevIdx].id);
+      } else if (e.key === ']') {
+        e.preventDefault();
+        const nextIdx = (Math.max(0, editingIdx) + 1) % switcherModels.length;
+        setEditingModelId(switcherModels[nextIdx].id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editingModel, editingIdx, switcherModels]);
 
   const handleExportCsv = () => {
     const rows = exportStructuredScenarioPlan(eligibleModels, currentScenario);
@@ -179,22 +289,65 @@ export function SalesMatrixContourView() {
   };
 
   if (editingModel) {
+    const safeIdx = editingIdx >= 0 ? editingIdx : 0;
+    const prevMod =
+      switcherModels[(safeIdx - 1 + switcherModels.length) % switcherModels.length];
+    const nextMod = switcherModels[(safeIdx + 1) % switcherModels.length];
+
     return (
       <div className="space-y-5 pb-16">
-        <div className="rounded-[14px] bg-white border-[1.5px] border-[#C8C7BE] px-4 py-2.5 flex items-center justify-between gap-3">
+        <div className="rounded-[14px] bg-white border-[1.5px] border-[#C8C7BE] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => setEditingModelId(null)}
             className="h-8.5 px-3.5 rounded-[8px] bg-[#141413] text-white text-[12.5px] font-semibold cursor-pointer"
           >
-            ← Ко всей матрице продаж ({eligibleModels.length} SKU)
+            ← Ко всей матрице ({eligibleModels.length} SKU)
           </button>
+
+          {/* Мгновенное переключение между SKU без возврата в таблицу */}
+          {switcherModels.length > 1 && (
+            <div className="inline-flex items-center gap-1.5 rounded-[9px] bg-[#F5F5F1] border-[1.5px] border-[#CECDC4] p-1">
+              <button
+                type="button"
+                onClick={() => prevMod && setEditingModelId(prevMod.id)}
+                title="Предыдущая модель (клавиша [)"
+                className="h-7 px-2.5 rounded-[6px] bg-white hover:border-[#141413] border border-[#CECDC4] text-[12px] font-semibold text-[#141413] cursor-pointer"
+              >
+                ‹ Пред.
+              </button>
+              <select
+                value={editingModel.id}
+                onChange={(e) => setEditingModelId(e.target.value)}
+                className="h-7 px-2 rounded-[6px] bg-white border border-[#CECDC4] text-[12px] font-bold text-[#141413] max-w-[260px] sm:max-w-[340px] cursor-pointer"
+              >
+                {switcherModels.map((m, idx) => {
+                  const met = computeModelScenarioMetrics(m, currentScenario);
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {idx + 1}/{switcherModels.length} · {m.code} — {m.title} (
+                      {(met.targetMonthRevenueRub / 1_000_000).toFixed(2).replace('.', ',')} млн/дек)
+                    </option>
+                  );
+                })}
+              </select>
+              <button
+                type="button"
+                onClick={() => nextMod && setEditingModelId(nextMod.id)}
+                title="Следующая модель (клавиша ])"
+                className="h-7 px-2.5 rounded-[6px] bg-white hover:border-[#141413] border border-[#CECDC4] text-[12px] font-semibold text-[#141413] cursor-pointer"
+              >
+                След. ›
+              </button>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => openSkuPassportOnDashboard(editingModel.id)}
             className="h-8.5 px-3.5 rounded-[8px] bg-[#F5F5F1] border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[12.5px] font-semibold text-[#141413] cursor-pointer"
           >
-            Открыть паспорт модели
+            Открыть паспорт SKU
           </button>
         </div>
 
@@ -222,6 +375,7 @@ export function SalesMatrixContourView() {
         onSelectScenario={setSelectedScenarioId}
         includeGroupPortfolioInS1={includeGroupPortfolioInS1}
         onToggleGroupPortfolio={setIncludeGroupPortfolioInS1}
+        eligibleCount={eligibleModels.length}
         rightSlot={
           <>
             <div className="inline-flex rounded-[9px] bg-[#EFEFE9] border-[1.5px] border-[#CECDC4] p-0.5 text-[12px] font-semibold">
@@ -317,22 +471,40 @@ export function SalesMatrixContourView() {
       <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-[16px] font-bold text-[#141413]">
-            Помесячная матрица ({unitMode === 'rub' ? 'млн ₽' : 'комплектов'})
+            Помесячная матрица ({unitMode === 'rub' ? 'млн ₽' : 'комплектов'} · {visibleModels.length} SKU)
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Фильтр по артикулу или модели..."
-            className="h-9 px-3.5 rounded-[9px] bg-[#F7F7F4] focus:bg-white border-[1.5px] border-[#CECDC4] focus:border-[#141413] text-[12.5px] font-medium text-[#141413] w-64"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(
+                  e.target.value as 'default' | 'dec_desc' | 'year_desc' | 'priority'
+                )
+              }
+              className="h-9 px-3 rounded-[9px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[12px] font-semibold text-[#141413] cursor-pointer"
+            >
+              <option value="dec_desc">Сортировка: Выручка дек. ↓</option>
+              <option value="year_desc">Сортировка: Год 2027 ↓</option>
+              <option value="priority">Сортировка: По приоритету</option>
+              <option value="default">Сортировка: По порядку портфеля</option>
+            </select>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Фильтр по WB, коду или названию..."
+              className="h-9 px-3.5 rounded-[9px] bg-[#F7F7F4] focus:bg-white border-[1.5px] border-[#CECDC4] focus:border-[#141413] text-[12.5px] font-medium text-[#141413] w-60"
+            />
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-[12px] border-[1.5px] border-[#CECDC4]">
           <table className="w-full text-left border-collapse text-[12px]">
             <thead>
               <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
-                <th className="py-2.5 px-3 font-bold min-w-[210px]">Артикул / Модель</th>
+                <th className="py-2.5 px-3 font-bold min-w-[215px] sticky left-0 z-10 bg-[#F5F5F1] border-r border-[#DFDED6]">
+                  Артикул / Модель
+                </th>
                 <th className="py-2.5 px-2 font-bold text-right">Цена</th>
                 {MONTHS_SHORT_RU.map((m, idx) => (
                   <th
@@ -358,10 +530,10 @@ export function SalesMatrixContourView() {
                     key={mod.id}
                     onClick={() => setEditingModelId(mod.id)}
                     title="Нажмите, чтобы редактировать помесячный план модели"
-                    className="hover:bg-[#FAFAF7] cursor-pointer transition"
+                    className="group hover:bg-[#FAFAF7] cursor-pointer transition"
                   >
-                    <td className="py-2.5 px-3">
-                      <div className="font-bold text-[#141413] truncate max-w-[240px]">
+                    <td className="py-2.5 px-3 sticky left-0 z-10 bg-white group-hover:bg-[#FAFAF7] border-r border-[#ECEBE4]">
+                      <div className="font-bold text-[#141413] truncate max-w-[235px]">
                         {mod.title}
                       </div>
                       <div className="font-mono text-[10.5px] text-[#5E5D58]">
@@ -369,7 +541,7 @@ export function SalesMatrixContourView() {
                         {detectModelBrandPortfolioLabel(mod)}
                       </div>
                     </td>
-                    <td className="py-2.5 px-2 text-right font-mono text-[#5E5D58]">
+                    <td className="py-2.5 px-2 text-right font-mono text-[#5E5D58] whitespace-nowrap">
                       {mod.retailPriceRub.toLocaleString('ru-RU')} ₽
                     </td>
                     {MONTHS_SHORT_RU.map((_, mIdx) => {
@@ -396,7 +568,7 @@ export function SalesMatrixContourView() {
                         </td>
                       );
                     })}
-                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#141413] bg-[#FAFAF7]">
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-[#141413] bg-[#FAFAF7] whitespace-nowrap">
                       {unitMode === 'rub'
                         ? (met.annualRevenueRub / 1_000_000).toFixed(2).replace('.', ',')
                         : met.annualPacks.toLocaleString('ru-RU')}
@@ -407,7 +579,9 @@ export function SalesMatrixContourView() {
             </tbody>
             <tfoot>
               <tr className="bg-[#F5F5F1] font-bold text-[#141413] border-t-[1.5px] border-[#CECDC4]">
-                <td className="py-3 px-3">ИТОГО ({eligibleModels.length} SKU)</td>
+                <td className="py-3 px-3 sticky left-0 z-10 bg-[#F5F5F1] border-r border-[#DFDED6]">
+                  ИТОГО ({eligibleModels.length} SKU)
+                </td>
                 <td className="py-3 px-2 text-right">—</td>
                 {MONTHS_SHORT_RU.map((_, mIdx) => (
                   <td
@@ -439,7 +613,7 @@ export function SalesMatrixContourView() {
 // 03 · ЗАКУПКИ: СВОДНЫЕ ПАРТИИ ФАБРИК, ЗАКАЗЫ PO И ОПЕРАЦИОННЫЕ ЗАДАЧИ CRM
 // =============================================================================
 export function ProcurementContourView() {
-  const { tasks, navigateTo } = usePlatform();
+  const { tasks, currentUser, navigateTo, notify } = usePlatform();
   const {
     orderedScenarios,
     currentScenario,
@@ -448,6 +622,8 @@ export function ProcurementContourView() {
     includeGroupPortfolioInS1,
     setIncludeGroupPortfolioInS1,
     eligibleModels,
+    updateModelSpec,
+    updateModelsBatch,
   } = useLiveScenarioPortfolio();
 
   const [subTab, setSubTab] = useState<'batches' | 'crm'>('batches');
@@ -466,10 +642,18 @@ export function ProcurementContourView() {
     let urgentCount = 0;
     let deficitSkuCount = 0;
 
+    const approvedOrdersFlat: {
+      model: ScenarioModelSpec;
+      po: ApprovedPurchaseOrder;
+    }[] = [];
+
     const perSku = eligibleModels.map((m) => {
       const plan = computeProcurementPlan(m, currentScenario);
       approvedCount += plan.approvedOrders.length;
       approvedRub += plan.approvedOrders.reduce((s, o) => s + o.totalOrderRub, 0);
+      for (const po of plan.approvedOrders) {
+        approvedOrdersFlat.push({ model: m, po });
+      }
       recPacks += plan.totalRecommendedPacks;
       recUnits += plan.totalRecommendedUnits;
       recBudgetRub += plan.totalRecommendedBudgetRub || 0;
@@ -489,6 +673,7 @@ export function ProcurementContourView() {
     return {
       approvedCount,
       approvedRub,
+      approvedOrdersFlat,
       recPacks,
       recUnits,
       recBudgetRub,
@@ -498,6 +683,83 @@ export function ProcurementContourView() {
       factoryGroups,
     };
   }, [eligibleModels, currentScenario]);
+
+  const approverName = currentUser?.fullName || 'Владелец';
+
+  const handleApproveSkuBatches = (
+    model: ScenarioModelSpec,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation();
+    const plan = computeProcurementPlan(model, currentScenario);
+    if (plan.recommendedBatches.length === 0) return;
+
+    let nextModel = model;
+    for (const batch of plan.recommendedBatches) {
+      nextModel = approveRecommendedBatch(nextModel, batch, approverName);
+    }
+    updateModelSpec(nextModel);
+    notify(
+      'success',
+      `Утверждено ${plan.recommendedBatches.length} PO для ${model.code} (${model.title})`,
+      `Объём: ${plan.totalRecommendedPacks.toLocaleString('ru-RU')} компл. зафиксирован в общем контуре поставок.`
+    );
+  };
+
+  const handleBulkApproveBatches = (onlyUrgent: boolean) => {
+    const eligibleIds = new Set(eligibleModels.map((m) => m.id));
+    let createdPoCount = 0;
+    let affectedSkus = 0;
+
+    updateModelsBatch((prev) =>
+      prev.map((m) => {
+        if (!eligibleIds.has(m.id)) return m;
+        const plan = computeProcurementPlan(m, currentScenario);
+        const toApprove = onlyUrgent
+          ? plan.recommendedBatches.filter((b) => b.isUrgentPastOrderDate)
+          : plan.recommendedBatches;
+        if (toApprove.length === 0) return m;
+
+        let nextM = m;
+        for (const b of toApprove) {
+          nextM = approveRecommendedBatch(nextM, b, approverName);
+          createdPoCount += 1;
+        }
+        affectedSkus += 1;
+        return nextM;
+      })
+    );
+
+    if (createdPoCount > 0) {
+      notify(
+        'success',
+        onlyUrgent
+          ? `Утверждены все срочные партии: ${createdPoCount} PO (${affectedSkus} SKU)`
+          : `Утверждены все рекомендованные партии: ${createdPoCount} PO (${affectedSkus} SKU)`,
+        'Номера заказов PO, авансы 30% и график прихода синхронизированы с P&L и Сводкой.'
+      );
+    }
+  };
+
+  const handleCancelApprovedPo = (model: ScenarioModelSpec, poId: string) => {
+    const ensured = ensureModelUnifiedV11(model);
+    const shared = ensured.sharedSupplyAndFact!;
+    const removed = shared.approvedOrders.find((o) => o.id === poId);
+    if (!removed) return;
+
+    updateModelSpec({
+      ...ensured,
+      sharedSupplyAndFact: {
+        ...shared,
+        approvedOrders: shared.approvedOrders.filter((o) => o.id !== poId),
+      },
+    });
+    notify(
+      'warning',
+      `Заказ ${removed.orderNumber} снят с утверждения`,
+      `Потребность ${model.code} снова переведена в рекомендованные партии.`
+    );
+  };
 
   const openSkuPassport = (modelId: string) => {
     try {
@@ -522,7 +784,7 @@ export function ProcurementContourView() {
                 : 'text-[#52514C] hover:text-[#141413]'
             }`}
           >
-            Партии фабрик и заказы PO ({procData.factoryGroups.length})
+            Партии фабрик и заказы PO ({procData.factoryGroups.length} рек. / {procData.approvedCount} PO)
           </button>
           <button
             type="button"
@@ -555,6 +817,29 @@ export function ProcurementContourView() {
             onSelectScenario={setSelectedScenarioId}
             includeGroupPortfolioInS1={includeGroupPortfolioInS1}
             onToggleGroupPortfolio={setIncludeGroupPortfolioInS1}
+            eligibleCount={eligibleModels.length}
+            rightSlot={
+              <>
+                {procData.urgentCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkApproveBatches(true)}
+                    className="h-9 px-3.5 rounded-[9px] bg-[#FFF7ED] hover:bg-[#FFEDD5] border-[1.5px] border-[#F59E0B] text-[12px] font-bold text-[#9A3412] transition cursor-pointer"
+                  >
+                    Утвердить срочные в PO ({procData.urgentCount})
+                  </button>
+                )}
+                {procData.recPacks > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleBulkApproveBatches(false)}
+                    className="h-9 px-3.5 rounded-[9px] bg-[#141413] hover:bg-[#2A2A28] text-white text-[12px] font-semibold transition cursor-pointer"
+                  >
+                    Утвердить все партии в PO
+                  </button>
+                )}
+              </>
+            }
           />
 
           <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] overflow-hidden grid grid-cols-2 lg:grid-cols-4 divide-x-[1.5px] divide-y-[1.5px] lg:divide-y-0 divide-[#D8D7CF]">
@@ -586,7 +871,7 @@ export function ProcurementContourView() {
               <div className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#5E5D58]">
                 Утверждённые заказы PO
               </div>
-              <div className="text-[23px] font-bold text-[#141413]">
+              <div className="text-[23px] font-bold text-[#157347]">
                 {procData.approvedCount} шт.
               </div>
               <div className="text-[11.5px] text-[#5E5D58]">
@@ -601,11 +886,98 @@ export function ProcurementContourView() {
               <div className="text-[23px] font-bold text-[#141413]">
                 {procData.deficitSkuCount} SKU без PO
               </div>
-              <div className="text-[11.5px] text-[#B45309] font-semibold">
-                Срочные партии (дата прошла): {procData.urgentCount}
+              <div
+                className={`text-[11.5px] font-semibold ${
+                  procData.urgentCount > 0 ? 'text-[#B45309]' : 'text-[#157347]'
+                }`}
+              >
+                {procData.urgentCount > 0
+                  ? `Срочные партии (дата прошла): ${procData.urgentCount}`
+                  : 'Просроченных размещений нет'}
               </div>
             </div>
           </section>
+
+          {/* Реестр утверждённых PO (появляется сразу после утверждения партий) */}
+          {procData.approvedOrdersFlat.length > 0 && (
+            <section className="rounded-[18px] bg-white border-[1.5px] border-[#141413] p-5 md:p-6 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#157347]">
+                    Зафиксированные заказы PO · Общий контур поставок
+                  </div>
+                  <h2 className="text-[18px] font-bold text-[#141413] mt-0.5">
+                    Утверждённые заказы фабрикам ({procData.approvedOrdersFlat.length} PO · {formatMln(procData.approvedRub)})
+                  </h2>
+                </div>
+                <span className="text-[11.5px] text-[#5E5D58]">
+                  Утверждённые PO автоматически учитываются в Сводке и Cash Flow 2027
+                </span>
+              </div>
+
+              <div className="overflow-x-auto rounded-[12px] border-[1.5px] border-[#CECDC4]">
+                <table className="w-full text-left border-collapse text-[12px]">
+                  <thead>
+                    <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
+                      <th className="py-2.5 px-3.5 font-bold">Номер PO</th>
+                      <th className="py-2.5 px-3 font-bold">SKU / Модель</th>
+                      <th className="py-2.5 px-3 font-bold">Фабрика</th>
+                      <th className="py-2.5 px-3 font-bold">Размещение → Склад</th>
+                      <th className="py-2.5 px-3 font-bold text-right">Партия</th>
+                      <th className="py-2.5 px-3 font-bold text-right">Аванс 30%</th>
+                      <th className="py-2.5 px-3 font-bold text-right">Сумма PO</th>
+                      <th className="py-2.5 px-3 font-bold text-right">Управление</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E4E3DC]">
+                    {procData.approvedOrdersFlat.map(({ model, po }) => (
+                      <tr key={po.id} className="hover:bg-[#FAFAF7]">
+                        <td className="py-2.5 px-3.5 font-mono font-bold text-[#157347] whitespace-nowrap">
+                          {po.orderNumber}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <button
+                            type="button"
+                            onClick={() => openSkuPassport(model.id)}
+                            className="font-bold text-[#141413] hover:underline text-left cursor-pointer"
+                          >
+                            {model.title}
+                          </button>
+                          <div className="font-mono text-[10.5px] text-[#5E5D58]">
+                            {model.code}
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3 text-[#262624] font-medium">
+                          {po.factoryName}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-[#5E5D58] whitespace-nowrap">
+                          {po.orderPlacementDateIso} → {po.requiredArrivalDateIso}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-semibold text-[#141413] whitespace-nowrap">
+                          {po.packsQty.toLocaleString('ru-RU')} компл.
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-[#5E5D58] whitespace-nowrap">
+                          {po.prepaymentRub.toLocaleString('ru-RU')} ₽
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-bold text-[#141413] whitespace-nowrap">
+                          {po.totalOrderRub.toLocaleString('ru-RU')} ₽
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleCancelApprovedPo(model, po.id)}
+                            className="h-7 px-2.5 rounded-[6px] bg-white hover:bg-[#FEF2F2] border border-[#CECDC4] hover:border-[#FCA5A5] text-[11px] font-semibold text-[#5E5D58] hover:text-[#B91C1C] cursor-pointer"
+                          >
+                            Отменить
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           {/* 1. Сводные партии по фабрикам и месяцам */}
           <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 space-y-4">
@@ -614,63 +986,69 @@ export function ProcurementContourView() {
                 01 · Календарь размещения на фабриках
               </div>
               <h2 className="text-[18px] font-bold text-[#141413] mt-0.5">
-                Сводные партии по фабрикам и месяцу заказа ({procData.factoryGroups.length})
+                Сводные рекомендованные партии по фабрикам ({procData.factoryGroups.length})
               </h2>
             </div>
 
-            <div className="overflow-x-auto rounded-[12px] border-[1.5px] border-[#CECDC4]">
-              <table className="w-full text-left border-collapse text-[12.5px]">
-                <thead>
-                  <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
-                    <th className="py-2.5 px-3.5 font-bold">Месяц размещения</th>
-                    <th className="py-2.5 px-3.5 font-bold">Фабрика</th>
-                    <th className="py-2.5 px-3.5 font-bold text-right">Позиций SKU</th>
-                    <th className="py-2.5 px-3.5 font-bold text-right">Комплектов</th>
-                    <th className="py-2.5 px-3.5 font-bold text-right">Физ. изделий</th>
-                    <th className="py-2.5 px-3.5 font-bold text-right">Предоплата 30%</th>
-                    <th className="py-2.5 px-3.5 font-bold text-right">Бюджет партии</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E4E3DC]">
-                  {procData.factoryGroups.map((grp) => (
-                    <tr
-                      key={`${grp.factoryName}-${grp.orderMonthLabel}`}
-                      className="hover:bg-[#FAFAF7]"
-                    >
-                      <td className="py-2.5 px-3.5 font-mono font-bold text-[#141413]">
-                        {grp.orderMonthLabel}
-                      </td>
-                      <td className="py-2.5 px-3.5 font-semibold text-[#141413]">
-                        {grp.factoryName}
-                      </td>
-                      <td className="py-2.5 px-3.5 text-right">{grp.itemsCount}</td>
-                      <td className="py-2.5 px-3.5 text-right font-semibold">
-                        {grp.totalPacks.toLocaleString('ru-RU')} компл.
-                      </td>
-                      <td className="py-2.5 px-3.5 text-right text-[#5E5D58]">
-                        {grp.totalPhysicalUnits.toLocaleString('ru-RU')} изд.
-                      </td>
-                      <td className="py-2.5 px-3.5 text-right text-[#5E5D58]">
-                        {Math.round(grp.totalBudgetRub * 0.3).toLocaleString('ru-RU')} ₽
-                      </td>
-                      <td className="py-2.5 px-3.5 text-right font-bold text-[#141413]">
-                        {grp.totalBudgetRub.toLocaleString('ru-RU')} ₽
-                      </td>
+            {procData.factoryGroups.length === 0 ? (
+              <div className="rounded-[12px] bg-[#EAF6F0] border border-[#BBE5CE] px-4 py-4 text-[13px] font-semibold text-[#157347]">
+                Все товарные потребности выбранного сценария полностью покрыты начальным остатком и утверждёнными заказами PO.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-[12px] border-[1.5px] border-[#CECDC4]">
+                <table className="w-full text-left border-collapse text-[12.5px]">
+                  <thead>
+                    <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
+                      <th className="py-2.5 px-3.5 font-bold">Месяц размещения</th>
+                      <th className="py-2.5 px-3.5 font-bold">Фабрика</th>
+                      <th className="py-2.5 px-3.5 font-bold text-right">Позиций SKU</th>
+                      <th className="py-2.5 px-3.5 font-bold text-right">Комплектов</th>
+                      <th className="py-2.5 px-3.5 font-bold text-right">Физ. изделий</th>
+                      <th className="py-2.5 px-3.5 font-bold text-right">Предоплата 30%</th>
+                      <th className="py-2.5 px-3.5 font-bold text-right">Бюджет партии</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-[#E4E3DC]">
+                    {procData.factoryGroups.map((grp) => (
+                      <tr
+                        key={`${grp.factoryName}-${grp.orderMonthLabel}`}
+                        className="hover:bg-[#FAFAF7]"
+                      >
+                        <td className="py-2.5 px-3.5 font-mono font-bold text-[#141413]">
+                          {grp.orderMonthLabel}
+                        </td>
+                        <td className="py-2.5 px-3.5 font-semibold text-[#141413]">
+                          {grp.factoryName}
+                        </td>
+                        <td className="py-2.5 px-3.5 text-right">{grp.itemsCount}</td>
+                        <td className="py-2.5 px-3.5 text-right font-semibold">
+                          {grp.totalPacks.toLocaleString('ru-RU')} компл.
+                        </td>
+                        <td className="py-2.5 px-3.5 text-right text-[#5E5D58]">
+                          {grp.totalPhysicalUnits.toLocaleString('ru-RU')} изд.
+                        </td>
+                        <td className="py-2.5 px-3.5 text-right text-[#5E5D58]">
+                          {Math.round(grp.totalBudgetRub * 0.3).toLocaleString('ru-RU')} ₽
+                        </td>
+                        <td className="py-2.5 px-3.5 text-right font-bold text-[#141413]">
+                          {grp.totalBudgetRub.toLocaleString('ru-RU')} ₽
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
-          {/* 2. Обеспеченность каждого SKU */}
+          {/* 2. Обеспеченность каждого SKU с прямым утверждением PO */}
           <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-6 space-y-4">
             <div>
               <div className="font-mono text-[11px] font-bold uppercase tracking-[0.07em] text-[#5E5D58]">
                 02 · Детализация по артикулам
               </div>
               <h2 className="text-[18px] font-bold text-[#141413] mt-0.5">
-                Обеспеченность каждого SKU ({procData.perSku.length} мод.)
+                Обеспеченность каждого SKU и утверждение PO ({procData.perSku.length} мод.)
               </h2>
             </div>
 
@@ -685,6 +1063,7 @@ export function ProcurementContourView() {
                     <th className="py-2.5 px-3 font-bold text-right">Цикл</th>
                     <th className="py-2.5 px-3 font-bold text-right">Бюджет закупки</th>
                     <th className="py-2.5 px-3.5 font-bold">Статус обеспечения</th>
+                    <th className="py-2.5 px-3.5 font-bold text-right">Действие PO</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E4E3DC]">
@@ -694,7 +1073,7 @@ export function ProcurementContourView() {
                       <tr
                         key={model.id}
                         onClick={() => openSkuPassport(model.id)}
-                        title="Нажмите, чтобы открыть карточку SKU и утвердить заказ PO"
+                        title="Нажмите, чтобы открыть карточку SKU"
                         className="hover:bg-[#FAFAF7] cursor-pointer transition"
                       >
                         <td className="py-2.5 px-3.5">
@@ -734,6 +1113,26 @@ export function ProcurementContourView() {
                           >
                             {plan.supplyStatusLabel}
                           </span>
+                        </td>
+                        <td
+                          className="py-2.5 px-3.5 text-right whitespace-nowrap"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {plan.recommendedBatches.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={(e) => handleApproveSkuBatches(model, e)}
+                              className="h-7.5 px-3 rounded-[7px] bg-[#141413] hover:bg-[#2A2A28] text-white text-[11px] font-semibold transition cursor-pointer"
+                            >
+                              Утвердить PO ({plan.recommendedBatches.length})
+                            </button>
+                          ) : plan.approvedOrders.length > 0 ? (
+                            <span className="font-mono text-[11px] font-bold text-[#157347]">
+                              PO ×{plan.approvedOrders.length}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-[#8A8983]">Запас ок</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -899,6 +1298,7 @@ export function FinanceContourView() {
             onSelectScenario={setSelectedScenarioId}
             includeGroupPortfolioInS1={includeGroupPortfolioInS1}
             onToggleGroupPortfolio={setIncludeGroupPortfolioInS1}
+            eligibleCount={eligibleModels.length}
           />
 
           <section className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] overflow-hidden grid grid-cols-2 lg:grid-cols-4 divide-x-[1.5px] divide-y-[1.5px] lg:divide-y-0 divide-[#D8D7CF]">
@@ -969,7 +1369,9 @@ export function FinanceContourView() {
               <table className="w-full text-left border-collapse text-[12px]">
                 <thead>
                   <tr className="bg-[#F5F5F1] text-[#5E5D58] border-b-[1.5px] border-[#CECDC4]">
-                    <th className="py-2.5 px-3 font-bold min-w-[200px]">Статья потока</th>
+                    <th className="py-2.5 px-3 font-bold min-w-[205px] sticky left-0 z-10 bg-[#F5F5F1] border-r border-[#DFDED6]">
+                      Статья потока
+                    </th>
                     {MONTHS_SHORT_RU.map((m) => (
                       <th key={m} className="py-2.5 px-2 font-bold text-right">
                         {m}
@@ -979,7 +1381,7 @@ export function FinanceContourView() {
                 </thead>
                 <tbody className="divide-y divide-[#E4E3DC]">
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold text-[#141413]">
+                    <td className="py-2.5 px-3 font-semibold text-[#141413] sticky left-0 z-10 bg-white border-r border-[#ECEBE4]">
                       Поступления от продаж
                     </td>
                     {finSummary.monthlyInflow.map((v, i) => (
@@ -989,7 +1391,7 @@ export function FinanceContourView() {
                     ))}
                   </tr>
                   <tr>
-                    <td className="py-2.5 px-3 font-semibold text-[#141413]">
+                    <td className="py-2.5 px-3 font-semibold text-[#141413] sticky left-0 z-10 bg-white border-r border-[#ECEBE4]">
                       Оплаты фабрикам (30% / 70%)
                     </td>
                     {finSummary.monthlyProcOutflow.map((v, i) => (
@@ -999,7 +1401,9 @@ export function FinanceContourView() {
                     ))}
                   </tr>
                   <tr className="bg-[#FAFAF7] font-bold">
-                    <td className="py-2.5 px-3 text-[#141413]">Чистый поток месяца</td>
+                    <td className="py-2.5 px-3 text-[#141413] sticky left-0 z-10 bg-[#FAFAF7] border-r border-[#ECEBE4]">
+                      Чистый поток месяца
+                    </td>
                     {finSummary.monthlyNet.map((v, i) => (
                       <td
                         key={i}

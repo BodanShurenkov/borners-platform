@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePlatform } from '@/context/PlatformContext';
 import {
   GrowthScenarioDef,
   INITIAL_SCENARIOS,
+  ModelPriorityLevel,
   ScenarioModelSpec,
   computeModelScenarioMetrics,
 } from '@/lib/scenarioData';
@@ -18,12 +20,45 @@ import {
   applyClientSavedS1SalesPlan,
   isUnverifiedActingSku,
 } from '@/lib/scenarioS1_100M';
+import {
+  detectModelBrandPortfolioLabel,
+  groupRecommendedBatchesByFactory,
+} from '@/lib/unifiedBusinessEngine';
 import { safeGetStorageJson, safeSetStorageJson } from '@/lib/safeStorage';
 
 export const STORAGE_KEY_SCENARIOS = 'borners_tz_scenarios_v1';
 export const STORAGE_KEY_MODELS = 'borners_tz_models_v1';
+export const STORAGE_KEY_USER_PLANS_BACKUP = 'borners_user_saved_plans_v1';
 export const STORAGE_KEY_ACTIVE_SCENARIO_ID = 'borners_active_scenario_id_v1';
 export const STORAGE_KEY_S1_GROUP_PORTFOLIO = 'borners_s1_include_fukai_v1';
+
+interface UserSavedModelPlanBackup {
+  id: string;
+  code: string;
+  retailPriceRub: number;
+  unitCostRub: number;
+  priority?: ModelPriorityLevel;
+  launchStatus: ScenarioModelSpec['launchStatus'];
+  plansByScenario: ScenarioModelSpec['plansByScenario'];
+  sharedSupplyAndFact?: ScenarioModelSpec['sharedSupplyAndFact'];
+}
+
+function syncUserPlansBackup(modelsList: ScenarioModelSpec[]) {
+  const backup: Record<string, UserSavedModelPlanBackup> = {};
+  for (const m of modelsList) {
+    backup[m.id] = {
+      id: m.id,
+      code: m.code,
+      retailPriceRub: m.retailPriceRub,
+      unitCostRub: m.unitCostRub,
+      priority: m.priority,
+      launchStatus: m.launchStatus,
+      plansByScenario: m.plansByScenario,
+      sharedSupplyAndFact: m.sharedSupplyAndFact,
+    };
+  }
+  safeSetStorageJson(STORAGE_KEY_USER_PLANS_BACKUP, backup);
+}
 
 const DEFAULT_MODELS_LIST: ScenarioModelSpec[] = applyClientSavedS1SalesPlan([
   ...ACTING_2027_SCENARIO_MODELS,
@@ -33,42 +68,59 @@ const DEFAULT_MODELS_LIST: ScenarioModelSpec[] = applyClientSavedS1SalesPlan([
 export function filterModelsForScenario(
   models: ScenarioModelSpec[],
   scenario: GrowthScenarioDef,
-  includeGroupPortfolioInS1: boolean
+  includeGroupPortfolioInS1: boolean,
+  brandFilter: string = 'ALL'
 ): ScenarioModelSpec[] {
   const isActing = scenario.id === ACTING_2027_SCENARIO_ID;
   return models.filter((m) => {
     if (m.launchStatus === 'В архиве') return false;
     if (isActing) {
-      return (
+      const okActing =
         Boolean(getActingSkuByWbOrVendor(m.code, m.title)) ||
         (!['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
           m.id
         ) &&
-          Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]))
-      );
+          Boolean(m.plansByScenario[ACTING_2027_SCENARIO_ID]));
+      if (!okActing) return false;
+    } else {
+      if (
+        ['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
+          m.id
+        )
+      ) {
+        return false;
+      }
+      if (!scenario.includedBrands.includes(m.brandId)) {
+        return false;
+      }
+      if (
+        scenario.id === 1 &&
+        !includeGroupPortfolioInS1 &&
+        isUnverifiedActingSku(m.code)
+      ) {
+        return false;
+      }
     }
-    if (
-      ['scen-model-001', 'scen-model-002', 'scen-model-003', 'scen-model-004'].includes(
-        m.id
-      )
-    ) {
-      return false;
+
+    if (brandFilter && brandFilter !== 'ALL') {
+      const portfolioBrand = detectModelBrandPortfolioLabel(m);
+      if (brandFilter === 'BORNERS' && portfolioBrand !== 'BORNERS') {
+        return false;
+      }
+      if (brandFilter === 'NA_TELE' && m.brandId !== 'NA_TELE') {
+        return false;
+      }
+      if (brandFilter === 'FUKAI' && portfolioBrand !== 'FUKAI') {
+        return false;
+      }
     }
-    if (!scenario.includedBrands.includes(m.brandId)) {
-      return false;
-    }
-    if (
-      scenario.id === 1 &&
-      !includeGroupPortfolioInS1 &&
-      isUnverifiedActingSku(m.code)
-    ) {
-      return false;
-    }
+
     return true;
   });
 }
 
 export function useLiveScenarioPortfolio() {
+  const { brandFilter } = usePlatform();
   const [scenarios, setScenarios] = useState<GrowthScenarioDef[]>(INITIAL_SCENARIOS);
   const [models, setModels] = useState<ScenarioModelSpec[]>(DEFAULT_MODELS_LIST);
   const [selectedScenarioId, setSelectedScenarioIdState] = useState<number>(1);
@@ -139,6 +191,7 @@ export function useLiveScenarioPortfolio() {
     setModels((prev) => {
       const next = prev.map((m) => (m.id === updated.id ? updated : m));
       safeSetStorageJson(STORAGE_KEY_MODELS, next);
+      syncUserPlansBackup(next);
       if (typeof window !== 'undefined') {
         window.setTimeout(() => {
           window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
@@ -147,6 +200,23 @@ export function useLiveScenarioPortfolio() {
       return next;
     });
   }, []);
+
+  const updateModelsBatch = useCallback(
+    (updater: (prev: ScenarioModelSpec[]) => ScenarioModelSpec[]) => {
+      setModels((prev) => {
+        const next = updater(prev);
+        safeSetStorageJson(STORAGE_KEY_MODELS, next);
+        syncUserPlansBackup(next);
+        if (typeof window !== 'undefined') {
+          window.setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('borners-scenario-models-changed'));
+          }, 0);
+        }
+        return next;
+      });
+    },
+    []
+  );
 
   const orderedScenarios = useMemo(
     () =>
@@ -165,10 +235,31 @@ export function useLiveScenarioPortfolio() {
     [scenarios, selectedScenarioId]
   );
 
+  const scenarioAllEligibleModels = useMemo(
+    () =>
+      filterModelsForScenario(
+        models,
+        currentScenario,
+        includeGroupPortfolioInS1,
+        'ALL'
+      ),
+    [models, currentScenario, includeGroupPortfolioInS1]
+  );
+
   const eligibleModels = useMemo(
     () =>
-      filterModelsForScenario(models, currentScenario, includeGroupPortfolioInS1),
-    [models, currentScenario, includeGroupPortfolioInS1]
+      filterModelsForScenario(
+        models,
+        currentScenario,
+        includeGroupPortfolioInS1,
+        brandFilter
+      ),
+    [models, currentScenario, includeGroupPortfolioInS1, brandFilter]
+  );
+
+  const factoryGroupsCount = useMemo(
+    () => groupRecommendedBatchesByFactory(eligibleModels, currentScenario).length,
+    [eligibleModels, currentScenario]
   );
 
   const totals = useMemo(() => {
@@ -210,8 +301,11 @@ export function useLiveScenarioPortfolio() {
     setSelectedScenarioId,
     includeGroupPortfolioInS1,
     setIncludeGroupPortfolioInS1,
+    scenarioAllEligibleModels,
     eligibleModels,
+    factoryGroupsCount,
     totals,
     updateModelSpec,
+    updateModelsBatch,
   };
 }

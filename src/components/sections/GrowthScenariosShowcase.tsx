@@ -148,6 +148,8 @@ export function GrowthScenariosShowcase({
     archiveEntity,
     pushScenarioStep,
     navigateTo,
+    brandFilter,
+    setBrandFilter,
     notify,
   } = usePlatform();
 
@@ -220,14 +222,45 @@ export function GrowthScenariosShowcase({
     } catch {
       // ignore
     }
+
+    const onOpenScenarioModel = (e: Event) => {
+      const targetId = (e as CustomEvent)?.detail?.modelId;
+      if (targetId) {
+        try {
+          sessionStorage.removeItem('borners_open_scenario_model_id');
+        } catch {
+          // ignore
+        }
+        setSelectedModelId(targetId);
+        setScreen('model');
+        pushScenarioStep('model', targetId);
+      }
+    };
+    window.addEventListener('borners-open-scenario-model', onOpenScenarioModel);
+    return () =>
+      window.removeEventListener('borners-open-scenario-model', onOpenScenarioModel);
   }, [initialModelId, pushScenarioStep]);
 
-  // Фильтры каталога на Экране №1 (включая фильтр бренда FUKAI и режим портфеля ИП Нерсесянц по Стр. 6 ТЗ v1.1)
+  // Фильтры каталога на Экране №1 (синхронизированы с верхним переключателем бренда)
   const [searchQuery, setSearchQuery] = useState('');
   const [brandFilterLocal, setBrandFilterLocal] = useState<
     'ALL' | 'BORNERS' | 'FUKAI' | 'NA_TELE'
   >('ALL');
   const [statusFilterLocal, setStatusFilterLocal] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<'default' | 'dec_desc' | 'year_desc' | 'priority'>(
+    'default'
+  );
+  const [selectedChartMonthIdx, setSelectedChartMonthIdx] = useState<number>(11);
+
+  useEffect(() => {
+    if (
+      brandFilter === 'ALL' ||
+      brandFilter === 'BORNERS' ||
+      brandFilter === 'NA_TELE'
+    ) {
+      setBrandFilterLocal((prev) => (prev === brandFilter ? prev : brandFilter));
+    }
+  }, [brandFilter]);
   const [includeGroupPortfolioInS1, setIncludeGroupState] =
     useState<boolean>(false);
   const setIncludeGroupPortfolioInS1 = useCallback((nextVal: boolean) => {
@@ -716,7 +749,7 @@ export function GrowthScenariosShowcase({
   // Отфильтрованные модели для каталога на Экране №1
   const filteredModels = useMemo(() => {
     const isActingScenario = currentScenario.id === ACTING_2027_SCENARIO_ID;
-    return models.filter((m) => {
+    const list = models.filter((m) => {
       if (m.launchStatus === 'В архиве' && statusFilterLocal !== 'В архиве') {
         return false;
       }
@@ -759,15 +792,44 @@ export function GrowthScenariosShowcase({
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
+        const acting = getActingSkuByWbOrVendor(m.code, m.title);
         const match =
           m.code.toLowerCase().includes(q) ||
           m.title.toLowerCase().includes(q) ||
-          m.subtitle.toLowerCase().includes(q);
+          m.subtitle.toLowerCase().includes(q) ||
+          Boolean(acting?.wbSku.includes(q));
         if (!match) return false;
       }
       return true;
     });
-  }, [models, currentScenario, brandFilterLocal, statusFilterLocal, searchQuery]);
+
+    if (sortBy === 'dec_desc') {
+      return [...list].sort(
+        (a, b) =>
+          computeModelScenarioMetrics(b, currentScenario).targetMonthRevenueRub -
+          computeModelScenarioMetrics(a, currentScenario).targetMonthRevenueRub
+      );
+    }
+    if (sortBy === 'year_desc') {
+      return [...list].sort(
+        (a, b) =>
+          computeModelScenarioMetrics(b, currentScenario).annualRevenueRub -
+          computeModelScenarioMetrics(a, currentScenario).annualRevenueRub
+      );
+    }
+    if (sortBy === 'priority') {
+      return [...list].sort((a, b) => {
+        const wDiff =
+          PRIORITY_WEIGHTS[getModelPriority(b)] - PRIORITY_WEIGHTS[getModelPriority(a)];
+        if (wDiff !== 0) return wDiff;
+        return (
+          computeModelScenarioMetrics(b, currentScenario).targetMonthRevenueRub -
+          computeModelScenarioMetrics(a, currentScenario).targetMonthRevenueRub
+        );
+      });
+    }
+    return list;
+  }, [models, currentScenario, brandFilterLocal, statusFilterLocal, searchQuery, sortBy]);
 
   // Единая синхронизация модели сценария с основным Каталогом моделей (SKU)
   const syncScenarioModelToCatalog = useCallback(
@@ -1230,9 +1292,55 @@ export function GrowthScenariosShowcase({
     e.target.value = '';
   };
 
+  const switcherModels = useMemo(
+    () =>
+      filteredModels.length > 0
+        ? filteredModels
+        : v11ScenarioSummary.eligibleModels.length > 0
+        ? v11ScenarioSummary.eligibleModels
+        : models,
+    [filteredModels, v11ScenarioSummary.eligibleModels, models]
+  );
+
+  const activeSwitcherIdx = useMemo(
+    () => switcherModels.findIndex((m) => m.id === activeModel.id),
+    [switcherModels, activeModel.id]
+  );
+
+  useEffect(() => {
+    if (screen === 'scenarios' || switcherModels.length <= 1) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === '[') {
+        e.preventDefault();
+        const prevIdx =
+          (Math.max(0, activeSwitcherIdx) - 1 + switcherModels.length) %
+          switcherModels.length;
+        const target = switcherModels[prevIdx];
+        if (target) {
+          setSelectedModelId(target.id);
+          pushScenarioStep(screen, target.id);
+        }
+      } else if (e.key === ']') {
+        e.preventDefault();
+        const nextIdx =
+          (Math.max(0, activeSwitcherIdx) + 1) % switcherModels.length;
+        const target = switcherModels[nextIdx];
+        if (target) {
+          setSelectedModelId(target.id);
+          pushScenarioStep(screen, target.id);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [screen, switcherModels, activeSwitcherIdx, pushScenarioStep]);
+
   const conceptForPdf = concepts[0];
   const maxChartVal = Math.max(
-    currentScenario.monthlyTargetMln * 0.45,
+    currentScenario.monthlyTargetMln * 1.05,
     ...(currentAgg?.monthlyTotalMln || [20])
   );
 
@@ -1275,9 +1383,59 @@ export function GrowthScenariosShowcase({
             </button>
           </div>
 
-          <span className="text-[11.5px] font-medium text-[#5E5D58] hidden md:inline">
-            Активная модель: <strong className="text-[#141413]">{activeModel.title}</strong>
-          </span>
+          {/* Быстрый переключатель SKU (‹ Пред. · Селектор · След. ›) без возврата в сетку */}
+          {switcherModels.length > 1 && (
+            <div className="inline-flex items-center gap-1.5 rounded-[9px] bg-[#F5F5F1] border-[1.5px] border-[#CECDC4] p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  const safeIdx = activeSwitcherIdx >= 0 ? activeSwitcherIdx : 0;
+                  const prevMod =
+                    switcherModels[
+                      (safeIdx - 1 + switcherModels.length) % switcherModels.length
+                    ];
+                  if (prevMod) navigateScreen(screen, prevMod.id);
+                }}
+                title="Предыдущая модель сценария (клавиша [)"
+                className="h-7 px-2.5 rounded-[6px] bg-white hover:border-[#141413] border border-[#CECDC4] text-[11.5px] font-semibold text-[#141413] cursor-pointer"
+              >
+                ‹ Пред.
+              </button>
+              <select
+                value={activeModel.id}
+                onChange={(e) => navigateScreen(screen, e.target.value)}
+                aria-label="Быстрый выбор модели SKU"
+                className="h-7 px-2 rounded-[6px] bg-white border border-[#CECDC4] text-[12px] font-bold text-[#141413] max-w-[230px] sm:max-w-[320px] cursor-pointer"
+              >
+                {switcherModels.map((m, idx) => {
+                  const met = computeModelScenarioMetrics(m, currentScenario);
+                  const acting = getActingSkuByWbOrVendor(m.code, m.title);
+                  const codeLbl = acting ? `WB ${acting.wbSku}` : m.code;
+                  return (
+                    <option key={m.id} value={m.id}>
+                      {idx + 1}/{switcherModels.length} · {codeLbl} — {m.title} (
+                      {(met.targetMonthRevenueRub / 1_000_000)
+                        .toFixed(2)
+                        .replace('.', ',')}{' '}
+                      млн/дек)
+                    </option>
+                  );
+                })}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  const safeIdx = activeSwitcherIdx >= 0 ? activeSwitcherIdx : 0;
+                  const nextMod = switcherModels[(safeIdx + 1) % switcherModels.length];
+                  if (nextMod) navigateScreen(screen, nextMod.id);
+                }}
+                title="Следующая модель сценария (клавиша ])"
+                className="h-7 px-2.5 rounded-[6px] bg-white hover:border-[#141413] border border-[#CECDC4] text-[11.5px] font-semibold text-[#141413] cursor-pointer"
+              >
+                След. ›
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -2083,12 +2241,41 @@ export function GrowthScenariosShowcase({
                 />
 
                 <select
-                  value={brandFilterLocal}
+                  value={sortBy}
                   onChange={(e) =>
-                    setBrandFilterLocal(
-                      e.target.value as 'ALL' | 'BORNERS' | 'FUKAI' | 'NA_TELE'
+                    setSortBy(
+                      e.target.value as
+                        | 'default'
+                        | 'dec_desc'
+                        | 'year_desc'
+                        | 'priority'
                     )
                   }
+                  className="h-9 px-3 rounded-[9px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[12px] font-semibold text-[#141413] cursor-pointer"
+                >
+                  <option value="default">По порядку</option>
+                  <option value="dec_desc">Выручка дек. ↓</option>
+                  <option value="year_desc">Год 2027 ↓</option>
+                  <option value="priority">По приоритету</option>
+                </select>
+
+                <select
+                  value={brandFilterLocal}
+                  onChange={(e) => {
+                    const nextVal = e.target.value as
+                      | 'ALL'
+                      | 'BORNERS'
+                      | 'FUKAI'
+                      | 'NA_TELE';
+                    setBrandFilterLocal(nextVal);
+                    if (
+                      nextVal === 'ALL' ||
+                      nextVal === 'BORNERS' ||
+                      nextVal === 'NA_TELE'
+                    ) {
+                      setBrandFilter(nextVal);
+                    }
+                  }}
                   className="h-9 px-3 rounded-[9px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[12px] font-semibold text-[#141413] cursor-pointer"
                 >
                   <option value="ALL">Все бренды</option>
@@ -2118,6 +2305,33 @@ export function GrowthScenariosShowcase({
                 </button>
               </div>
             </div>
+
+            {brandFilterLocal === 'NA_TELE' && filteredModels.length === 0 && (
+              <div className="rounded-[12px] bg-[#F7F7F3] border-[1.5px] border-[#CECDC4] px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-[12.5px]">
+                <span className="text-[#262624] font-medium">
+                  В «{currentScenario.title}» модели <strong>НА ТЕЛЕ</strong> не включены (моно-цель BORNERS). Линейка НА ТЕЛЕ запускается в Сценарии №2 и №3.
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedScenarioId(2)}
+                    className="h-8 px-3 rounded-[8px] bg-[#141413] text-white text-[11.5px] font-semibold cursor-pointer"
+                  >
+                    Переключить на Сценарий №2 (150 млн)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBrandFilterLocal('ALL');
+                      setBrandFilter('ALL');
+                    }}
+                    className="h-8 px-3 rounded-[8px] bg-white border-[1.5px] border-[#CECDC4] hover:border-[#141413] text-[11.5px] font-semibold text-[#141413] cursor-pointer"
+                  >
+                    Показать все бренды
+                  </button>
+                </div>
+              </div>
+            )}
 
             {catalogViewMode === 'grid' ? (
               /* Витрина с разгруженными 3-уровневыми карточками SKU */
@@ -2621,64 +2835,151 @@ export function GrowthScenariosShowcase({
               </div>
             </div>
 
-            <div className="h-[190px] grid grid-cols-12 gap-2.5 items-end pt-4 border-b-[1.5px] border-[#CECDC4] px-1">
-              {MONTHS_SHORT_RU.map((mName, idx) => {
-                const bVal = currentAgg?.monthlyBornersMln[idx] || 0;
-                const nVal = currentAgg?.monthlyNaTeleMln[idx] || 0;
-                const totVal = Math.round((bVal + nVal) * 10) / 10;
-                const bHeight = Math.max(
-                  6,
-                  Math.round((bVal / maxChartVal) * 130)
-                );
-                const nHeight =
-                  nVal > 0 ? Math.max(4, Math.round((nVal / maxChartVal) * 130)) : 0;
-                const diffFromTarget =
-                  Math.round((totVal - currentScenario.monthlyTargetMln) * 10) / 10;
-
+            <div className="relative h-[196px] pt-5 border-b-[1.5px] border-[#CECDC4] px-1">
+              {/* Пунктирная линия цели декабря (визуальный ориентир 100 / 150 / 200 млн ₽) */}
+              {(() => {
+                const targetLineBottomPx =
+                  24 +
+                  Math.min(
+                    132,
+                    Math.max(8, Math.round((currentScenario.monthlyTargetMln / maxChartVal) * 130))
+                  );
                 return (
                   <div
-                    key={mName}
-                    title={`${mName} 2027 · План моделей: ${totVal.toFixed(
-                      1
-                    )} млн ₽ | Цель сценария: ${
-                      currentScenario.monthlyTargetMln
-                    } млн ₽ (${diffFromTarget >= 0 ? '+' : ''}${diffFromTarget.toFixed(
-                      1
-                    )} млн ₽)`}
-                    className="h-full flex flex-col justify-end items-center gap-1.5 group cursor-pointer"
+                    style={{ bottom: `${targetLineBottomPx}px` }}
+                    className="pointer-events-none absolute inset-x-1 border-t-[1.5px] border-dashed border-[#8E8D86]/75 z-0 flex justify-end"
                   >
-                    <div className="text-[10.5px] font-bold text-[#141413]">
-                      {totVal.toFixed(1).replace('.', ',')}
-                    </div>
-                    <div className="w-full flex flex-col justify-end items-center rounded-t-[6px] overflow-hidden">
-                      {nHeight > 0 && (
-                        <div
-                          style={{ height: `${nHeight}px` }}
-                          className="w-full bg-[#9B9A92]"
-                        />
-                      )}
-                      <div
-                        style={{ height: `${bHeight}px` }}
-                        className={`w-full transition-colors ${
-                          idx === 11
-                            ? 'bg-[#157347]'
-                            : 'bg-[#141413] group-hover:bg-[#3A3A36]'
-                        }`}
-                      />
-                    </div>
-                    <div
-                      className={`text-[10.5px] ${
-                        idx === 11
-                          ? 'font-bold text-[#141413]'
-                          : 'font-semibold text-[#5E5D58]'
-                      }`}
-                    >
-                      {mName}
-                    </div>
+                    <span className="-mt-4 px-1.5 py-0.5 rounded bg-white/90 text-[9.5px] font-mono font-bold text-[#5E5D58]">
+                      Цель: {currentScenario.monthlyTargetMln} млн
+                    </span>
                   </div>
                 );
-              })}
+              })()}
+
+              <div className="relative z-10 h-full grid grid-cols-12 gap-2.5 items-end">
+                {MONTHS_SHORT_RU.map((mName, idx) => {
+                  const bVal = currentAgg?.monthlyBornersMln[idx] || 0;
+                  const nVal = currentAgg?.monthlyNaTeleMln[idx] || 0;
+                  const totVal = Math.round((bVal + nVal) * 10) / 10;
+                  const bHeight = Math.max(
+                    6,
+                    Math.round((bVal / maxChartVal) * 130)
+                  );
+                  const nHeight =
+                    nVal > 0 ? Math.max(4, Math.round((nVal / maxChartVal) * 130)) : 0;
+                  const diffFromTarget =
+                    Math.round((totVal - currentScenario.monthlyTargetMln) * 10) / 10;
+                  const isSelMonth = selectedChartMonthIdx === idx;
+
+                  return (
+                    <button
+                      type="button"
+                      key={mName}
+                      onClick={() => setSelectedChartMonthIdx(idx)}
+                      title={`${mName} 2027 · План моделей: ${totVal.toFixed(
+                        1
+                      )} млн ₽ | Цель сценария: ${
+                        currentScenario.monthlyTargetMln
+                      } млн ₽ (${diffFromTarget >= 0 ? '+' : ''}${diffFromTarget.toFixed(
+                        1
+                      )} млн ₽)`}
+                      className="h-full flex flex-col justify-end items-center gap-1.5 group cursor-pointer focus:outline-none"
+                    >
+                      <div
+                        className={`text-[10.5px] font-bold ${
+                          isSelMonth ? 'text-[#141413] underline' : 'text-[#262624]'
+                        }`}
+                      >
+                        {totVal.toFixed(1).replace('.', ',')}
+                      </div>
+                      <div
+                        className={`w-full flex flex-col justify-end items-center rounded-t-[6px] overflow-hidden transition-all ${
+                          isSelMonth ? 'ring-2 ring-[#141413] ring-offset-1' : ''
+                        }`}
+                      >
+                        {nHeight > 0 && (
+                          <div
+                            style={{ height: `${nHeight}px` }}
+                            className="w-full bg-[#9B9A92]"
+                          />
+                        )}
+                        <div
+                          style={{ height: `${bHeight}px` }}
+                          className={`w-full transition-colors ${
+                            idx === 11
+                              ? 'bg-[#157347]'
+                              : isSelMonth
+                              ? 'bg-[#141413]'
+                              : 'bg-[#2C2C29] group-hover:bg-[#141413]'
+                          }`}
+                        />
+                      </div>
+                      <div
+                        className={`text-[10.5px] px-1.5 py-0.5 rounded-[5px] ${
+                          isSelMonth
+                            ? 'bg-[#141413] text-white font-bold'
+                            : idx === 11
+                            ? 'font-bold text-[#141413]'
+                            : 'font-semibold text-[#5E5D58]'
+                        }`}
+                      >
+                        {mName}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Интерактивная расшифровка выбранного месяца на графике */}
+            {(() => {
+              const bSel = currentAgg?.monthlyBornersMln[selectedChartMonthIdx] || 0;
+              const nSel = currentAgg?.monthlyNaTeleMln[selectedChartMonthIdx] || 0;
+              const totSel = Math.round((bSel + nSel) * 100) / 100;
+              const diffSel =
+                Math.round((totSel - currentScenario.monthlyTargetMln) * 100) / 100;
+              return (
+                <div className="rounded-[12px] bg-[#F7F7F4] border-[1.5px] border-[#DFDED6] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[#262624]">
+                    <span>
+                      Выбран месяц:{' '}
+                      <strong className="text-[#141413]">
+                        {MONTHS_SHORT_RU[selectedChartMonthIdx]} 2027
+                      </strong>
+                    </span>
+                    <span>
+                      Выручка плана:{' '}
+                      <strong className="font-mono text-[#141413]">
+                        {totSel.toFixed(2).replace('.', ',')} млн ₽
+                      </strong>
+                    </span>
+                    {nSel > 0 && (
+                      <span className="text-[#5E5D58]">
+                        BORNERS: {bSel.toFixed(1).replace('.', ',')} млн · НА ТЕЛЕ:{' '}
+                        {nSel.toFixed(1).replace('.', ',')} млн
+                      </span>
+                    )}
+                    <span
+                      className={`font-mono font-semibold ${
+                        diffSel >= 0 ? 'text-[#157347]' : 'text-[#5E5D58]'
+                      }`}
+                    >
+                      К цели декабря ({currentScenario.monthlyTargetMln} млн):{' '}
+                      {diffSel >= 0 ? '+' : ''}
+                      {diffSel.toFixed(1).replace('.', ',')} млн ₽
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => navigateTo('launch-calendar')}
+                    className="h-7.5 px-3 rounded-[7px] bg-white hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[11.5px] font-semibold text-[#141413] transition cursor-pointer"
+                  >
+                    Вся матрица 12 мес. →
+                  </button>
+                </div>
+              );
+            })()}
           </section>
         </div>
       )}
