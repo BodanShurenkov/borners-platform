@@ -5,13 +5,13 @@
 /* Monochrome-First дизайн-система в духе Peakly / Linear:
    спокойный светлый холст + 100% чисто-белые карточки + цвет только как сигнал данных */
 :root {
-  --bg-page: #F6F6F4;
+  --bg-page: #F1F1ED;
   --bg-card: #FFFFFF;
-  --bg-subtle: #F1F1EE;
-  --bg-warm-tint: #F8F8F6;
+  --bg-subtle: #EAEAE4;
+  --bg-warm-tint: #F7F7F4;
   --text-primary: #141413;
-  --text-secondary: #686762;
-  --border-color: #E5E4DF;
+  --text-secondary: #5E5D58;
+  --border-color: #CECDC4;
   --border-strong: #141413;
   --bg-dark-block: #141413;
   --brand-borners: #141413;
@@ -61,20 +61,20 @@ h2.font-serif-editorial {
   line-height: 1.22 !important;
 }
 
-/* Тонкие нейтральные линии таблиц */
+/* Чёткие структурные линии таблиц и секций */
 table thead tr {
-  border-bottom: 1px solid #E5E4DF !important;
+  border-bottom: 1.5px solid #CECDC4 !important;
 }
 
 table tbody tr + tr {
-  border-top: 1px solid #F0EFEA;
+  border-top: 1px solid #E4E3DC;
 }
 
-/* Мягкая замена любых старых 2px чёрных рамок на деликатную 1px границу */
+/* Замена старых 2px чёрных рамок на чёткую архитектурную 1.5px границу */
 .border-2.border-\[\#181715\] {
-  border-width: 1px !important;
-  border-color: #E5E4DF !important;
-  box-shadow: 0 2px 12px rgba(20, 20, 24, 0.03) !important;
+  border-width: 1.5px !important;
+  border-color: #C8C7BE !important;
+  box-shadow: 0 2px 10px rgba(20, 20, 19, 0.03) !important;
 }
 
 /* Чистый фокус: без обводки при клике мышью, чёткое кольцо при навигации с клавиатуры */

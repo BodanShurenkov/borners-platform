@@ -159,33 +159,32 @@ export function ScenarioSalesPlanScreen({
     Math.round(((plan.firstOrderPacks * model.unitCostRub) / 1_000_000) * 100) / 100;
 
   return (
-    <div className="rounded-[24px] bg-[#FAF8F4] border border-[#E6E0D4] p-5 md:p-7 space-y-6 shadow-[0_12px_36px_rgba(24,23,21,0.05)]">
-      {/* ВЕРХНЯЯ ПАНЕЛЬ ЭКРАНА №3 (Стр. 15 макета) */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#E6E0D4]">
+    <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-5 md:p-7 space-y-6 shadow-[0_2px_10px_rgba(20,20,19,0.03)]">
+      {/* ВЕРХНЯЯ ПАНЕЛЬ ЭКРАНА №3 */}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b-[1.5px] border-[#DFDED6]">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
               onClick={onBackToModel}
-              className="h-9 px-3.5 rounded-[10px] bg-white hover:bg-[#F2EFE9] border border-[#DED8CC] text-[13px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+              className="h-9 px-3.5 rounded-[9px] bg-[#F5F5F1] hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[13px] font-semibold text-[#141413] transition cursor-pointer"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Карточка модели</span>
+              ← Карточка модели
             </button>
-            <h2 className="text-[20px] md:text-[23px] font-bold tracking-[-0.02em] text-[#1D1D1F]">
+            <h2 className="text-[20px] md:text-[23px] font-bold tracking-[-0.02em] text-[#141413]">
               {model.brandId === 'NA_TELE' ? 'НА ТЕЛЕ' : 'BORNERS'} {model.code} — План продаж
             </h2>
           </div>
-          <p className="text-[12.5px] text-[#6E6E73]">
+          <p className="text-[12.5px] text-[#5E5D58]">
             {model.title} · Комплект {model.unitsInPack} шт. · Старт продаж:{' '}
             {MONTHS_SHORT_RU[plan.salesStartMonthIdx].toLowerCase()} {scenario.year} ·{' '}
-            <span className="text-[#2E6B4E] font-medium">● Автосохранение активно</span>
+            <span className="text-[#157347] font-semibold">Автосохранение активно</span>
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Переключатель Годовой план | Помесячно | Поквартально */}
-          <div className="inline-flex rounded-[11px] bg-[#EFECE4] p-1 border border-[#E2DDD2]">
+          <div className="inline-flex rounded-[9px] bg-[#EFEFE9] p-0.5 border-[1.5px] border-[#CECDC4]">
             {(
               [
                 { id: 'year', label: 'Годовой план' },

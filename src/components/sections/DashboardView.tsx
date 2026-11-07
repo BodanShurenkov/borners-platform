@@ -10,7 +10,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts';
-import { ArrowUpRight, LayoutGrid, Sparkles } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { usePlatform } from '@/context/PlatformContext';
 import { MiroBoardView } from './MiroBoardView';
 import { GrowthScenariosShowcase } from './GrowthScenariosShowcase';
@@ -207,33 +207,31 @@ export function DashboardView() {
   );
 
   return (
-    <div className="space-y-6 pb-16">
-      {/* КОМПАКТНАЯ ВЕРХНЯЯ СТРОКА РЕЖИМА БЕЗ ДУБЛИРУЮЩИХ ШАПОК И УСТАРЕВШИХ СВОДОК */}
-      <div className="rounded-[14px] bg-white border border-[#E5E4DF] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-[10px] border border-[#E5E4DF] bg-[#F3F3F0] p-0.5">
+    <div className="space-y-5 pb-16">
+      {/* КОМПАКТНАЯ СТРОКА ПЕРЕКЛЮЧЕНИЯ РЕЖИМА БЕЗ ИКОНОК И ДУБЛИРУЮЩИХ ПЛАШЕК */}
+      <div className="rounded-[14px] bg-white border-[1.5px] border-[#C8C7BE] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-[9px] border-[1.5px] border-[#CECDC4] bg-[#EFEFE9] p-0.5">
           <button
             type="button"
             onClick={() => setDashboardMode('all')}
-            className={`h-8 px-3.5 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+            className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer ${
               dashboardMode === 'all'
-                ? 'bg-white text-[#141413] shadow-2xs border border-[#E2E1DC]'
-                : 'text-[#686762] hover:text-[#141413] border border-transparent'
+                ? 'bg-[#141413] text-white shadow-2xs'
+                : 'text-[#5E5D58] hover:text-[#141413]'
             }`}
           >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            <span>Сценарии и модели 2027</span>
+            Сценарии и модели 2027
           </button>
           <button
             type="button"
             onClick={() => setDashboardMode('miro')}
-            className={`h-8 px-3.5 rounded-[8px] text-[12.5px] font-semibold transition cursor-pointer inline-flex items-center gap-1.5 ${
+            className={`h-8 px-3.5 rounded-[7px] text-[12.5px] font-semibold transition cursor-pointer ${
               dashboardMode === 'miro'
-                ? 'bg-white text-[#141413] shadow-2xs border border-[#E2E1DC]'
-                : 'text-[#686762] hover:text-[#141413] border border-transparent'
+                ? 'bg-[#141413] text-white shadow-2xs'
+                : 'text-[#5E5D58] hover:text-[#141413]'
             }`}
           >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Студия идей (Холст)</span>
+            Студия идей (Холст)
           </button>
         </div>
 
@@ -241,23 +239,21 @@ export function DashboardView() {
           <button
             type="button"
             onClick={() => navigateTo('product-lab')}
-            className="h-8 px-3 rounded-[8px] bg-[#F8F8F6] hover:bg-[#F1F1EE] border border-[#E5E4DF] text-[#262624] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
+            className="h-8 px-3 rounded-[8px] bg-[#F6F6F2] hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[#141413] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
           >
-            <span className="text-[#686762]">R&amp;D Lab (01–07):</span>
-            <strong className="text-[#141413]">{filteredConcepts.length} обр.</strong>
-            <ArrowUpRight className="h-3.5 w-3.5 text-[#8A8983]" />
+            <span className="text-[#5E5D58]">R&amp;D Lab:</span>
+            <strong className="font-bold text-[#141413]">{filteredConcepts.length} обр.</strong>
           </button>
 
           <button
             type="button"
             onClick={() => navigateTo('roadmap-tasks')}
-            className="h-8 px-3 rounded-[8px] bg-[#F8F8F6] hover:bg-[#F1F1EE] border border-[#E5E4DF] text-[#262624] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
+            className="h-8 px-3 rounded-[8px] bg-[#F6F6F2] hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[#141413] font-medium inline-flex items-center gap-1.5 cursor-pointer transition"
           >
-            <span className="text-[#686762]">Задачи и релизы:</span>
-            <strong className="text-[#141413]">
+            <span className="text-[#5E5D58]">Задачи и релизы:</span>
+            <strong className="font-bold text-[#141413]">
               {activeTasksCount} зад. · {filteredLaunches.length} рел.
             </strong>
-            <ArrowUpRight className="h-3.5 w-3.5 text-[#8A8983]" />
           </button>
         </div>
       </div>

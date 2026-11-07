@@ -565,16 +565,15 @@ export function ScenarioModelCardScreen({
         onClose={() => setLightboxOpen(false)}
       />
 
-      {/* 1. КОМПАКТНАЯ ШАПКА КАРТОЧКИ БЕЗ ДУБЛИРОВАНИЯ ЗАГОЛОВКОВ (Раздел 02 ТЗ v1.1) */}
-      <div className="rounded-[20px] bg-white border border-[#E6E0D4] px-5 py-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+      {/* 1. КОМПАКТНАЯ ШАПКА КАРТОЧКИ С ЧЁТКИМИ ГРАНИЦАМИ БЕЗ ЛИШНИХ ИКОНОК */}
+      <div className="rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] px-5 py-4 shadow-[0_2px_10px_rgba(20,20,19,0.03)] flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 min-w-0">
           <button
             type="button"
             onClick={onBackToScenarios}
-            className="h-9 px-3 rounded-[10px] bg-[#FAF8F4] hover:bg-[#EFECE4] border border-[#DED8CC] text-[12.5px] font-semibold text-[#1D1D1F] inline-flex items-center gap-1.5 transition cursor-pointer"
+            className="h-9 px-3.5 rounded-[9px] bg-[#F5F5F1] hover:border-[#141413] border-[1.5px] border-[#CECDC4] text-[12.5px] font-semibold text-[#141413] transition cursor-pointer"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Сценарии</span>
+            ← Сценарии
           </button>
 
           <div className="min-w-0">
@@ -582,13 +581,13 @@ export function ScenarioModelCardScreen({
               <span className="px-2 py-0.5 rounded-[6px] bg-[#141413] text-white font-mono text-[11px] font-semibold">
                 {model.code}
               </span>
-              <span className="px-2 py-0.5 rounded-[6px] bg-[#F3F3F0] text-[#3F3E3A] border border-[#E5E4DF] text-[11px] font-semibold">
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#F4F4F0] text-[#262624] border border-[#CECDC4] text-[11px] font-semibold">
                 {brandPortfolioLabel}
               </span>
-              <span className="px-2 py-0.5 rounded-[6px] bg-[#F3F3F0] text-[#3F3E3A] border border-[#E5E4DF] text-[11px] font-semibold">
+              <span className="px-2 py-0.5 rounded-[6px] bg-[#F4F4F0] text-[#262624] border border-[#CECDC4] text-[11px] font-semibold">
                 {model.launchStatus}
               </span>
-              <span className="text-[11px] text-[#686762]">
+              <span className="text-[11px] text-[#5E5D58]">
                 Паспорт v{shared.passportVersion} · {model.unitsInPack} изд. в комплекте
               </span>
             </div>
@@ -598,15 +597,15 @@ export function ScenarioModelCardScreen({
           </div>
         </div>
 
-        {/* Переключатель активного сценария + 3 чистые кнопки действий */}
+        {/* Переключатель активного сценария + чистые текстовые кнопки */}
         <div className="flex flex-wrap items-center gap-2">
           {allScenarios.length > 0 && onSelectScenario ? (
-            <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-[10px] bg-[#FAF8F4] border border-[#DED8CC]">
-              <span className="text-[11px] font-medium text-[#6E6E73]">Сценарий:</span>
+            <div className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[9px] bg-[#F5F5F1] border-[1.5px] border-[#CECDC4]">
+              <span className="text-[11px] font-semibold text-[#5E5D58]">Сценарий:</span>
               <select
                 value={scenario.id}
                 onChange={(e) => onSelectScenario(Number(e.target.value))}
-                className="bg-transparent text-[12px] font-semibold text-[#1D1D1F] focus:outline-none cursor-pointer"
+                className="bg-transparent text-[12px] font-bold text-[#141413] focus:outline-none cursor-pointer"
               >
                 {allScenarios.map((sc) => (
                   <option key={sc.id} value={sc.id}>
@@ -616,7 +615,7 @@ export function ScenarioModelCardScreen({
               </select>
             </div>
           ) : (
-            <span className="h-9 px-3 rounded-[10px] bg-[#FAF8F4] border border-[#DED8CC] text-[12px] font-semibold text-[#1D1D1F] inline-flex items-center">
+            <span className="h-9 px-3 rounded-[9px] bg-[#F5F5F1] border-[1.5px] border-[#CECDC4] text-[12px] font-semibold text-[#141413] inline-flex items-center">
               {scenario.title} · {scenario.monthlyTargetMln} млн ₽/мес
             </span>
           )}
@@ -624,32 +623,21 @@ export function ScenarioModelCardScreen({
           <button
             type="button"
             onClick={() => setIsEditing((v) => !v)}
-            className={`h-9 px-3.5 rounded-[10px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 border transition cursor-pointer ${
+            className={`h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold border-[1.5px] transition cursor-pointer ${
               isEditing
-                ? 'bg-[#17643A] text-white border-[#17643A]'
-                : 'bg-white hover:bg-[#FAF8F4] text-[#1D1D1F] border-[#DED8CC]'
+                ? 'bg-[#157347] text-white border-[#157347]'
+                : 'bg-white hover:border-[#141413] text-[#141413] border-[#CECDC4]'
             }`}
           >
-            {isEditing ? (
-              <>
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Сохранить</span>
-              </>
-            ) : (
-              <>
-                <Edit3 className="h-3.5 w-3.5" />
-                <span>Редактировать</span>
-              </>
-            )}
+            {isEditing ? 'Сохранить' : 'Редактировать'}
           </button>
 
           <button
             type="button"
             onClick={onOpenPdfModal}
-            className="h-9 px-3.5 rounded-[10px] bg-[#1D1D1F] hover:bg-[#323236] text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
+            className="h-9 px-3.5 rounded-[9px] bg-[#141413] hover:bg-[#2A2A28] text-white text-[12.5px] font-semibold transition cursor-pointer"
           >
-            <Printer className="h-3.5 w-3.5" />
-            <span>Экспорт ТЗ PDF</span>
+            Экспорт ТЗ PDF
           </button>
 
           <div className="relative">
@@ -657,22 +645,21 @@ export function ScenarioModelCardScreen({
               type="button"
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Дополнительные действия"
-              className="h-9 w-9 rounded-[10px] bg-white hover:bg-[#FAF8F4] border border-[#DED8CC] flex items-center justify-center text-[#1D1D1F] cursor-pointer"
+              className="h-9 w-9 rounded-[9px] bg-white hover:border-[#141413] border-[1.5px] border-[#CECDC4] flex items-center justify-center text-[#141413] cursor-pointer"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-1.5 w-56 rounded-[14px] bg-white border border-[#E6E0D4] shadow-xl py-1.5 z-30 text-[12.5px]">
+              <div className="absolute right-0 mt-1.5 w-56 rounded-[14px] bg-white border-[1.5px] border-[#141413] shadow-[0_18px_44px_rgba(20,20,19,0.16)] py-1.5 z-30 text-[12.5px]">
                 <button
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
                     onOpenSalesPlan();
                   }}
-                  className="w-full px-3.5 py-2 text-left hover:bg-[#FAF8F4] flex items-center gap-2 cursor-pointer"
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#F5F5F1] font-medium text-[#141413] cursor-pointer"
                 >
-                  <TableIcon className="h-3.5 w-3.5 text-[#6E6E73]" />
-                  <span>Матрица продаж (экран №3)</span>
+                  Матрица продаж (12 мес.)
                 </button>
                 <button
                   type="button"
@@ -680,10 +667,9 @@ export function ScenarioModelCardScreen({
                     setMenuOpen(false);
                     onDuplicateModel(model);
                   }}
-                  className="w-full px-3.5 py-2 text-left hover:bg-[#FAF8F4] flex items-center gap-2 cursor-pointer"
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#F5F5F1] font-medium text-[#141413] cursor-pointer"
                 >
-                  <Copy className="h-3.5 w-3.5 text-[#6E6E73]" />
-                  <span>Создать цветовой вариант</span>
+                  Создать цветовой вариант
                 </button>
                 <button
                   type="button"
@@ -691,10 +677,9 @@ export function ScenarioModelCardScreen({
                     setMenuOpen(false);
                     onDeleteOrArchiveModel(model);
                   }}
-                  className="w-full px-3.5 py-2 text-left hover:bg-[#FFF2F2] text-[#B42318] flex items-center gap-2 cursor-pointer"
+                  className="w-full px-3.5 py-2 text-left hover:bg-[#FFF2F2] text-[#B42318] font-medium cursor-pointer"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>Удалить / В архив</span>
+                  Удалить / В архив
                 </button>
               </div>
             )}
@@ -705,7 +690,7 @@ export function ScenarioModelCardScreen({
       {/* 2. ПЕРВЫЙ ЭКРАН: ЛЕВАЯ КОЛОНКА (ОРИГИНАЛЬНОЕ ФОТО БЕЗ ОБРЕЗКИ) + ПРАВАЯ КОЛОНКА (5 КЛЮЧЕВЫХ МЕТРИК) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* ЛЕВАЯ КОЛОНКА: Галерея оригинала без обрезки */}
-        <div className="lg:col-span-6 rounded-[22px] bg-white border border-[#E6E0D4] p-4 md:p-5 flex flex-col justify-between space-y-3.5">
+        <div className="lg:col-span-6 rounded-[18px] bg-white border-[1.5px] border-[#C8C7BE] p-4 md:p-5 flex flex-col justify-between space-y-3.5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               {(
